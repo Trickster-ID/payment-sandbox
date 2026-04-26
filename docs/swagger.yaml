@@ -1,0 +1,796 @@
+basePath: /api/v1
+definitions:
+  app_modules_auth_handlers.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  app_modules_auth_handlers.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  app_modules_sandbox_handlers.CreateInvoiceRequest:
+    properties:
+      amount:
+        type: number
+      customer_email:
+        type: string
+      customer_name:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+    required:
+    - amount
+    - customer_email
+    - customer_name
+    - due_date
+    type: object
+  app_modules_sandbox_handlers.CreatePaymentIntentRequest:
+    properties:
+      method:
+        type: string
+    required:
+    - method
+    type: object
+  app_modules_sandbox_handlers.CreateRefundRequest:
+    properties:
+      payment_intent_id:
+        type: string
+      reason:
+        type: string
+    required:
+    - payment_intent_id
+    - reason
+    type: object
+  app_modules_sandbox_handlers.CreateTopupRequest:
+    properties:
+      amount:
+        type: number
+    required:
+    - amount
+    type: object
+  app_modules_sandbox_handlers.ProcessRefundRequest:
+    properties:
+      status:
+        type: string
+    required:
+    - status
+    type: object
+  app_modules_sandbox_handlers.ReviewRefundRequest:
+    properties:
+      decision:
+        type: string
+    required:
+    - decision
+    type: object
+  app_modules_sandbox_handlers.UpdatePaymentIntentStatusRequest:
+    properties:
+      status:
+        type: string
+    required:
+    - status
+    type: object
+  app_modules_sandbox_handlers.UpdateTopupStatusRequest:
+    properties:
+      status:
+        type: string
+    required:
+    - status
+    type: object
+info:
+  contact: {}
+  description: Backend API for payment sandbox simulation.
+  title: Payment Sandbox API
+  version: "1.0"
+paths:
+  /admin/payment-intents:
+    get:
+      description: Admin lists payment intents with optional status filter
+      parameters:
+      - description: Payment status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List payment intents
+      tags:
+      - admin
+  /admin/payment-intents/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Admin updates payment intent status to SUCCESS or FAILED
+      parameters:
+      - description: Payment intent ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Payment status payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app_modules_sandbox_handlers.UpdatePaymentIntentStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update payment intent status
+      tags:
+      - admin
+  /admin/refunds:
+    get:
+      description: Admin lists refund requests with optional status filter
+      parameters:
+      - description: Refund status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List refunds
+      tags:
+      - admin
+  /admin/refunds/{id}/process:
+    patch:
+      consumes:
+      - application/json
+      description: Admin processes approved refund to SUCCESS or FAILED
+      parameters:
+      - description: Refund ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Refund process payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app_modules_sandbox_handlers.ProcessRefundRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Process approved refund
+      tags:
+      - admin
+  /admin/refunds/{id}/review:
+    patch:
+      consumes:
+      - application/json
+      description: Admin approves or rejects a refund request
+      parameters:
+      - description: Refund ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Refund review payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app_modules_sandbox_handlers.ReviewRefundRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Review refund request
+      tags:
+      - admin
+  /admin/stats:
+    get:
+      description: Admin gets aggregated dashboard statistics
+      parameters:
+      - description: Merchant ID
+        in: query
+        name: merchant_id
+        type: string
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get dashboard statistics
+      tags:
+      - admin
+  /admin/topups:
+    get:
+      description: Admin lists top-up requests
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List top-ups
+      tags:
+      - admin
+  /admin/topups/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Admin updates top-up status to SUCCESS or FAILED
+      parameters:
+      - description: Top-up ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Top-up status payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app_modules_sandbox_handlers.UpdateTopupStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update top-up status
+      tags:
+      - admin
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Login with email and password
+      parameters:
+      - description: Login payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app_modules_auth_handlers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Login user
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new merchant account
+      parameters:
+      - description: Register payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app_modules_auth_handlers.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Register merchant
+      tags:
+      - auth
+  /healthz:
+    get:
+      description: Check API health status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health check
+      tags:
+      - system
+  /merchant/invoices:
+    get:
+      description: Merchant lists invoices with optional status and pagination
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Invoice status
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List invoices
+      tags:
+      - merchant
+    post:
+      consumes:
+      - application/json
+      description: Merchant creates an invoice
+      parameters:
+      - description: Invoice payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app_modules_sandbox_handlers.CreateInvoiceRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create invoice
+      tags:
+      - merchant
+  /merchant/invoices/{id}:
+    get:
+      description: Merchant gets invoice detail by ID
+      parameters:
+      - description: Invoice ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get invoice detail
+      tags:
+      - merchant
+  /merchant/refunds:
+    post:
+      consumes:
+      - application/json
+      description: Merchant requests a refund for a successful payment intent
+      parameters:
+      - description: Refund request payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app_modules_sandbox_handlers.CreateRefundRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Request refund
+      tags:
+      - merchant
+  /merchant/topups:
+    post:
+      consumes:
+      - application/json
+      description: Merchant creates a top-up with initial PENDING status
+      parameters:
+      - description: Top-up payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app_modules_sandbox_handlers.CreateTopupRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create top-up request
+      tags:
+      - merchant
+  /merchant/wallet:
+    get:
+      description: Get merchant wallet balance
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get merchant wallet
+      tags:
+      - merchant
+  /pay/{token}:
+    get:
+      description: Public endpoint to get invoice details for payment page
+      parameters:
+      - description: Payment link token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get invoice by payment token
+      tags:
+      - public
+  /pay/{token}/intents:
+    post:
+      consumes:
+      - application/json
+      description: Public endpoint to create payment intent from invoice token
+      parameters:
+      - description: Payment link token
+        in: path
+        name: token
+        required: true
+        type: string
+      - description: Payment intent payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app_modules_sandbox_handlers.CreatePaymentIntentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create payment intent
+      tags:
+      - public
+schemes:
+- http
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
