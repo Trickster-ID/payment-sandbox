@@ -2,8 +2,7 @@ package handlers
 
 import (
 	"payment-sandbox/app/middleware"
-	refundEntity "payment-sandbox/app/modules/refund/models/entity"
-	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
+	"payment-sandbox/app/modules/refund/services"
 	appErrors "payment-sandbox/app/shared/errors"
 	"payment-sandbox/app/shared/journeylog"
 	"payment-sandbox/app/shared/response"
@@ -12,18 +11,11 @@ import (
 )
 
 type RefundHandler struct {
-	service       RefundService
-	journeyLogger journeylog.JourneyLogger
+	service       services.IRefundService
+	journeyLogger journeylog.IJourneyLogger
 }
 
-type RefundService interface {
-	RequestRefund(userID, paymentIntentID, reason string) (refundEntity.Refund, error)
-	ListRefunds(status string) []refundEntity.Refund
-	ReviewRefund(refundID, decision string) (refundEntity.Refund, error)
-	ProcessRefund(refundID, status string) (refundEntity.Refund, walletEntity.Merchant, error)
-}
-
-func NewRefundHandler(service RefundService, journeyLogger journeylog.JourneyLogger) *RefundHandler {
+func NewRefundHandler(service services.IRefundService, journeyLogger journeylog.IJourneyLogger) *RefundHandler {
 	return &RefundHandler{service: service, journeyLogger: journeyLogger}
 }
 

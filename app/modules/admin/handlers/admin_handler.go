@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	adminEntity "payment-sandbox/app/modules/admin/models/entity"
+	adminServices "payment-sandbox/app/modules/admin/services"
 	appErrors "payment-sandbox/app/shared/errors"
 	"payment-sandbox/app/shared/response"
 
@@ -9,14 +9,10 @@ import (
 )
 
 type AdminHandler struct {
-	service AdminService
+	service adminServices.IAdminService
 }
 
-type AdminService interface {
-	Stats(merchantID, startDate, endDate string) (adminEntity.DashboardStats, error)
-}
-
-func NewAdminHandler(service AdminService) *AdminHandler {
+func NewAdminHandler(service adminServices.IAdminService) *AdminHandler {
 	return &AdminHandler{service: service}
 }
 

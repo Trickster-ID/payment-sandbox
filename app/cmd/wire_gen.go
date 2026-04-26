@@ -9,23 +9,23 @@ package main
 import (
 	"payment-sandbox/app/config"
 	"payment-sandbox/app/middleware"
-	adminHandlers "payment-sandbox/app/modules/admin/handlers"
-	adminRepositories "payment-sandbox/app/modules/admin/repositories"
-	adminServices "payment-sandbox/app/modules/admin/services"
-	authHandlers "payment-sandbox/app/modules/auth/handlers"
-	authServices "payment-sandbox/app/modules/auth/services"
-	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
-	invoiceRepositories "payment-sandbox/app/modules/invoice/repositories"
-	invoiceServices "payment-sandbox/app/modules/invoice/services"
-	paymentHandlers "payment-sandbox/app/modules/payment/handlers"
-	paymentRepositories "payment-sandbox/app/modules/payment/repositories"
-	paymentServices "payment-sandbox/app/modules/payment/services"
-	refundHandlers "payment-sandbox/app/modules/refund/handlers"
-	refundRepositories "payment-sandbox/app/modules/refund/repositories"
-	refundServices "payment-sandbox/app/modules/refund/services"
-	walletHandlers "payment-sandbox/app/modules/wallet/handlers"
-	walletRepositories "payment-sandbox/app/modules/wallet/repositories"
-	walletServices "payment-sandbox/app/modules/wallet/services"
+	handlers2 "payment-sandbox/app/modules/admin/handlers"
+	"payment-sandbox/app/modules/admin/repositories"
+	services2 "payment-sandbox/app/modules/admin/services"
+	"payment-sandbox/app/modules/auth/handlers"
+	"payment-sandbox/app/modules/auth/services"
+	handlers4 "payment-sandbox/app/modules/invoice/handlers"
+	repositories3 "payment-sandbox/app/modules/invoice/repositories"
+	services4 "payment-sandbox/app/modules/invoice/services"
+	handlers5 "payment-sandbox/app/modules/payment/handlers"
+	repositories4 "payment-sandbox/app/modules/payment/repositories"
+	services5 "payment-sandbox/app/modules/payment/services"
+	handlers6 "payment-sandbox/app/modules/refund/handlers"
+	repositories5 "payment-sandbox/app/modules/refund/repositories"
+	services6 "payment-sandbox/app/modules/refund/services"
+	handlers3 "payment-sandbox/app/modules/wallet/handlers"
+	repositories2 "payment-sandbox/app/modules/wallet/repositories"
+	services3 "payment-sandbox/app/modules/wallet/services"
 	"payment-sandbox/app/shared/database"
 )
 
@@ -37,29 +37,29 @@ func initApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	sqlAuthRepository, err := provideAuthRepository(db)
+	authRepository, err := provideAuthRepository(db)
 	if err != nil {
 		return nil, err
 	}
-	journeyLogger := provideJourneyLogger(configConfig)
 	jwtService := middleware.NewJWTService(configConfig)
-	authService := authServices.NewAuthService(sqlAuthRepository, jwtService)
-	authHandler := authHandlers.NewAuthHandler(authService)
-	sqlAdminRepository := adminRepositories.NewAdminRepository(db)
-	adminService := adminServices.NewAdminService(sqlAdminRepository)
-	adminHandler := adminHandlers.NewAdminHandler(adminService)
-	sqlWalletRepository := walletRepositories.NewWalletRepository(db)
-	walletService := walletServices.NewWalletService(sqlWalletRepository)
-	walletHandler := walletHandlers.NewWalletHandler(walletService, journeyLogger)
-	sqlInvoiceRepository := invoiceRepositories.NewInvoiceRepository(db)
-	invoiceService := invoiceServices.NewInvoiceService(sqlInvoiceRepository)
-	invoiceHandler := invoiceHandlers.NewInvoiceHandler(invoiceService, journeyLogger)
-	sqlPaymentRepository := paymentRepositories.NewPaymentRepository(db)
-	paymentService := paymentServices.NewPaymentService(sqlPaymentRepository)
-	paymentHandler := paymentHandlers.NewPaymentHandler(paymentService, journeyLogger)
-	sqlRefundRepository := refundRepositories.NewRefundRepository(db)
-	refundService := refundServices.NewRefundService(sqlRefundRepository)
-	refundHandler := refundHandlers.NewRefundHandler(refundService, journeyLogger)
+	authService := services.NewAuthService(authRepository, jwtService)
+	authHandler := handlers.NewAuthHandler(authService)
+	adminRepository := repositories.NewAdminRepository(db)
+	adminService := services2.NewAdminService(adminRepository)
+	adminHandler := handlers2.NewAdminHandler(adminService)
+	walletRepository := repositories2.NewWalletRepository(db)
+	walletService := services3.NewWalletService(walletRepository)
+	iJourneyLogger := provideJourneyLogger(configConfig)
+	walletHandler := handlers3.NewWalletHandler(walletService, iJourneyLogger)
+	invoiceRepository := repositories3.NewInvoiceRepository(db)
+	invoiceService := services4.NewInvoiceService(invoiceRepository)
+	invoiceHandler := handlers4.NewInvoiceHandler(invoiceService, iJourneyLogger)
+	paymentRepository := repositories4.NewPaymentRepository(db)
+	paymentService := services5.NewPaymentService(paymentRepository)
+	paymentHandler := handlers5.NewPaymentHandler(paymentService, iJourneyLogger)
+	refundRepository := repositories5.NewRefundRepository(db)
+	refundService := services6.NewRefundService(refundRepository)
+	refundHandler := handlers6.NewRefundHandler(refundService, iJourneyLogger)
 	engine := newRouter(configConfig, authHandler, adminHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler)
 	app := newApp(configConfig, engine)
 	return app, nil

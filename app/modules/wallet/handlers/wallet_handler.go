@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"payment-sandbox/app/middleware"
-	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
+	walletServices "payment-sandbox/app/modules/wallet/services"
 	appErrors "payment-sandbox/app/shared/errors"
 	"payment-sandbox/app/shared/journeylog"
 	"payment-sandbox/app/shared/response"
@@ -11,18 +11,11 @@ import (
 )
 
 type WalletHandler struct {
-	service       WalletService
-	journeyLogger journeylog.JourneyLogger
+	service       walletServices.IWalletService
+	journeyLogger journeylog.IJourneyLogger
 }
 
-type WalletService interface {
-	WalletByUserID(userID string) (walletEntity.Merchant, error)
-	CreateTopup(userID string, amount float64) (walletEntity.Topup, error)
-	ListTopups() []walletEntity.Topup
-	UpdateTopupStatus(topupID, status string) (walletEntity.Topup, error)
-}
-
-func NewWalletHandler(service WalletService, journeyLogger journeylog.JourneyLogger) *WalletHandler {
+func NewWalletHandler(service walletServices.IWalletService, journeyLogger journeylog.IJourneyLogger) *WalletHandler {
 	return &WalletHandler{service: service, journeyLogger: journeyLogger}
 }
 

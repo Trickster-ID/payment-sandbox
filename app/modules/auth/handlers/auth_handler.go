@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"payment-sandbox/app/modules/auth/models/entity"
+	authServices "payment-sandbox/app/modules/auth/services"
 	appErrors "payment-sandbox/app/shared/errors"
 	"payment-sandbox/app/shared/response"
 
@@ -9,15 +9,10 @@ import (
 )
 
 type AuthHandler struct {
-	service AuthService
+	service authServices.IAuthService
 }
 
-type AuthService interface {
-	RegisterMerchant(name, email, password string) (entity.User, error)
-	Login(email, password string) (string, entity.User, error)
-}
-
-func NewAuthHandler(service AuthService) *AuthHandler {
+func NewAuthHandler(service authServices.IAuthService) *AuthHandler {
 	return &AuthHandler{service: service}
 }
 

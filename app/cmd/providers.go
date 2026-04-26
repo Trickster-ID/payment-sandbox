@@ -8,7 +8,7 @@ import (
 	"payment-sandbox/app/shared/journeylog"
 )
 
-func provideAuthRepository(db *sql.DB) (*authRepo.SQLAuthRepository, error) {
+func provideAuthRepository(db *sql.DB) (*authRepo.AuthRepository, error) {
 	repo := authRepo.NewAuthRepository(db)
 	if err := repo.EnsureAdminSeed(); err != nil {
 		return nil, err
@@ -16,6 +16,6 @@ func provideAuthRepository(db *sql.DB) (*authRepo.SQLAuthRepository, error) {
 	return repo, nil
 }
 
-func provideJourneyLogger(cfg config.Config) journeylog.JourneyLogger {
+func provideJourneyLogger(cfg config.Config) journeylog.IJourneyLogger {
 	return journeylog.NewMongoJourneyLogger(cfg)
 }

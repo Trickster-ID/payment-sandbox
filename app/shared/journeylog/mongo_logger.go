@@ -19,7 +19,7 @@ func (n noopLogger) Log(_ context.Context, _ Event) error {
 	return nil
 }
 
-func NewNoopJourneyLogger() JourneyLogger {
+func NewNoopJourneyLogger() IJourneyLogger {
 	return noopLogger{}
 }
 
@@ -27,7 +27,7 @@ type mongoLogger struct {
 	collection *mongo.Collection
 }
 
-func NewMongoJourneyLogger(cfg config.Config) JourneyLogger {
+func NewMongoJourneyLogger(cfg config.Config) IJourneyLogger {
 	if !cfg.MongoJourneyEnable {
 		return noopLogger{}
 	}

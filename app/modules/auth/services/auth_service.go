@@ -13,18 +13,16 @@ import (
 )
 
 type AuthService struct {
-	repo repositories.AuthRepository
+	repo repositories.IAuthRepository
 	jwt  middleware.JWTService
 }
 
-type Service interface {
+type IAuthService interface {
 	RegisterMerchant(name, email, password string) (entity.User, error)
 	Login(email, password string) (string, entity.User, error)
 }
 
-var _ Service = (*AuthService)(nil)
-
-func NewAuthService(repo repositories.AuthRepository, jwt middleware.JWTService) *AuthService {
+func NewAuthService(repo repositories.IAuthRepository, jwt middleware.JWTService) *AuthService {
 	return &AuthService{repo: repo, jwt: jwt}
 }
 

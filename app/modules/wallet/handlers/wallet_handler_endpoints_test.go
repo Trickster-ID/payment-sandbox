@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"payment-sandbox/app/middleware"
-	serviceMocks "payment-sandbox/app/modules/wallet/handlers/mocks"
 	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
+	serviceMocks "payment-sandbox/app/modules/wallet/services/mocks"
 	journeylog "payment-sandbox/app/shared/journeylog"
 	journeyMocks "payment-sandbox/app/shared/journeylog/mocks"
 
@@ -26,7 +26,7 @@ func TestWalletHandler_Wallet(t *testing.T) {
 	tests := []struct {
 		name       string
 		withUserID bool
-		setupMocks func(service *serviceMocks.MockWalletService)
+		setupMocks func(service *serviceMocks.MockIWalletService)
 		wantStatus int
 		wantCode   string
 		wantID     string
@@ -34,14 +34,14 @@ func TestWalletHandler_Wallet(t *testing.T) {
 		{
 			name:       "missing user context",
 			withUserID: false,
-			setupMocks: func(service *serviceMocks.MockWalletService) {},
+			setupMocks: func(service *serviceMocks.MockIWalletService) {},
 			wantStatus: http.StatusUnauthorized,
 			wantCode:   "auth_unauthorized",
 		},
 		{
 			name:       "wallet not found",
 			withUserID: true,
-			setupMocks: func(service *serviceMocks.MockWalletService) {
+			setupMocks: func(service *serviceMocks.MockIWalletService) {
 				service.EXPECT().WalletByUserID("user-1").Return(walletEntity.Merchant{}, errors.New("wallet not found"))
 			},
 			wantStatus: http.StatusNotFound,
@@ -50,7 +50,7 @@ func TestWalletHandler_Wallet(t *testing.T) {
 		{
 			name:       "success",
 			withUserID: true,
-			setupMocks: func(service *serviceMocks.MockWalletService) {
+			setupMocks: func(service *serviceMocks.MockIWalletService) {
 				service.EXPECT().WalletByUserID("user-1").Return(walletEntity.Merchant{ID: "merchant-1"}, nil)
 			},
 			wantStatus: http.StatusOK,
@@ -60,8 +60,8 @@ func TestWalletHandler_Wallet(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockWalletService(t)
-			logger := journeyMocks.NewMockJourneyLogger(t)
+			service := serviceMocks.NewMockIWalletService(t)
+			logger := journeyMocks.NewMockIJourneyLogger(t)
 			tc.setupMocks(service)
 
 			handler := NewWalletHandler(service, logger)
@@ -99,8 +99,8 @@ func TestWalletHandler_Wallet(t *testing.T) {
 func TestWalletHandler_ListTopups(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	service := serviceMocks.NewMockWalletService(t)
-	logger := journeyMocks.NewMockJourneyLogger(t)
+	service := serviceMocks.NewMockIWalletService(t)
+	logger := journeyMocks.NewMockIJourneyLogger(t)
 	service.EXPECT().ListTopups().Return([]walletEntity.Topup{{ID: "topup-1"}, {ID: "topup-2"}})
 
 	handler := NewWalletHandler(service, logger)
@@ -127,7 +127,7 @@ func TestWalletHandler_UpdateTopupStatus(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		setupMocks func(service *serviceMocks.MockWalletService, logger *journeyMocks.MockJourneyLogger)
+		setupMocks func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger)
 		wantStatus int
 		wantCode   string
 		wantID     string
@@ -135,7 +135,7 @@ func TestWalletHandler_UpdateTopupStatus(t *testing.T) {
 		{
 			name: "validation error",
 			body: `{"status":""}`,
-			setupMocks: func(service *serviceMocks.MockWalletService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger) {
 				service.AssertNotCalled(t, "UpdateTopupStatus")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -145,7 +145,7 @@ func TestWalletHandler_UpdateTopupStatus(t *testing.T) {
 		{
 			name: "service error and logger failure",
 			body: `{"status":"SUCCESS"}`,
-			setupMocks: func(service *serviceMocks.MockWalletService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().UpdateTopupStatus("topup-1", "SUCCESS").Return(walletEntity.Topup{}, errors.New("topup already processed"))
 				logger.EXPECT().Log(
 					mock.Anything,
@@ -160,7 +160,7 @@ func TestWalletHandler_UpdateTopupStatus(t *testing.T) {
 		{
 			name: "success and logger failure",
 			body: `{"status":"SUCCESS"}`,
-			setupMocks: func(service *serviceMocks.MockWalletService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().UpdateTopupStatus("topup-1", "SUCCESS").Return(walletEntity.Topup{ID: "topup-1"}, nil)
 				logger.EXPECT().Log(
 					mock.Anything,
@@ -176,8 +176,8 @@ func TestWalletHandler_UpdateTopupStatus(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockWalletService(t)
-			logger := journeyMocks.NewMockJourneyLogger(t)
+			service := serviceMocks.NewMockIWalletService(t)
+			logger := journeyMocks.NewMockIJourneyLogger(t)
 			tc.setupMocks(service, logger)
 
 			handler := NewWalletHandler(service, logger)

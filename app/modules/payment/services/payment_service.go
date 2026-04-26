@@ -10,19 +10,17 @@ import (
 )
 
 type PaymentService struct {
-	repo repositories.PaymentRepository
+	repo repositories.IPaymentRepository
 }
 
-type Service interface {
+type IPaymentService interface {
 	PublicInvoiceByToken(token string) (invoiceEntity.Invoice, error)
 	CreatePaymentIntent(token, method string) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error)
 	ListPaymentIntents(status string) []paymentEntity.PaymentIntent
 	UpdatePaymentIntentStatus(paymentID, status string) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error)
 }
 
-var _ Service = (*PaymentService)(nil)
-
-func NewPaymentService(repo repositories.PaymentRepository) *PaymentService {
+func NewPaymentService(repo repositories.IPaymentRepository) *PaymentService {
 	return &PaymentService{repo: repo}
 }
 

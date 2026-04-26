@@ -9,18 +9,16 @@ import (
 )
 
 type InvoiceService struct {
-	repo repositories.InvoiceRepository
+	repo repositories.IInvoiceRepository
 }
 
-type Service interface {
+type IInvoiceService interface {
 	CreateInvoice(userID, customerName, customerEmail string, amount float64, description, dueDate string) (invoiceEntity.Invoice, error)
 	ListInvoices(userID, status string, page, limit int) ([]invoiceEntity.Invoice, int, error)
 	InvoiceByID(userID, invoiceID string) (invoiceEntity.Invoice, error)
 }
 
-var _ Service = (*InvoiceService)(nil)
-
-func NewInvoiceService(repo repositories.InvoiceRepository) *InvoiceService {
+func NewInvoiceService(repo repositories.IInvoiceRepository) *InvoiceService {
 	return &InvoiceService{repo: repo}
 }
 

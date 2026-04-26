@@ -21,7 +21,7 @@ func TestAuthService_RegisterMerchant(t *testing.T) {
 	tests := []struct {
 		name       string
 		input      struct{ name, email, password string }
-		setupMocks func(repo *repoMocks.MockAuthRepository)
+		setupMocks func(repo *repoMocks.MockIAuthRepository)
 		wantID     string
 		wantErr    string
 	}{
@@ -32,7 +32,7 @@ func TestAuthService_RegisterMerchant(t *testing.T) {
 				email:    "merchant@example.com",
 				password: "password123",
 			},
-			setupMocks: func(repo *repoMocks.MockAuthRepository) {
+			setupMocks: func(repo *repoMocks.MockIAuthRepository) {
 				repo.AssertNotCalled(t, "CreateUser")
 			},
 			wantErr: "name is required",
@@ -44,7 +44,7 @@ func TestAuthService_RegisterMerchant(t *testing.T) {
 				email:    "merchant.example.com",
 				password: "password123",
 			},
-			setupMocks: func(repo *repoMocks.MockAuthRepository) {
+			setupMocks: func(repo *repoMocks.MockIAuthRepository) {
 				repo.AssertNotCalled(t, "CreateUser")
 			},
 			wantErr: "email is invalid",
@@ -56,7 +56,7 @@ func TestAuthService_RegisterMerchant(t *testing.T) {
 				email:    "merchant@example.com",
 				password: "short",
 			},
-			setupMocks: func(repo *repoMocks.MockAuthRepository) {
+			setupMocks: func(repo *repoMocks.MockIAuthRepository) {
 				repo.AssertNotCalled(t, "CreateUser")
 			},
 			wantErr: "password minimum length is 8",
@@ -68,7 +68,7 @@ func TestAuthService_RegisterMerchant(t *testing.T) {
 				email:    "merchant@example.com",
 				password: "password123",
 			},
-			setupMocks: func(repo *repoMocks.MockAuthRepository) {
+			setupMocks: func(repo *repoMocks.MockIAuthRepository) {
 				repo.EXPECT().
 					CreateUser("Merchant", "merchant@example.com", mock.AnythingOfType("string"), authEntity.RoleMerchant).
 					Return(authEntity.User{}, errors.New("email already exists"))
@@ -82,7 +82,7 @@ func TestAuthService_RegisterMerchant(t *testing.T) {
 				email:    "Merchant@Example.COM ",
 				password: "password123",
 			},
-			setupMocks: func(repo *repoMocks.MockAuthRepository) {
+			setupMocks: func(repo *repoMocks.MockIAuthRepository) {
 				repo.EXPECT().
 					CreateUser("Merchant", "merchant@example.com", mock.AnythingOfType("string"), authEntity.RoleMerchant).
 					Return(authEntity.User{ID: "user-1"}, nil)
@@ -93,7 +93,7 @@ func TestAuthService_RegisterMerchant(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := repoMocks.NewMockAuthRepository(t)
+			repo := repoMocks.NewMockIAuthRepository(t)
 			tc.setupMocks(repo)
 
 			service := NewAuthService(repo, jwtService)
@@ -121,7 +121,7 @@ func TestAuthService_Login(t *testing.T) {
 		name       string
 		email      string
 		password   string
-		setupMocks func(repo *repoMocks.MockAuthRepository)
+		setupMocks func(repo *repoMocks.MockIAuthRepository)
 		wantUserID string
 		wantToken  bool
 		wantErr    string
@@ -130,7 +130,7 @@ func TestAuthService_Login(t *testing.T) {
 			name:     "user not found",
 			email:    "merchant@example.com",
 			password: "password123",
-			setupMocks: func(repo *repoMocks.MockAuthRepository) {
+			setupMocks: func(repo *repoMocks.MockIAuthRepository) {
 				repo.EXPECT().FindUserByEmail("merchant@example.com").Return(authEntity.User{}, false)
 			},
 			wantErr: "invalid credentials",
@@ -139,7 +139,7 @@ func TestAuthService_Login(t *testing.T) {
 			name:     "invalid password",
 			email:    "merchant@example.com",
 			password: "wrong-password",
-			setupMocks: func(repo *repoMocks.MockAuthRepository) {
+			setupMocks: func(repo *repoMocks.MockIAuthRepository) {
 				repo.EXPECT().
 					FindUserByEmail("merchant@example.com").
 					Return(authEntity.User{ID: "user-1", Role: authEntity.RoleMerchant, PasswordHash: string(passwordHash)}, true)
@@ -150,7 +150,7 @@ func TestAuthService_Login(t *testing.T) {
 			name:     "success",
 			email:    " Merchant@Example.COM ",
 			password: "password123",
-			setupMocks: func(repo *repoMocks.MockAuthRepository) {
+			setupMocks: func(repo *repoMocks.MockIAuthRepository) {
 				repo.EXPECT().
 					FindUserByEmail("merchant@example.com").
 					Return(authEntity.User{ID: "user-1", Role: authEntity.RoleMerchant, PasswordHash: string(passwordHash)}, true)
@@ -162,7 +162,7 @@ func TestAuthService_Login(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := repoMocks.NewMockAuthRepository(t)
+			repo := repoMocks.NewMockIAuthRepository(t)
 			tc.setupMocks(repo)
 
 			service := NewAuthService(repo, jwtService)

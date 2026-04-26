@@ -18,7 +18,7 @@ func TestRefundService_RequestRefund(t *testing.T) {
 		userID     string
 		paymentID  string
 		reason     string
-		setupMocks func(repo *repoMocks.MockRefundRepository)
+		setupMocks func(repo *repoMocks.MockIRefundRepository)
 		wantID     string
 		wantErr    string
 	}{
@@ -27,7 +27,7 @@ func TestRefundService_RequestRefund(t *testing.T) {
 			userID:    "user-1",
 			paymentID: "pi-1",
 			reason:    " ",
-			setupMocks: func(repo *repoMocks.MockRefundRepository) {
+			setupMocks: func(repo *repoMocks.MockIRefundRepository) {
 				repo.AssertNotCalled(t, "MerchantIDByUserID")
 				repo.AssertNotCalled(t, "RequestRefund")
 			},
@@ -38,7 +38,7 @@ func TestRefundService_RequestRefund(t *testing.T) {
 			userID:    "user-1",
 			paymentID: "pi-1",
 			reason:    "duplicate payment",
-			setupMocks: func(repo *repoMocks.MockRefundRepository) {
+			setupMocks: func(repo *repoMocks.MockIRefundRepository) {
 				repo.EXPECT().MerchantIDByUserID("user-1").Return("", errors.New("merchant not found"))
 			},
 			wantErr: "merchant not found",
@@ -48,7 +48,7 @@ func TestRefundService_RequestRefund(t *testing.T) {
 			userID:    "user-1",
 			paymentID: "pi-1",
 			reason:    "duplicate payment",
-			setupMocks: func(repo *repoMocks.MockRefundRepository) {
+			setupMocks: func(repo *repoMocks.MockIRefundRepository) {
 				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
 				repo.EXPECT().
 					RequestRefund("merchant-1", "pi-1", "duplicate payment").
@@ -60,7 +60,7 @@ func TestRefundService_RequestRefund(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := repoMocks.NewMockRefundRepository(t)
+			repo := repoMocks.NewMockIRefundRepository(t)
 			tc.setupMocks(repo)
 			service := NewRefundService(repo)
 
@@ -84,7 +84,7 @@ func TestRefundService_ReviewRefund(t *testing.T) {
 		name       string
 		refundID   string
 		decision   string
-		setupMocks func(repo *repoMocks.MockRefundRepository)
+		setupMocks func(repo *repoMocks.MockIRefundRepository)
 		wantID     string
 		wantErr    string
 	}{
@@ -92,7 +92,7 @@ func TestRefundService_ReviewRefund(t *testing.T) {
 			name:     "approve review",
 			refundID: "refund-1",
 			decision: "APPROVE",
-			setupMocks: func(repo *repoMocks.MockRefundRepository) {
+			setupMocks: func(repo *repoMocks.MockIRefundRepository) {
 				repo.EXPECT().ReviewRefund("refund-1", true).Return(refundEntity.Refund{ID: "refund-1"}, nil)
 			},
 			wantID: "refund-1",
@@ -101,7 +101,7 @@ func TestRefundService_ReviewRefund(t *testing.T) {
 			name:     "reject review",
 			refundID: "refund-1",
 			decision: "REJECT",
-			setupMocks: func(repo *repoMocks.MockRefundRepository) {
+			setupMocks: func(repo *repoMocks.MockIRefundRepository) {
 				repo.EXPECT().ReviewRefund("refund-1", false).Return(refundEntity.Refund{ID: "refund-1"}, nil)
 			},
 			wantID: "refund-1",
@@ -110,7 +110,7 @@ func TestRefundService_ReviewRefund(t *testing.T) {
 			name:     "invalid decision",
 			refundID: "refund-1",
 			decision: "WAIT",
-			setupMocks: func(repo *repoMocks.MockRefundRepository) {
+			setupMocks: func(repo *repoMocks.MockIRefundRepository) {
 				repo.AssertNotCalled(t, "ReviewRefund")
 			},
 			wantErr: "decision must be APPROVE or REJECT",
@@ -119,7 +119,7 @@ func TestRefundService_ReviewRefund(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := repoMocks.NewMockRefundRepository(t)
+			repo := repoMocks.NewMockIRefundRepository(t)
 			tc.setupMocks(repo)
 			service := NewRefundService(repo)
 
@@ -143,7 +143,7 @@ func TestRefundService_ProcessRefund(t *testing.T) {
 		name       string
 		refundID   string
 		status     string
-		setupMocks func(repo *repoMocks.MockRefundRepository)
+		setupMocks func(repo *repoMocks.MockIRefundRepository)
 		wantID     string
 		wantErr    string
 	}{
@@ -151,7 +151,7 @@ func TestRefundService_ProcessRefund(t *testing.T) {
 			name:     "invalid status",
 			refundID: "refund-1",
 			status:   "UNKNOWN",
-			setupMocks: func(repo *repoMocks.MockRefundRepository) {
+			setupMocks: func(repo *repoMocks.MockIRefundRepository) {
 				repo.AssertNotCalled(t, "ProcessRefund")
 			},
 			wantErr: "invalid refund status",
@@ -160,7 +160,7 @@ func TestRefundService_ProcessRefund(t *testing.T) {
 			name:     "success status mapping",
 			refundID: "refund-1",
 			status:   "success",
-			setupMocks: func(repo *repoMocks.MockRefundRepository) {
+			setupMocks: func(repo *repoMocks.MockIRefundRepository) {
 				repo.EXPECT().
 					ProcessRefund("refund-1", refundEntity.RefundSuccess).
 					Return(
@@ -175,7 +175,7 @@ func TestRefundService_ProcessRefund(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := repoMocks.NewMockRefundRepository(t)
+			repo := repoMocks.NewMockIRefundRepository(t)
 			tc.setupMocks(repo)
 			service := NewRefundService(repo)
 

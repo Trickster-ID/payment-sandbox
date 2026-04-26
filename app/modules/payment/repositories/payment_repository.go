@@ -8,22 +8,22 @@ import (
 	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
 )
 
-type PaymentRepository interface {
+type IPaymentRepository interface {
 	GetInvoiceByToken(token string) (invoiceEntity.Invoice, bool)
 	CreatePaymentIntent(invoiceToken string, method paymentEntity.PaymentMethod) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error)
 	ListPaymentIntents(status string) []paymentEntity.PaymentIntent
 	UpdatePaymentStatus(paymentID string, nextStatus paymentEntity.PaymentStatus) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error)
 }
 
-type SQLPaymentRepository struct {
+type PaymentRepository struct {
 	db *sql.DB
 }
 
-func NewPaymentRepository(db *sql.DB) *SQLPaymentRepository {
-	return &SQLPaymentRepository{db: db}
+func NewPaymentRepository(db *sql.DB) *PaymentRepository {
+	return &PaymentRepository{db: db}
 }
 
-func (r *SQLPaymentRepository) GetInvoiceByToken(token string) (invoiceEntity.Invoice, bool) {
+func (r *PaymentRepository) GetInvoiceByToken(token string) (invoiceEntity.Invoice, bool) {
 	r.expireDueInvoices()
 	var invoice invoiceEntity.Invoice
 	err := r.db.QueryRow(`
@@ -39,7 +39,7 @@ func (r *SQLPaymentRepository) GetInvoiceByToken(token string) (invoiceEntity.In
 	return invoice, true
 }
 
-func (r *SQLPaymentRepository) CreatePaymentIntent(invoiceToken string, method paymentEntity.PaymentMethod) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error) {
+func (r *PaymentRepository) CreatePaymentIntent(invoiceToken string, method paymentEntity.PaymentMethod) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error) {
 	r.expireDueInvoices()
 	tx, err := r.db.Begin()
 	if err != nil {
@@ -77,7 +77,7 @@ func (r *SQLPaymentRepository) CreatePaymentIntent(invoiceToken string, method p
 	return intent, invoice, nil
 }
 
-func (r *SQLPaymentRepository) ListPaymentIntents(status string) []paymentEntity.PaymentIntent {
+func (r *PaymentRepository) ListPaymentIntents(status string) []paymentEntity.PaymentIntent {
 	base := `
 		SELECT id::text, invoice_id::text, method::text, status::text, created_at, updated_at
 		FROM payment_intents
@@ -106,7 +106,7 @@ func (r *SQLPaymentRepository) ListPaymentIntents(status string) []paymentEntity
 	return items
 }
 
-func (r *SQLPaymentRepository) UpdatePaymentStatus(paymentID string, nextStatus paymentEntity.PaymentStatus) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error) {
+func (r *PaymentRepository) UpdatePaymentStatus(paymentID string, nextStatus paymentEntity.PaymentStatus) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error) {
 	tx, err := r.db.Begin()
 	if err != nil {
 		return paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, err
@@ -161,7 +161,7 @@ func (r *SQLPaymentRepository) UpdatePaymentStatus(paymentID string, nextStatus 
 	return intent, invoice, nil
 }
 
-func (r *SQLPaymentRepository) expireDueInvoices() {
+func (r *PaymentRepository) expireDueInvoices() {
 	_, _ = r.db.Exec(`
 		UPDATE invoices
 		SET status='EXPIRED'
@@ -171,7 +171,7 @@ func (r *SQLPaymentRepository) expireDueInvoices() {
 	`)
 }
 
-func (r *SQLPaymentRepository) getInvoiceByID(id string) (invoiceEntity.Invoice, bool) {
+func (r *PaymentRepository) getInvoiceByID(id string) (invoiceEntity.Invoice, bool) {
 	var invoice invoiceEntity.Invoice
 	err := r.db.QueryRow(`
 		SELECT id::text, merchant_id::text, invoice_number, customer_name, customer_email,
@@ -186,7 +186,7 @@ func (r *SQLPaymentRepository) getInvoiceByID(id string) (invoiceEntity.Invoice,
 	return invoice, true
 }
 
-func (r *SQLPaymentRepository) getPaymentIntentByID(id string) (paymentEntity.PaymentIntent, bool) {
+func (r *PaymentRepository) getPaymentIntentByID(id string) (paymentEntity.PaymentIntent, bool) {
 	var intent paymentEntity.PaymentIntent
 	err := r.db.QueryRow(`
 		SELECT id::text, invoice_id::text, method::text, status::text, created_at, updated_at

@@ -10,8 +10,8 @@ import (
 
 	"payment-sandbox/app/middleware"
 	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
-	serviceMocks "payment-sandbox/app/modules/payment/handlers/mocks"
 	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
+	serviceMocks "payment-sandbox/app/modules/payment/services/mocks"
 	journeylog "payment-sandbox/app/shared/journeylog"
 	journeyMocks "payment-sandbox/app/shared/journeylog/mocks"
 
@@ -26,14 +26,14 @@ func TestPaymentHandler_PublicInvoice(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		setupMocks func(service *serviceMocks.MockPaymentService)
+		setupMocks func(service *serviceMocks.MockIPaymentService)
 		wantStatus int
 		wantCode   string
 		wantID     string
 	}{
 		{
 			name: "invoice not found",
-			setupMocks: func(service *serviceMocks.MockPaymentService) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService) {
 				service.EXPECT().PublicInvoiceByToken("token-1").Return(invoiceEntity.Invoice{}, errors.New("invoice not found"))
 			},
 			wantStatus: http.StatusNotFound,
@@ -41,7 +41,7 @@ func TestPaymentHandler_PublicInvoice(t *testing.T) {
 		},
 		{
 			name: "success",
-			setupMocks: func(service *serviceMocks.MockPaymentService) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService) {
 				service.EXPECT().PublicInvoiceByToken("token-1").Return(invoiceEntity.Invoice{ID: "inv-1"}, nil)
 			},
 			wantStatus: http.StatusOK,
@@ -51,8 +51,8 @@ func TestPaymentHandler_PublicInvoice(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockPaymentService(t)
-			logger := journeyMocks.NewMockJourneyLogger(t)
+			service := serviceMocks.NewMockIPaymentService(t)
+			logger := journeyMocks.NewMockIJourneyLogger(t)
 			tc.setupMocks(service)
 
 			handler := NewPaymentHandler(service, logger)
@@ -85,8 +85,8 @@ func TestPaymentHandler_PublicInvoice(t *testing.T) {
 func TestPaymentHandler_ListPaymentIntents(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	service := serviceMocks.NewMockPaymentService(t)
-	logger := journeyMocks.NewMockJourneyLogger(t)
+	service := serviceMocks.NewMockIPaymentService(t)
+	logger := journeyMocks.NewMockIJourneyLogger(t)
 	service.EXPECT().ListPaymentIntents("SUCCESS").Return([]paymentEntity.PaymentIntent{{ID: "pi-1"}})
 
 	handler := NewPaymentHandler(service, logger)
@@ -112,7 +112,7 @@ func TestPaymentHandler_UpdatePaymentIntentStatus(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		setupMocks func(service *serviceMocks.MockPaymentService, logger *journeyMocks.MockJourneyLogger)
+		setupMocks func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger)
 		wantStatus int
 		wantCode   string
 		wantID     string
@@ -120,7 +120,7 @@ func TestPaymentHandler_UpdatePaymentIntentStatus(t *testing.T) {
 		{
 			name: "validation error",
 			body: `{"status":""}`,
-			setupMocks: func(service *serviceMocks.MockPaymentService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
 				service.AssertNotCalled(t, "UpdatePaymentIntentStatus")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -130,7 +130,7 @@ func TestPaymentHandler_UpdatePaymentIntentStatus(t *testing.T) {
 		{
 			name: "service error and logger failure",
 			body: `{"status":"FAILED"}`,
-			setupMocks: func(service *serviceMocks.MockPaymentService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
 					UpdatePaymentIntentStatus("pi-1", "FAILED").
 					Return(paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, errors.New("invalid transition"))
@@ -147,7 +147,7 @@ func TestPaymentHandler_UpdatePaymentIntentStatus(t *testing.T) {
 		{
 			name: "success and logger failure",
 			body: `{"status":"FAILED"}`,
-			setupMocks: func(service *serviceMocks.MockPaymentService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
 					UpdatePaymentIntentStatus("pi-1", "FAILED").
 					Return(paymentEntity.PaymentIntent{ID: "pi-1", Status: paymentEntity.PaymentFailed}, invoiceEntity.Invoice{ID: "inv-1"}, nil)
@@ -165,8 +165,8 @@ func TestPaymentHandler_UpdatePaymentIntentStatus(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockPaymentService(t)
-			logger := journeyMocks.NewMockJourneyLogger(t)
+			service := serviceMocks.NewMockIPaymentService(t)
+			logger := journeyMocks.NewMockIJourneyLogger(t)
 			tc.setupMocks(service, logger)
 
 			handler := NewPaymentHandler(service, logger)

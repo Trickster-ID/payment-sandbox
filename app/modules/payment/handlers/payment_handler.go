@@ -1,8 +1,7 @@
 package handlers
 
 import (
-	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
-	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
+	paymentServices "payment-sandbox/app/modules/payment/services"
 	appErrors "payment-sandbox/app/shared/errors"
 	"payment-sandbox/app/shared/journeylog"
 	"payment-sandbox/app/shared/response"
@@ -11,18 +10,11 @@ import (
 )
 
 type PaymentHandler struct {
-	service       PaymentService
-	journeyLogger journeylog.JourneyLogger
+	service       paymentServices.IPaymentService
+	journeyLogger journeylog.IJourneyLogger
 }
 
-type PaymentService interface {
-	PublicInvoiceByToken(token string) (invoiceEntity.Invoice, error)
-	CreatePaymentIntent(token, method string) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error)
-	ListPaymentIntents(status string) []paymentEntity.PaymentIntent
-	UpdatePaymentIntentStatus(paymentID, status string) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error)
-}
-
-func NewPaymentHandler(service PaymentService, journeyLogger journeylog.JourneyLogger) *PaymentHandler {
+func NewPaymentHandler(service paymentServices.IPaymentService, journeyLogger journeylog.IJourneyLogger) *PaymentHandler {
 	return &PaymentHandler{service: service, journeyLogger: journeyLogger}
 }
 

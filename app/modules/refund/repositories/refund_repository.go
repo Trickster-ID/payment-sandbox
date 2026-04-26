@@ -10,7 +10,7 @@ import (
 	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
 )
 
-type RefundRepository interface {
+type IRefundRepository interface {
 	MerchantIDByUserID(userID string) (string, error)
 	RequestRefund(merchantID, paymentIntentID, reason string) (refundEntity.Refund, error)
 	ListRefunds(status string) []refundEntity.Refund
@@ -18,15 +18,15 @@ type RefundRepository interface {
 	ProcessRefund(refundID string, nextStatus refundEntity.RefundStatus) (refundEntity.Refund, walletEntity.Merchant, error)
 }
 
-type SQLRefundRepository struct {
+type RefundRepository struct {
 	db *sql.DB
 }
 
-func NewRefundRepository(db *sql.DB) *SQLRefundRepository {
-	return &SQLRefundRepository{db: db}
+func NewRefundRepository(db *sql.DB) *RefundRepository {
+	return &RefundRepository{db: db}
 }
 
-func (r *SQLRefundRepository) MerchantIDByUserID(userID string) (string, error) {
+func (r *RefundRepository) MerchantIDByUserID(userID string) (string, error) {
 	merchant, found := r.getMerchantByUserID(userID)
 	if !found {
 		return "", errors.New("merchant not found")
@@ -34,7 +34,7 @@ func (r *SQLRefundRepository) MerchantIDByUserID(userID string) (string, error) 
 	return merchant.ID, nil
 }
 
-func (r *SQLRefundRepository) RequestRefund(merchantID, paymentIntentID, reason string) (refundEntity.Refund, error) {
+func (r *RefundRepository) RequestRefund(merchantID, paymentIntentID, reason string) (refundEntity.Refund, error) {
 	tx, err := r.db.Begin()
 	if err != nil {
 		return refundEntity.Refund{}, err
@@ -79,7 +79,7 @@ func (r *SQLRefundRepository) RequestRefund(merchantID, paymentIntentID, reason 
 	return refund, nil
 }
 
-func (r *SQLRefundRepository) ListRefunds(status string) []refundEntity.Refund {
+func (r *RefundRepository) ListRefunds(status string) []refundEntity.Refund {
 	base := `
 		SELECT r.id::text, r.payment_intent_id::text, inv.merchant_id::text, r.reason, r.status::text,
 			inv.amount::double precision, r.created_at, r.updated_at
@@ -111,7 +111,7 @@ func (r *SQLRefundRepository) ListRefunds(status string) []refundEntity.Refund {
 	return items
 }
 
-func (r *SQLRefundRepository) ReviewRefund(refundID string, approved bool) (refundEntity.Refund, error) {
+func (r *RefundRepository) ReviewRefund(refundID string, approved bool) (refundEntity.Refund, error) {
 	nextStatus := refundEntity.RefundRejected
 	if approved {
 		nextStatus = refundEntity.RefundApproved
@@ -137,7 +137,7 @@ func (r *SQLRefundRepository) ReviewRefund(refundID string, approved bool) (refu
 	return refund, nil
 }
 
-func (r *SQLRefundRepository) ProcessRefund(refundID string, nextStatus refundEntity.RefundStatus) (refundEntity.Refund, walletEntity.Merchant, error) {
+func (r *RefundRepository) ProcessRefund(refundID string, nextStatus refundEntity.RefundStatus) (refundEntity.Refund, walletEntity.Merchant, error) {
 	tx, err := r.db.Begin()
 	if err != nil {
 		return refundEntity.Refund{}, walletEntity.Merchant{}, err
@@ -190,7 +190,7 @@ func (r *SQLRefundRepository) ProcessRefund(refundID string, nextStatus refundEn
 	return refund, merchant, nil
 }
 
-func (r *SQLRefundRepository) getMerchantByUserID(userID string) (walletEntity.Merchant, bool) {
+func (r *RefundRepository) getMerchantByUserID(userID string) (walletEntity.Merchant, bool) {
 	var merchant walletEntity.Merchant
 	err := r.db.QueryRow(`
 		SELECT id::text, user_id::text, balance::double precision, created_at, updated_at
@@ -204,7 +204,7 @@ func (r *SQLRefundRepository) getMerchantByUserID(userID string) (walletEntity.M
 	return merchant, true
 }
 
-func (r *SQLRefundRepository) getRefundByID(id string) (refundEntity.Refund, bool) {
+func (r *RefundRepository) getRefundByID(id string) (refundEntity.Refund, bool) {
 	var refund refundEntity.Refund
 	err := r.db.QueryRow(`
 		SELECT r.id::text, r.payment_intent_id::text, inv.merchant_id::text, r.reason, r.status::text,

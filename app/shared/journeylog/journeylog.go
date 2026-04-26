@@ -24,6 +24,6 @@ type Event struct {
 	Metadata     map[string]any `bson:"metadata,omitempty"`
 }
 
-type JourneyLogger interface {
+type IJourneyLogger interface {
 	Log(ctx context.Context, event Event) error
 }

@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"payment-sandbox/app/middleware"
-	serviceMocks "payment-sandbox/app/modules/refund/handlers/mocks"
 	refundEntity "payment-sandbox/app/modules/refund/models/entity"
+	serviceMocks "payment-sandbox/app/modules/refund/services/mocks"
 	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
 	journeylog "payment-sandbox/app/shared/journeylog"
 	journeyMocks "payment-sandbox/app/shared/journeylog/mocks"
@@ -28,7 +28,7 @@ func TestRefundHandler_RequestRefund(t *testing.T) {
 		name       string
 		withUserID bool
 		body       string
-		setupMocks func(service *serviceMocks.MockRefundService, logger *journeyMocks.MockJourneyLogger)
+		setupMocks func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger)
 		wantStatus int
 		wantCode   string
 		wantID     string
@@ -37,7 +37,7 @@ func TestRefundHandler_RequestRefund(t *testing.T) {
 			name:       "missing user context",
 			withUserID: false,
 			body:       `{"payment_intent_id":"pi-1","reason":"duplicate payment"}`,
-			setupMocks: func(service *serviceMocks.MockRefundService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.AssertNotCalled(t, "RequestRefund")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -48,7 +48,7 @@ func TestRefundHandler_RequestRefund(t *testing.T) {
 			name:       "validation error",
 			withUserID: true,
 			body:       `{"payment_intent_id":"","reason":""}`,
-			setupMocks: func(service *serviceMocks.MockRefundService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.AssertNotCalled(t, "RequestRefund")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -59,7 +59,7 @@ func TestRefundHandler_RequestRefund(t *testing.T) {
 			name:       "service error and logger failure",
 			withUserID: true,
 			body:       `{"payment_intent_id":"pi-1","reason":"duplicate payment"}`,
-			setupMocks: func(service *serviceMocks.MockRefundService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
 					RequestRefund("user-1", "pi-1", "duplicate payment").
 					Return(refundEntity.Refund{}, errors.New("refund can be requested for successful payment only"))
@@ -83,7 +83,7 @@ func TestRefundHandler_RequestRefund(t *testing.T) {
 			name:       "success and logger failure",
 			withUserID: true,
 			body:       `{"payment_intent_id":"pi-1","reason":"duplicate payment"}`,
-			setupMocks: func(service *serviceMocks.MockRefundService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
 					RequestRefund("user-1", "pi-1", "duplicate payment").
 					Return(refundEntity.Refund{
@@ -111,8 +111,8 @@ func TestRefundHandler_RequestRefund(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockRefundService(t)
-			logger := journeyMocks.NewMockJourneyLogger(t)
+			service := serviceMocks.NewMockIRefundService(t)
+			logger := journeyMocks.NewMockIJourneyLogger(t)
 			tc.setupMocks(service, logger)
 
 			handler := NewRefundHandler(service, logger)
@@ -157,7 +157,7 @@ func TestRefundHandler_ProcessRefund(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		setupMocks func(service *serviceMocks.MockRefundService, logger *journeyMocks.MockJourneyLogger)
+		setupMocks func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger)
 		wantStatus int
 		wantCode   string
 		wantID     string
@@ -165,7 +165,7 @@ func TestRefundHandler_ProcessRefund(t *testing.T) {
 		{
 			name: "validation error",
 			body: `{"status":""}`,
-			setupMocks: func(service *serviceMocks.MockRefundService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.AssertNotCalled(t, "ProcessRefund")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -175,7 +175,7 @@ func TestRefundHandler_ProcessRefund(t *testing.T) {
 		{
 			name: "service error and logger failure",
 			body: `{"status":"SUCCESS"}`,
-			setupMocks: func(service *serviceMocks.MockRefundService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
 					ProcessRefund("refund-1", "SUCCESS").
 					Return(refundEntity.Refund{}, walletEntity.Merchant{}, errors.New("refund must be approved before processing"))
@@ -198,7 +198,7 @@ func TestRefundHandler_ProcessRefund(t *testing.T) {
 		{
 			name: "success and logger failure",
 			body: `{"status":"SUCCESS"}`,
-			setupMocks: func(service *serviceMocks.MockRefundService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
 					ProcessRefund("refund-1", "SUCCESS").
 					Return(
@@ -226,8 +226,8 @@ func TestRefundHandler_ProcessRefund(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockRefundService(t)
-			logger := journeyMocks.NewMockJourneyLogger(t)
+			service := serviceMocks.NewMockIRefundService(t)
+			logger := journeyMocks.NewMockIJourneyLogger(t)
 			tc.setupMocks(service, logger)
 
 			handler := NewRefundHandler(service, logger)

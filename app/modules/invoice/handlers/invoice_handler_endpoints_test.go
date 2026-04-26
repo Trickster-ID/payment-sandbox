@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"payment-sandbox/app/middleware"
-	serviceMocks "payment-sandbox/app/modules/invoice/handlers/mocks"
 	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
+	serviceMocks "payment-sandbox/app/modules/invoice/services/mocks"
 	journeyMocks "payment-sandbox/app/shared/journeylog/mocks"
 
 	"github.com/gin-gonic/gin"
@@ -24,7 +24,7 @@ func TestInvoiceHandler_ListInvoices(t *testing.T) {
 		name       string
 		withUserID bool
 		query      string
-		setupMocks func(service *serviceMocks.MockInvoiceService)
+		setupMocks func(service *serviceMocks.MockIInvoiceService)
 		wantStatus int
 		wantCode   string
 		wantTotal  float64
@@ -33,7 +33,7 @@ func TestInvoiceHandler_ListInvoices(t *testing.T) {
 			name:       "missing user context",
 			withUserID: false,
 			query:      "status=PENDING&page=2&limit=20",
-			setupMocks: func(service *serviceMocks.MockInvoiceService) {},
+			setupMocks: func(service *serviceMocks.MockIInvoiceService) {},
 			wantStatus: http.StatusUnauthorized,
 			wantCode:   "auth_unauthorized",
 		},
@@ -41,7 +41,7 @@ func TestInvoiceHandler_ListInvoices(t *testing.T) {
 			name:       "service error",
 			withUserID: true,
 			query:      "status=PENDING&page=2&limit=20",
-			setupMocks: func(service *serviceMocks.MockInvoiceService) {
+			setupMocks: func(service *serviceMocks.MockIInvoiceService) {
 				service.EXPECT().ListInvoices("user-1", "PENDING", 2, 20).Return(nil, 0, errors.New("query failed"))
 			},
 			wantStatus: http.StatusBadRequest,
@@ -51,7 +51,7 @@ func TestInvoiceHandler_ListInvoices(t *testing.T) {
 			name:       "success with meta",
 			withUserID: true,
 			query:      "status=PENDING&page=2&limit=20",
-			setupMocks: func(service *serviceMocks.MockInvoiceService) {
+			setupMocks: func(service *serviceMocks.MockIInvoiceService) {
 				service.EXPECT().ListInvoices("user-1", "PENDING", 2, 20).Return([]invoiceEntity.Invoice{{ID: "inv-1"}}, 42, nil)
 			},
 			wantStatus: http.StatusOK,
@@ -61,8 +61,8 @@ func TestInvoiceHandler_ListInvoices(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockInvoiceService(t)
-			logger := journeyMocks.NewMockJourneyLogger(t)
+			service := serviceMocks.NewMockIInvoiceService(t)
+			logger := journeyMocks.NewMockIJourneyLogger(t)
 			tc.setupMocks(service)
 
 			handler := NewInvoiceHandler(service, logger)
@@ -103,7 +103,7 @@ func TestInvoiceHandler_GetInvoice(t *testing.T) {
 	tests := []struct {
 		name       string
 		withUserID bool
-		setupMocks func(service *serviceMocks.MockInvoiceService)
+		setupMocks func(service *serviceMocks.MockIInvoiceService)
 		wantStatus int
 		wantCode   string
 		wantID     string
@@ -111,14 +111,14 @@ func TestInvoiceHandler_GetInvoice(t *testing.T) {
 		{
 			name:       "missing user context",
 			withUserID: false,
-			setupMocks: func(service *serviceMocks.MockInvoiceService) {},
+			setupMocks: func(service *serviceMocks.MockIInvoiceService) {},
 			wantStatus: http.StatusUnauthorized,
 			wantCode:   "auth_unauthorized",
 		},
 		{
 			name:       "invoice not found",
 			withUserID: true,
-			setupMocks: func(service *serviceMocks.MockInvoiceService) {
+			setupMocks: func(service *serviceMocks.MockIInvoiceService) {
 				service.EXPECT().InvoiceByID("user-1", "inv-1").Return(invoiceEntity.Invoice{}, errors.New("not found"))
 			},
 			wantStatus: http.StatusNotFound,
@@ -127,7 +127,7 @@ func TestInvoiceHandler_GetInvoice(t *testing.T) {
 		{
 			name:       "success",
 			withUserID: true,
-			setupMocks: func(service *serviceMocks.MockInvoiceService) {
+			setupMocks: func(service *serviceMocks.MockIInvoiceService) {
 				service.EXPECT().InvoiceByID("user-1", "inv-1").Return(invoiceEntity.Invoice{ID: "inv-1"}, nil)
 			},
 			wantStatus: http.StatusOK,
@@ -137,8 +137,8 @@ func TestInvoiceHandler_GetInvoice(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockInvoiceService(t)
-			logger := journeyMocks.NewMockJourneyLogger(t)
+			service := serviceMocks.NewMockIInvoiceService(t)
+			logger := journeyMocks.NewMockIJourneyLogger(t)
 			tc.setupMocks(service)
 
 			handler := NewInvoiceHandler(service, logger)

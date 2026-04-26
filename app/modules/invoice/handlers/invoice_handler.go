@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"payment-sandbox/app/middleware"
-	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
+	invoiceServices "payment-sandbox/app/modules/invoice/services"
 	appErrors "payment-sandbox/app/shared/errors"
 	"payment-sandbox/app/shared/journeylog"
 	"payment-sandbox/app/shared/pagination"
@@ -12,17 +12,11 @@ import (
 )
 
 type InvoiceHandler struct {
-	service       InvoiceService
-	journeyLogger journeylog.JourneyLogger
+	service       invoiceServices.IInvoiceService
+	journeyLogger journeylog.IJourneyLogger
 }
 
-type InvoiceService interface {
-	CreateInvoice(userID, customerName, customerEmail string, amount float64, description, dueDate string) (invoiceEntity.Invoice, error)
-	ListInvoices(userID, status string, page, limit int) ([]invoiceEntity.Invoice, int, error)
-	InvoiceByID(userID, invoiceID string) (invoiceEntity.Invoice, error)
-}
-
-func NewInvoiceHandler(service InvoiceService, journeyLogger journeylog.JourneyLogger) *InvoiceHandler {
+func NewInvoiceHandler(service invoiceServices.IInvoiceService, journeyLogger journeylog.IJourneyLogger) *InvoiceHandler {
 	return &InvoiceHandler{service: service, journeyLogger: journeyLogger}
 }
 

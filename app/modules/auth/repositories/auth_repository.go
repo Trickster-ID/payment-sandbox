@@ -11,21 +11,21 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type AuthRepository interface {
+type IAuthRepository interface {
 	CreateUser(name, email, passwordHash string, role entity.Role) (entity.User, error)
 	FindUserByEmail(email string) (entity.User, bool)
 	EnsureAdminSeed() error
 }
 
-type SQLAuthRepository struct {
+type AuthRepository struct {
 	db *sql.DB
 }
 
-func NewAuthRepository(db *sql.DB) *SQLAuthRepository {
-	return &SQLAuthRepository{db: db}
+func NewAuthRepository(db *sql.DB) *AuthRepository {
+	return &AuthRepository{db: db}
 }
 
-func (r *SQLAuthRepository) CreateUser(name, email, passwordHash string, role entity.Role) (entity.User, error) {
+func (r *AuthRepository) CreateUser(name, email, passwordHash string, role entity.Role) (entity.User, error) {
 	tx, err := r.db.Begin()
 	if err != nil {
 		return entity.User{}, err
@@ -60,7 +60,7 @@ func (r *SQLAuthRepository) CreateUser(name, email, passwordHash string, role en
 	return user, nil
 }
 
-func (r *SQLAuthRepository) FindUserByEmail(email string) (entity.User, bool) {
+func (r *AuthRepository) FindUserByEmail(email string) (entity.User, bool) {
 	var user entity.User
 	err := r.db.QueryRow(`
 		SELECT id::text, name, email, password_hash, role::text, created_at
@@ -75,7 +75,7 @@ func (r *SQLAuthRepository) FindUserByEmail(email string) (entity.User, bool) {
 	return user, true
 }
 
-func (r *SQLAuthRepository) EnsureAdminSeed() error {
+func (r *AuthRepository) EnsureAdminSeed() error {
 	var exists bool
 	err := r.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM users WHERE lower(email)=lower($1) AND deleted_at IS NULL)`, "admin@sandbox.local").Scan(&exists)
 	if err != nil {

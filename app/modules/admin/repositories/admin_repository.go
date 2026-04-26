@@ -9,19 +9,19 @@ import (
 	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
 )
 
-type AdminRepository interface {
+type IAdminRepository interface {
 	DashboardStats(filter adminEntity.StatsFilter) adminEntity.DashboardStats
 }
 
-type SQLAdminRepository struct {
+type AdminRepository struct {
 	db *sql.DB
 }
 
-func NewAdminRepository(db *sql.DB) *SQLAdminRepository {
-	return &SQLAdminRepository{db: db}
+func NewAdminRepository(db *sql.DB) *AdminRepository {
+	return &AdminRepository{db: db}
 }
 
-func (r *SQLAdminRepository) DashboardStats(filter adminEntity.StatsFilter) adminEntity.DashboardStats {
+func (r *AdminRepository) DashboardStats(filter adminEntity.StatsFilter) adminEntity.DashboardStats {
 	r.expireDueInvoices()
 	stats := adminEntity.DashboardStats{
 		TotalByStatus: map[string]int{
@@ -63,7 +63,7 @@ func (r *SQLAdminRepository) DashboardStats(filter adminEntity.StatsFilter) admi
 	return stats
 }
 
-func (r *SQLAdminRepository) expireDueInvoices() {
+func (r *AdminRepository) expireDueInvoices() {
 	_, _ = r.db.Exec(`
 		UPDATE invoices
 		SET status='EXPIRED'

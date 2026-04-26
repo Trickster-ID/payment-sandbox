@@ -17,7 +17,7 @@ func TestWalletService_CreateTopup(t *testing.T) {
 		name       string
 		userID     string
 		amount     float64
-		setupMocks func(repo *repoMocks.MockWalletRepository)
+		setupMocks func(repo *repoMocks.MockIWalletRepository)
 		wantID     string
 		wantErr    string
 	}{
@@ -25,7 +25,7 @@ func TestWalletService_CreateTopup(t *testing.T) {
 			name:   "merchant lookup failed",
 			userID: "user-1",
 			amount: 10000,
-			setupMocks: func(repo *repoMocks.MockWalletRepository) {
+			setupMocks: func(repo *repoMocks.MockIWalletRepository) {
 				repo.EXPECT().MerchantIDByUserID("user-1").Return("", errors.New("merchant not found"))
 			},
 			wantErr: "merchant not found",
@@ -34,7 +34,7 @@ func TestWalletService_CreateTopup(t *testing.T) {
 			name:   "success",
 			userID: "user-1",
 			amount: 10000,
-			setupMocks: func(repo *repoMocks.MockWalletRepository) {
+			setupMocks: func(repo *repoMocks.MockIWalletRepository) {
 				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
 				repo.EXPECT().CreateTopup("merchant-1", 10000.0).Return(walletEntity.Topup{ID: "topup-1"}, nil)
 			},
@@ -44,7 +44,7 @@ func TestWalletService_CreateTopup(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := repoMocks.NewMockWalletRepository(t)
+			repo := repoMocks.NewMockIWalletRepository(t)
 			tc.setupMocks(repo)
 			service := NewWalletService(repo)
 
@@ -68,7 +68,7 @@ func TestWalletService_UpdateTopupStatus(t *testing.T) {
 		name       string
 		topupID    string
 		status     string
-		setupMocks func(repo *repoMocks.MockWalletRepository)
+		setupMocks func(repo *repoMocks.MockIWalletRepository)
 		wantStatus paymentEntity.PaymentStatus
 		wantErr    string
 	}{
@@ -76,7 +76,7 @@ func TestWalletService_UpdateTopupStatus(t *testing.T) {
 			name:    "invalid status",
 			topupID: "topup-1",
 			status:  "PENDING",
-			setupMocks: func(repo *repoMocks.MockWalletRepository) {
+			setupMocks: func(repo *repoMocks.MockIWalletRepository) {
 				repo.AssertNotCalled(t, "UpdateTopupStatus")
 			},
 			wantErr: "invalid payment status",
@@ -85,7 +85,7 @@ func TestWalletService_UpdateTopupStatus(t *testing.T) {
 			name:    "success status update",
 			topupID: "topup-1",
 			status:  "success",
-			setupMocks: func(repo *repoMocks.MockWalletRepository) {
+			setupMocks: func(repo *repoMocks.MockIWalletRepository) {
 				repo.EXPECT().
 					UpdateTopupStatus("topup-1", paymentEntity.PaymentSuccess).
 					Return(walletEntity.Topup{ID: "topup-1", Status: paymentEntity.PaymentSuccess}, nil)
@@ -96,7 +96,7 @@ func TestWalletService_UpdateTopupStatus(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := repoMocks.NewMockWalletRepository(t)
+			repo := repoMocks.NewMockIWalletRepository(t)
 			tc.setupMocks(repo)
 			service := NewWalletService(repo)
 
@@ -116,7 +116,7 @@ func TestWalletService_UpdateTopupStatus(t *testing.T) {
 }
 
 func TestWalletService_ListTopups(t *testing.T) {
-	repo := repoMocks.NewMockWalletRepository(t)
+	repo := repoMocks.NewMockIWalletRepository(t)
 	service := NewWalletService(repo)
 
 	expected := []walletEntity.Topup{{ID: "topup-1"}, {ID: "topup-2"}}

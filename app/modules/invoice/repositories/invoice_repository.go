@@ -13,22 +13,22 @@ import (
 	"github.com/google/uuid"
 )
 
-type InvoiceRepository interface {
+type IInvoiceRepository interface {
 	MerchantIDByUserID(userID string) (string, error)
 	CreateInvoice(merchantID, customerName, customerEmail string, amount float64, description string, dueDate time.Time) (invoiceEntity.Invoice, error)
 	ListInvoices(merchantID string, status string, options invoiceEntity.ListOptions) ([]invoiceEntity.Invoice, int)
 	MerchantInvoiceByID(invoiceID, merchantID string) (invoiceEntity.Invoice, error)
 }
 
-type SQLInvoiceRepository struct {
+type InvoiceRepository struct {
 	db *sql.DB
 }
 
-func NewInvoiceRepository(db *sql.DB) *SQLInvoiceRepository {
-	return &SQLInvoiceRepository{db: db}
+func NewInvoiceRepository(db *sql.DB) *InvoiceRepository {
+	return &InvoiceRepository{db: db}
 }
 
-func (r *SQLInvoiceRepository) MerchantIDByUserID(userID string) (string, error) {
+func (r *InvoiceRepository) MerchantIDByUserID(userID string) (string, error) {
 	merchant, found := r.getMerchantByUserID(userID)
 	if !found {
 		return "", errors.New("merchant not found")
@@ -36,7 +36,7 @@ func (r *SQLInvoiceRepository) MerchantIDByUserID(userID string) (string, error)
 	return merchant.ID, nil
 }
 
-func (r *SQLInvoiceRepository) CreateInvoice(merchantID, customerName, customerEmail string, amount float64, description string, dueDate time.Time) (invoiceEntity.Invoice, error) {
+func (r *InvoiceRepository) CreateInvoice(merchantID, customerName, customerEmail string, amount float64, description string, dueDate time.Time) (invoiceEntity.Invoice, error) {
 	var invoice invoiceEntity.Invoice
 	invoiceNumber := "INV-" + strings.ToUpper(uuid.NewString()[:8])
 	token := uuid.NewString()
@@ -58,7 +58,7 @@ func (r *SQLInvoiceRepository) CreateInvoice(merchantID, customerName, customerE
 	return invoice, nil
 }
 
-func (r *SQLInvoiceRepository) ListInvoices(merchantID string, status string, options invoiceEntity.ListOptions) ([]invoiceEntity.Invoice, int) {
+func (r *InvoiceRepository) ListInvoices(merchantID string, status string, options invoiceEntity.ListOptions) ([]invoiceEntity.Invoice, int) {
 	r.expireDueInvoices()
 	page, limit := sanitizePaging(options.Page, options.Limit)
 	offset := (page - 1) * limit
@@ -102,7 +102,7 @@ func (r *SQLInvoiceRepository) ListInvoices(merchantID string, status string, op
 	return items, total
 }
 
-func (r *SQLInvoiceRepository) MerchantInvoiceByID(invoiceID, merchantID string) (invoiceEntity.Invoice, error) {
+func (r *InvoiceRepository) MerchantInvoiceByID(invoiceID, merchantID string) (invoiceEntity.Invoice, error) {
 	r.expireDueInvoices()
 	var invoice invoiceEntity.Invoice
 	err := r.db.QueryRow(`
@@ -119,7 +119,7 @@ func (r *SQLInvoiceRepository) MerchantInvoiceByID(invoiceID, merchantID string)
 	return invoice, nil
 }
 
-func (r *SQLInvoiceRepository) expireDueInvoices() {
+func (r *InvoiceRepository) expireDueInvoices() {
 	_, _ = r.db.Exec(`
 		UPDATE invoices
 		SET status='EXPIRED'
@@ -129,7 +129,7 @@ func (r *SQLInvoiceRepository) expireDueInvoices() {
 	`)
 }
 
-func (r *SQLInvoiceRepository) getMerchantByUserID(userID string) (walletEntity.Merchant, bool) {
+func (r *InvoiceRepository) getMerchantByUserID(userID string) (walletEntity.Merchant, bool) {
 	var merchant walletEntity.Merchant
 	err := r.db.QueryRow(`
 		SELECT id::text, user_id::text, balance::double precision, created_at, updated_at

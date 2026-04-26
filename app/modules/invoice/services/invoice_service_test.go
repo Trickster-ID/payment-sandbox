@@ -22,7 +22,7 @@ func TestInvoiceService_CreateInvoice(t *testing.T) {
 			userID, customerName, customerEmail, description, dueDate string
 			amount                                                    float64
 		}
-		setupMocks func(repo *repoMocks.MockInvoiceRepository)
+		setupMocks func(repo *repoMocks.MockIInvoiceRepository)
 		wantID     string
 		wantErr    string
 	}{
@@ -39,7 +39,7 @@ func TestInvoiceService_CreateInvoice(t *testing.T) {
 				dueDate:       dueDateRFC3339,
 				amount:        10000,
 			},
-			setupMocks: func(repo *repoMocks.MockInvoiceRepository) {
+			setupMocks: func(repo *repoMocks.MockIInvoiceRepository) {
 				repo.EXPECT().MerchantIDByUserID("user-1").Return("", errors.New("merchant not found"))
 			},
 			wantErr: "merchant not found",
@@ -57,7 +57,7 @@ func TestInvoiceService_CreateInvoice(t *testing.T) {
 				dueDate:       "2026-04-30",
 				amount:        10000,
 			},
-			setupMocks: func(repo *repoMocks.MockInvoiceRepository) {
+			setupMocks: func(repo *repoMocks.MockIInvoiceRepository) {
 				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
 			},
 			wantErr: "due_date must use RFC3339 format",
@@ -75,7 +75,7 @@ func TestInvoiceService_CreateInvoice(t *testing.T) {
 				dueDate:       dueDateRFC3339,
 				amount:        10000,
 			},
-			setupMocks: func(repo *repoMocks.MockInvoiceRepository) {
+			setupMocks: func(repo *repoMocks.MockIInvoiceRepository) {
 				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
 			},
 			wantErr: "customer_email is invalid",
@@ -93,7 +93,7 @@ func TestInvoiceService_CreateInvoice(t *testing.T) {
 				dueDate:       dueDateRFC3339,
 				amount:        10000,
 			},
-			setupMocks: func(repo *repoMocks.MockInvoiceRepository) {
+			setupMocks: func(repo *repoMocks.MockIInvoiceRepository) {
 				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
 				repo.EXPECT().
 					CreateInvoice("merchant-1", "Alice", "alice@example.com", 10000.0, "invoice 1", dueDate).
@@ -105,7 +105,7 @@ func TestInvoiceService_CreateInvoice(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := repoMocks.NewMockInvoiceRepository(t)
+			repo := repoMocks.NewMockIInvoiceRepository(t)
 			tc.setupMocks(repo)
 			service := NewInvoiceService(repo)
 

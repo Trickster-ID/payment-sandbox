@@ -10,16 +10,14 @@ import (
 )
 
 type AdminService struct {
-	repo repositories.AdminRepository
+	repo repositories.IAdminRepository
 }
 
-type Service interface {
+type IAdminService interface {
 	Stats(merchantID, startDate, endDate string) (adminEntity.DashboardStats, error)
 }
 
-var _ Service = (*AdminService)(nil)
-
-func NewAdminService(repo repositories.AdminRepository) *AdminService {
+func NewAdminService(repo repositories.IAdminRepository) *AdminService {
 	return &AdminService{repo: repo}
 }
 

@@ -10,8 +10,8 @@ import (
 
 	"payment-sandbox/app/middleware"
 	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
-	serviceMocks "payment-sandbox/app/modules/payment/handlers/mocks"
 	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
+	serviceMocks "payment-sandbox/app/modules/payment/services/mocks"
 	journeylog "payment-sandbox/app/shared/journeylog"
 	journeyMocks "payment-sandbox/app/shared/journeylog/mocks"
 
@@ -27,7 +27,7 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		setupMocks func(service *serviceMocks.MockPaymentService, logger *journeyMocks.MockJourneyLogger)
+		setupMocks func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger)
 		wantStatus int
 		wantCode   string
 		wantDataID string
@@ -35,7 +35,7 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 		{
 			name: "validation error",
 			body: `{}`,
-			setupMocks: func(service *serviceMocks.MockPaymentService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
 				service.AssertNotCalled(t, "CreatePaymentIntent")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -45,7 +45,7 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 		{
 			name: "service error and logger failure still returns business error",
 			body: `{"method":"WALLET"}`,
-			setupMocks: func(service *serviceMocks.MockPaymentService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
 					CreatePaymentIntent("token-1", "WALLET").
 					Return(paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, errors.New("invoice already paid"))
@@ -68,7 +68,7 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 		{
 			name: "success and logger failure still returns created",
 			body: `{"method":"VA_DUMMY"}`,
-			setupMocks: func(service *serviceMocks.MockPaymentService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
 					CreatePaymentIntent("token-1", "VA_DUMMY").
 					Return(
@@ -103,8 +103,8 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockPaymentService(t)
-			logger := journeyMocks.NewMockJourneyLogger(t)
+			service := serviceMocks.NewMockIPaymentService(t)
+			logger := journeyMocks.NewMockIJourneyLogger(t)
 			tc.setupMocks(service, logger)
 
 			handler := NewPaymentHandler(service, logger)

@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"payment-sandbox/app/middleware"
-	serviceMocks "payment-sandbox/app/modules/wallet/handlers/mocks"
 	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
+	serviceMocks "payment-sandbox/app/modules/wallet/services/mocks"
 	journeylog "payment-sandbox/app/shared/journeylog"
 	journeyMocks "payment-sandbox/app/shared/journeylog/mocks"
 
@@ -26,7 +26,7 @@ func TestWalletHandler_CreateTopup(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		setupMocks func(service *serviceMocks.MockWalletService, logger *journeyMocks.MockJourneyLogger)
+		setupMocks func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger)
 		wantStatus int
 		wantCode   string
 		wantDataID string
@@ -34,7 +34,7 @@ func TestWalletHandler_CreateTopup(t *testing.T) {
 		{
 			name: "validation error",
 			body: `{"amount":0}`,
-			setupMocks: func(service *serviceMocks.MockWalletService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger) {
 				service.AssertNotCalled(t, "CreateTopup")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -44,7 +44,7 @@ func TestWalletHandler_CreateTopup(t *testing.T) {
 		{
 			name: "service error and logger failure still returns business error",
 			body: `{"amount":15000}`,
-			setupMocks: func(service *serviceMocks.MockWalletService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
 					CreateTopup("user-1", 15000.0).
 					Return(walletEntity.Topup{}, errors.New("invalid topup state"))
@@ -67,7 +67,7 @@ func TestWalletHandler_CreateTopup(t *testing.T) {
 		{
 			name: "success and logger failure still returns created",
 			body: `{"amount":25000}`,
-			setupMocks: func(service *serviceMocks.MockWalletService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
 					CreateTopup("user-1", 25000.0).
 					Return(walletEntity.Topup{
@@ -95,8 +95,8 @@ func TestWalletHandler_CreateTopup(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockWalletService(t)
-			logger := journeyMocks.NewMockJourneyLogger(t)
+			service := serviceMocks.NewMockIWalletService(t)
+			logger := journeyMocks.NewMockIJourneyLogger(t)
 			tc.setupMocks(service, logger)
 
 			handler := NewWalletHandler(service, logger)

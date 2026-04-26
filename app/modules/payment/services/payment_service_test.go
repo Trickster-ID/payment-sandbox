@@ -16,14 +16,14 @@ func TestPaymentService_PublicInvoiceByToken(t *testing.T) {
 	tests := []struct {
 		name       string
 		token      string
-		setupMocks func(repo *repoMocks.MockPaymentRepository)
+		setupMocks func(repo *repoMocks.MockIPaymentRepository)
 		wantID     string
 		wantErr    string
 	}{
 		{
 			name:  "not found",
 			token: "token-1",
-			setupMocks: func(repo *repoMocks.MockPaymentRepository) {
+			setupMocks: func(repo *repoMocks.MockIPaymentRepository) {
 				repo.EXPECT().GetInvoiceByToken("token-1").Return(invoiceEntity.Invoice{}, false)
 			},
 			wantErr: "invoice not found",
@@ -31,7 +31,7 @@ func TestPaymentService_PublicInvoiceByToken(t *testing.T) {
 		{
 			name:  "success",
 			token: "token-1",
-			setupMocks: func(repo *repoMocks.MockPaymentRepository) {
+			setupMocks: func(repo *repoMocks.MockIPaymentRepository) {
 				repo.EXPECT().GetInvoiceByToken("token-1").Return(invoiceEntity.Invoice{ID: "inv-1"}, true)
 			},
 			wantID: "inv-1",
@@ -40,7 +40,7 @@ func TestPaymentService_PublicInvoiceByToken(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := repoMocks.NewMockPaymentRepository(t)
+			repo := repoMocks.NewMockIPaymentRepository(t)
 			tc.setupMocks(repo)
 			service := NewPaymentService(repo)
 
@@ -64,7 +64,7 @@ func TestPaymentService_CreatePaymentIntent(t *testing.T) {
 		name       string
 		token      string
 		method     string
-		setupMocks func(repo *repoMocks.MockPaymentRepository)
+		setupMocks func(repo *repoMocks.MockIPaymentRepository)
 		wantID     string
 		wantErr    string
 	}{
@@ -72,7 +72,7 @@ func TestPaymentService_CreatePaymentIntent(t *testing.T) {
 			name:   "repository error",
 			token:  "token-1",
 			method: "wallet",
-			setupMocks: func(repo *repoMocks.MockPaymentRepository) {
+			setupMocks: func(repo *repoMocks.MockIPaymentRepository) {
 				repo.EXPECT().
 					CreatePaymentIntent("token-1", paymentEntity.MethodWallet).
 					Return(paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, errors.New("invoice already paid"))
@@ -83,7 +83,7 @@ func TestPaymentService_CreatePaymentIntent(t *testing.T) {
 			name:   "success with uppercase normalization",
 			token:  "token-1",
 			method: " va_dummy ",
-			setupMocks: func(repo *repoMocks.MockPaymentRepository) {
+			setupMocks: func(repo *repoMocks.MockIPaymentRepository) {
 				repo.EXPECT().
 					CreatePaymentIntent("token-1", paymentEntity.MethodVADummy).
 					Return(
@@ -98,7 +98,7 @@ func TestPaymentService_CreatePaymentIntent(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := repoMocks.NewMockPaymentRepository(t)
+			repo := repoMocks.NewMockIPaymentRepository(t)
 			tc.setupMocks(repo)
 			service := NewPaymentService(repo)
 
@@ -122,7 +122,7 @@ func TestPaymentService_UpdatePaymentIntentStatus(t *testing.T) {
 		name       string
 		paymentID  string
 		status     string
-		setupMocks func(repo *repoMocks.MockPaymentRepository)
+		setupMocks func(repo *repoMocks.MockIPaymentRepository)
 		wantStatus paymentEntity.PaymentStatus
 		wantErr    string
 	}{
@@ -130,7 +130,7 @@ func TestPaymentService_UpdatePaymentIntentStatus(t *testing.T) {
 			name:      "invalid status",
 			paymentID: "pi-1",
 			status:    "PENDING",
-			setupMocks: func(repo *repoMocks.MockPaymentRepository) {
+			setupMocks: func(repo *repoMocks.MockIPaymentRepository) {
 				repo.AssertNotCalled(t, "UpdatePaymentStatus")
 			},
 			wantErr: "invalid payment status",
@@ -139,7 +139,7 @@ func TestPaymentService_UpdatePaymentIntentStatus(t *testing.T) {
 			name:      "success mapping",
 			paymentID: "pi-1",
 			status:    "failed",
-			setupMocks: func(repo *repoMocks.MockPaymentRepository) {
+			setupMocks: func(repo *repoMocks.MockIPaymentRepository) {
 				repo.EXPECT().
 					UpdatePaymentStatus("pi-1", paymentEntity.PaymentFailed).
 					Return(
@@ -154,7 +154,7 @@ func TestPaymentService_UpdatePaymentIntentStatus(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := repoMocks.NewMockPaymentRepository(t)
+			repo := repoMocks.NewMockIPaymentRepository(t)
 			tc.setupMocks(repo)
 			service := NewPaymentService(repo)
 
@@ -174,7 +174,7 @@ func TestPaymentService_UpdatePaymentIntentStatus(t *testing.T) {
 }
 
 func TestPaymentService_ListPaymentIntents(t *testing.T) {
-	repo := repoMocks.NewMockPaymentRepository(t)
+	repo := repoMocks.NewMockIPaymentRepository(t)
 	service := NewPaymentService(repo)
 
 	expected := []paymentEntity.PaymentIntent{{ID: "pi-1"}, {ID: "pi-2"}}

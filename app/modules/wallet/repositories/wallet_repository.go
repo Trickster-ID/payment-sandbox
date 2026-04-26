@@ -8,7 +8,7 @@ import (
 	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
 )
 
-type WalletRepository interface {
+type IWalletRepository interface {
 	GetMerchantWallet(userID string) (walletEntity.Merchant, error)
 	MerchantIDByUserID(userID string) (string, error)
 	CreateTopup(merchantID string, amount float64) (walletEntity.Topup, error)
@@ -16,15 +16,15 @@ type WalletRepository interface {
 	UpdateTopupStatus(topupID string, nextStatus paymentEntity.PaymentStatus) (walletEntity.Topup, error)
 }
 
-type SQLWalletRepository struct {
+type WalletRepository struct {
 	db *sql.DB
 }
 
-func NewWalletRepository(db *sql.DB) *SQLWalletRepository {
-	return &SQLWalletRepository{db: db}
+func NewWalletRepository(db *sql.DB) *WalletRepository {
+	return &WalletRepository{db: db}
 }
 
-func (r *SQLWalletRepository) GetMerchantWallet(userID string) (walletEntity.Merchant, error) {
+func (r *WalletRepository) GetMerchantWallet(userID string) (walletEntity.Merchant, error) {
 	merchant, found := r.getMerchantByUserID(userID)
 	if !found {
 		return walletEntity.Merchant{}, errors.New("merchant wallet not found")
@@ -32,7 +32,7 @@ func (r *SQLWalletRepository) GetMerchantWallet(userID string) (walletEntity.Mer
 	return merchant, nil
 }
 
-func (r *SQLWalletRepository) MerchantIDByUserID(userID string) (string, error) {
+func (r *WalletRepository) MerchantIDByUserID(userID string) (string, error) {
 	merchant, found := r.getMerchantByUserID(userID)
 	if !found {
 		return "", errors.New("merchant not found")
@@ -40,7 +40,7 @@ func (r *SQLWalletRepository) MerchantIDByUserID(userID string) (string, error) 
 	return merchant.ID, nil
 }
 
-func (r *SQLWalletRepository) CreateTopup(merchantID string, amount float64) (walletEntity.Topup, error) {
+func (r *WalletRepository) CreateTopup(merchantID string, amount float64) (walletEntity.Topup, error) {
 	var topup walletEntity.Topup
 	err := r.db.QueryRow(`
 		INSERT INTO topups (merchant_id, amount)
@@ -54,7 +54,7 @@ func (r *SQLWalletRepository) CreateTopup(merchantID string, amount float64) (wa
 	return topup, nil
 }
 
-func (r *SQLWalletRepository) ListTopups() []walletEntity.Topup {
+func (r *WalletRepository) ListTopups() []walletEntity.Topup {
 	rows, err := r.db.Query(`
 		SELECT id::text, merchant_id::text, amount::double precision, status::text, created_at, updated_at
 		FROM topups
@@ -76,7 +76,7 @@ func (r *SQLWalletRepository) ListTopups() []walletEntity.Topup {
 	return items
 }
 
-func (r *SQLWalletRepository) UpdateTopupStatus(topupID string, nextStatus paymentEntity.PaymentStatus) (walletEntity.Topup, error) {
+func (r *WalletRepository) UpdateTopupStatus(topupID string, nextStatus paymentEntity.PaymentStatus) (walletEntity.Topup, error) {
 	tx, err := r.db.Begin()
 	if err != nil {
 		return walletEntity.Topup{}, err
@@ -121,7 +121,7 @@ func (r *SQLWalletRepository) UpdateTopupStatus(topupID string, nextStatus payme
 	return topup, nil
 }
 
-func (r *SQLWalletRepository) getMerchantByUserID(userID string) (walletEntity.Merchant, bool) {
+func (r *WalletRepository) getMerchantByUserID(userID string) (walletEntity.Merchant, bool) {
 	var merchant walletEntity.Merchant
 	err := r.db.QueryRow(`
 		SELECT id::text, user_id::text, balance::double precision, created_at, updated_at

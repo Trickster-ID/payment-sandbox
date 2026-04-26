@@ -10,19 +10,17 @@ import (
 )
 
 type RefundService struct {
-	repo repositories.RefundRepository
+	repo repositories.IRefundRepository
 }
 
-type Service interface {
+type IRefundService interface {
 	RequestRefund(userID, paymentIntentID, reason string) (refundEntity.Refund, error)
 	ListRefunds(status string) []refundEntity.Refund
 	ReviewRefund(refundID, decision string) (refundEntity.Refund, error)
 	ProcessRefund(refundID, status string) (refundEntity.Refund, walletEntity.Merchant, error)
 }
 
-var _ Service = (*RefundService)(nil)
-
-func NewRefundService(repo repositories.RefundRepository) *RefundService {
+func NewRefundService(repo repositories.IRefundRepository) *RefundService {
 	return &RefundService{repo: repo}
 }
 

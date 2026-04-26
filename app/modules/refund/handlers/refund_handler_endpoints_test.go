@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"payment-sandbox/app/middleware"
-	serviceMocks "payment-sandbox/app/modules/refund/handlers/mocks"
 	refundEntity "payment-sandbox/app/modules/refund/models/entity"
+	serviceMocks "payment-sandbox/app/modules/refund/services/mocks"
 	journeylog "payment-sandbox/app/shared/journeylog"
 	journeyMocks "payment-sandbox/app/shared/journeylog/mocks"
 
@@ -23,8 +23,8 @@ import (
 func TestRefundHandler_ListRefunds(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	service := serviceMocks.NewMockRefundService(t)
-	logger := journeyMocks.NewMockJourneyLogger(t)
+	service := serviceMocks.NewMockIRefundService(t)
+	logger := journeyMocks.NewMockIJourneyLogger(t)
 	service.EXPECT().ListRefunds("REQUESTED").Return([]refundEntity.Refund{{ID: "refund-1"}})
 
 	handler := NewRefundHandler(service, logger)
@@ -50,7 +50,7 @@ func TestRefundHandler_ReviewRefund(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		setupMocks func(service *serviceMocks.MockRefundService, logger *journeyMocks.MockJourneyLogger)
+		setupMocks func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger)
 		wantStatus int
 		wantCode   string
 		wantID     string
@@ -58,7 +58,7 @@ func TestRefundHandler_ReviewRefund(t *testing.T) {
 		{
 			name: "validation error",
 			body: `{"decision":""}`,
-			setupMocks: func(service *serviceMocks.MockRefundService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.AssertNotCalled(t, "ReviewRefund")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -68,7 +68,7 @@ func TestRefundHandler_ReviewRefund(t *testing.T) {
 		{
 			name: "service error and logger failure",
 			body: `{"decision":"APPROVE"}`,
-			setupMocks: func(service *serviceMocks.MockRefundService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().ReviewRefund("refund-1", "APPROVE").Return(refundEntity.Refund{}, errors.New("already reviewed"))
 				logger.EXPECT().Log(
 					mock.Anything,
@@ -83,7 +83,7 @@ func TestRefundHandler_ReviewRefund(t *testing.T) {
 		{
 			name: "success and logger failure",
 			body: `{"decision":"APPROVE"}`,
-			setupMocks: func(service *serviceMocks.MockRefundService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().ReviewRefund("refund-1", "APPROVE").Return(refundEntity.Refund{ID: "refund-1", Status: refundEntity.RefundApproved}, nil)
 				logger.EXPECT().Log(
 					mock.Anything,
@@ -99,8 +99,8 @@ func TestRefundHandler_ReviewRefund(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockRefundService(t)
-			logger := journeyMocks.NewMockJourneyLogger(t)
+			service := serviceMocks.NewMockIRefundService(t)
+			logger := journeyMocks.NewMockIJourneyLogger(t)
 			tc.setupMocks(service, logger)
 
 			handler := NewRefundHandler(service, logger)

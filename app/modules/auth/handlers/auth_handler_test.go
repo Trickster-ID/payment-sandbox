@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	serviceMocks "payment-sandbox/app/modules/auth/handlers/mocks"
 	authEntity "payment-sandbox/app/modules/auth/models/entity"
+	serviceMocks "payment-sandbox/app/modules/auth/services/mocks"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +22,7 @@ func TestAuthHandler_RegisterMerchant(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		setupMocks func(service *serviceMocks.MockAuthService)
+		setupMocks func(service *serviceMocks.MockIAuthService)
 		wantStatus int
 		wantCode   string
 		wantID     string
@@ -30,7 +30,7 @@ func TestAuthHandler_RegisterMerchant(t *testing.T) {
 		{
 			name: "validation error",
 			body: `{"name":"","email":"invalid","password":"123"}`,
-			setupMocks: func(service *serviceMocks.MockAuthService) {
+			setupMocks: func(service *serviceMocks.MockIAuthService) {
 				service.AssertNotCalled(t, "RegisterMerchant")
 			},
 			wantStatus: http.StatusBadRequest,
@@ -39,7 +39,7 @@ func TestAuthHandler_RegisterMerchant(t *testing.T) {
 		{
 			name: "service validation error",
 			body: `{"name":"Merchant","email":"merchant@example.com","password":"password123"}`,
-			setupMocks: func(service *serviceMocks.MockAuthService) {
+			setupMocks: func(service *serviceMocks.MockIAuthService) {
 				service.EXPECT().
 					RegisterMerchant("Merchant", "merchant@example.com", "password123").
 					Return(authEntity.User{}, errors.New("email already exists"))
@@ -50,7 +50,7 @@ func TestAuthHandler_RegisterMerchant(t *testing.T) {
 		{
 			name: "success",
 			body: `{"name":"Merchant","email":"merchant@example.com","password":"password123"}`,
-			setupMocks: func(service *serviceMocks.MockAuthService) {
+			setupMocks: func(service *serviceMocks.MockIAuthService) {
 				service.EXPECT().
 					RegisterMerchant("Merchant", "merchant@example.com", "password123").
 					Return(authEntity.User{
@@ -67,7 +67,7 @@ func TestAuthHandler_RegisterMerchant(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockAuthService(t)
+			service := serviceMocks.NewMockIAuthService(t)
 			tc.setupMocks(service)
 
 			handler := NewAuthHandler(service)
@@ -105,7 +105,7 @@ func TestAuthHandler_Login(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		setupMocks func(service *serviceMocks.MockAuthService)
+		setupMocks func(service *serviceMocks.MockIAuthService)
 		wantStatus int
 		wantCode   string
 		wantToken  string
@@ -113,7 +113,7 @@ func TestAuthHandler_Login(t *testing.T) {
 		{
 			name: "validation error",
 			body: `{"email":"invalid","password":""}`,
-			setupMocks: func(service *serviceMocks.MockAuthService) {
+			setupMocks: func(service *serviceMocks.MockIAuthService) {
 				service.AssertNotCalled(t, "Login")
 			},
 			wantStatus: http.StatusBadRequest,
@@ -122,7 +122,7 @@ func TestAuthHandler_Login(t *testing.T) {
 		{
 			name: "invalid credentials",
 			body: `{"email":"merchant@example.com","password":"wrong-password"}`,
-			setupMocks: func(service *serviceMocks.MockAuthService) {
+			setupMocks: func(service *serviceMocks.MockIAuthService) {
 				service.EXPECT().
 					Login("merchant@example.com", "wrong-password").
 					Return("", authEntity.User{}, errors.New("invalid credentials"))
@@ -133,7 +133,7 @@ func TestAuthHandler_Login(t *testing.T) {
 		{
 			name: "success",
 			body: `{"email":"merchant@example.com","password":"password123"}`,
-			setupMocks: func(service *serviceMocks.MockAuthService) {
+			setupMocks: func(service *serviceMocks.MockIAuthService) {
 				service.EXPECT().
 					Login("merchant@example.com", "password123").
 					Return("token-1", authEntity.User{
@@ -150,7 +150,7 @@ func TestAuthHandler_Login(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockAuthService(t)
+			service := serviceMocks.NewMockIAuthService(t)
 			tc.setupMocks(service)
 
 			handler := NewAuthHandler(service)

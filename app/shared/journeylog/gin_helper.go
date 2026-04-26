@@ -35,7 +35,7 @@ func RequestIDFromContext(c *gin.Context) string {
 	return ""
 }
 
-func LogBestEffort(c *gin.Context, logger JourneyLogger, event Event) {
+func LogBestEffort(c *gin.Context, logger IJourneyLogger, event Event) {
 	if err := logger.Log(c.Request.Context(), event); err != nil {
 		log.Printf("journey log write failed: %v", err)
 	}

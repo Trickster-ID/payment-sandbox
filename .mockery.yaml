@@ -10,58 +10,40 @@ issue-845-fix: true
 packages:
   payment-sandbox/app/modules/auth/repositories:
     interfaces:
-      AuthRepository:
+      IAuthRepository:
   payment-sandbox/app/modules/admin/repositories:
     interfaces:
-      AdminRepository:
+      IAdminRepository:
   payment-sandbox/app/modules/wallet/repositories:
     interfaces:
-      WalletRepository:
+      IWalletRepository:
   payment-sandbox/app/modules/invoice/repositories:
     interfaces:
-      InvoiceRepository:
+      IInvoiceRepository:
   payment-sandbox/app/modules/payment/repositories:
     interfaces:
-      PaymentRepository:
+      IPaymentRepository:
   payment-sandbox/app/modules/refund/repositories:
     interfaces:
-      RefundRepository:
+      IRefundRepository:
   payment-sandbox/app/shared/journeylog:
     interfaces:
-      JourneyLogger:
-  payment-sandbox/app/modules/auth/handlers:
-    interfaces:
-      AuthService:
-  payment-sandbox/app/modules/admin/handlers:
-    interfaces:
-      AdminService:
-  payment-sandbox/app/modules/wallet/handlers:
-    interfaces:
-      WalletService:
-  payment-sandbox/app/modules/invoice/handlers:
-    interfaces:
-      InvoiceService:
-  payment-sandbox/app/modules/payment/handlers:
-    interfaces:
-      PaymentService:
-  payment-sandbox/app/modules/refund/handlers:
-    interfaces:
-      RefundService:
+      IJourneyLogger:
   payment-sandbox/app/modules/auth/services:
     interfaces:
-      Service:
+      IAuthService:
   payment-sandbox/app/modules/admin/services:
     interfaces:
-      Service:
+      IAdminService:
   payment-sandbox/app/modules/wallet/services:
     interfaces:
-      Service:
+      IWalletService:
   payment-sandbox/app/modules/invoice/services:
     interfaces:
-      Service:
+      IInvoiceService:
   payment-sandbox/app/modules/payment/services:
     interfaces:
-      Service:
+      IPaymentService:
   payment-sandbox/app/modules/refund/services:
     interfaces:
-      Service:
+      IRefundService:

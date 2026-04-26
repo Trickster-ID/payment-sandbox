@@ -7,19 +7,17 @@ import (
 )
 
 type WalletService struct {
-	repo repositories.WalletRepository
+	repo repositories.IWalletRepository
 }
 
-type Service interface {
+type IWalletService interface {
 	WalletByUserID(userID string) (walletEntity.Merchant, error)
 	CreateTopup(userID string, amount float64) (walletEntity.Topup, error)
 	ListTopups() []walletEntity.Topup
 	UpdateTopupStatus(topupID, status string) (walletEntity.Topup, error)
 }
 
-var _ Service = (*WalletService)(nil)
-
-func NewWalletService(repo repositories.WalletRepository) *WalletService {
+func NewWalletService(repo repositories.IWalletRepository) *WalletService {
 	return &WalletService{repo: repo}
 }
 

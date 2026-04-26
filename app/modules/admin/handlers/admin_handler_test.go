@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	serviceMocks "payment-sandbox/app/modules/admin/handlers/mocks"
 	adminEntity "payment-sandbox/app/modules/admin/models/entity"
+	serviceMocks "payment-sandbox/app/modules/admin/services/mocks"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +18,7 @@ import (
 func TestAdminHandler_Healthz(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	service := serviceMocks.NewMockAdminService(t)
+	service := serviceMocks.NewMockIAdminService(t)
 	service.AssertNotCalled(t, "Stats")
 
 	handler := NewAdminHandler(service)
@@ -46,7 +46,7 @@ func TestAdminHandler_DashboardStats(t *testing.T) {
 	tests := []struct {
 		name       string
 		query      string
-		setupMocks func(service *serviceMocks.MockAdminService)
+		setupMocks func(service *serviceMocks.MockIAdminService)
 		wantStatus int
 		wantCode   string
 		wantTotal  float64
@@ -54,7 +54,7 @@ func TestAdminHandler_DashboardStats(t *testing.T) {
 		{
 			name:  "service error",
 			query: "merchant_id=merchant-1&start_date=2026-04-01&end_date=2026-04-30",
-			setupMocks: func(service *serviceMocks.MockAdminService) {
+			setupMocks: func(service *serviceMocks.MockIAdminService) {
 				service.EXPECT().
 					Stats("merchant-1", "2026-04-01", "2026-04-30").
 					Return(adminEntity.DashboardStats{}, errors.New("invalid date range"))
@@ -65,7 +65,7 @@ func TestAdminHandler_DashboardStats(t *testing.T) {
 		{
 			name:  "success",
 			query: "merchant_id=merchant-1&start_date=2026-04-01&end_date=2026-04-30",
-			setupMocks: func(service *serviceMocks.MockAdminService) {
+			setupMocks: func(service *serviceMocks.MockIAdminService) {
 				service.EXPECT().
 					Stats("merchant-1", "2026-04-01", "2026-04-30").
 					Return(adminEntity.DashboardStats{
@@ -84,7 +84,7 @@ func TestAdminHandler_DashboardStats(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockAdminService(t)
+			service := serviceMocks.NewMockIAdminService(t)
 			tc.setupMocks(service)
 
 			handler := NewAdminHandler(service)

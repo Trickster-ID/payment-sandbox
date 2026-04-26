@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"payment-sandbox/app/middleware"
-	serviceMocks "payment-sandbox/app/modules/invoice/handlers/mocks"
 	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
+	serviceMocks "payment-sandbox/app/modules/invoice/services/mocks"
 	journeylog "payment-sandbox/app/shared/journeylog"
 	journeyMocks "payment-sandbox/app/shared/journeylog/mocks"
 
@@ -27,7 +27,7 @@ func TestInvoiceHandler_CreateInvoice(t *testing.T) {
 		name       string
 		withUserID bool
 		body       string
-		setupMocks func(service *serviceMocks.MockInvoiceService, logger *journeyMocks.MockJourneyLogger)
+		setupMocks func(service *serviceMocks.MockIInvoiceService, logger *journeyMocks.MockIJourneyLogger)
 		wantStatus int
 		wantCode   string
 		wantID     string
@@ -36,7 +36,7 @@ func TestInvoiceHandler_CreateInvoice(t *testing.T) {
 			name:       "missing user context",
 			withUserID: false,
 			body:       `{"customer_name":"Alice","customer_email":"alice@example.com","amount":10000,"description":"desc","due_date":"2026-05-01T10:00:00Z"}`,
-			setupMocks: func(service *serviceMocks.MockInvoiceService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIInvoiceService, logger *journeyMocks.MockIJourneyLogger) {
 				service.AssertNotCalled(t, "CreateInvoice")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -47,7 +47,7 @@ func TestInvoiceHandler_CreateInvoice(t *testing.T) {
 			name:       "validation error",
 			withUserID: true,
 			body:       `{"customer_name":"Alice","customer_email":"invalid","amount":0,"description":"desc","due_date":""}`,
-			setupMocks: func(service *serviceMocks.MockInvoiceService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIInvoiceService, logger *journeyMocks.MockIJourneyLogger) {
 				service.AssertNotCalled(t, "CreateInvoice")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -58,7 +58,7 @@ func TestInvoiceHandler_CreateInvoice(t *testing.T) {
 			name:       "service error and logger failure",
 			withUserID: true,
 			body:       `{"customer_name":"Alice","customer_email":"alice@example.com","amount":10000,"description":"desc","due_date":"2026-05-01T10:00:00Z"}`,
-			setupMocks: func(service *serviceMocks.MockInvoiceService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIInvoiceService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
 					CreateInvoice("user-1", "Alice", "alice@example.com", 10000.0, "desc", "2026-05-01T10:00:00Z").
 					Return(invoiceEntity.Invoice{}, errors.New("due_date must be today or future"))
@@ -82,7 +82,7 @@ func TestInvoiceHandler_CreateInvoice(t *testing.T) {
 			name:       "success and logger failure",
 			withUserID: true,
 			body:       `{"customer_name":"Alice","customer_email":"alice@example.com","amount":10000,"description":"desc","due_date":"2026-05-01T10:00:00Z"}`,
-			setupMocks: func(service *serviceMocks.MockInvoiceService, logger *journeyMocks.MockJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIInvoiceService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
 					CreateInvoice("user-1", "Alice", "alice@example.com", 10000.0, "desc", "2026-05-01T10:00:00Z").
 					Return(invoiceEntity.Invoice{
@@ -110,8 +110,8 @@ func TestInvoiceHandler_CreateInvoice(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockInvoiceService(t)
-			logger := journeyMocks.NewMockJourneyLogger(t)
+			service := serviceMocks.NewMockIInvoiceService(t)
+			logger := journeyMocks.NewMockIJourneyLogger(t)
 			tc.setupMocks(service, logger)
 
 			handler := NewInvoiceHandler(service, logger)
