@@ -5,7 +5,7 @@ SWAG_ARGS = init -g app/cmd/main.go -o docs --parseDependency --parseInternal
 MOCKERY_VERSION ?= v2.53.5
 MOCKERY_CMD = go run github.com/vektra/mockery/v2@$(MOCKERY_VERSION)
 
-.PHONY: swag swagger mock
+.PHONY: swag swagger mock coverage-services test-integration verify-batch10
 
 swag:
 	$(SWAG_CMD) $(SWAG_ARGS)
@@ -14,3 +14,15 @@ swagger: swag
 
 mock:
 	$(MOCKERY_CMD) --config .mockery.yaml
+
+coverage-services:
+	go test -cover ./app/modules/.../services
+
+test-integration:
+	go test ./app/cmd -run TestIntegration -v
+
+verify-batch10:
+	go test ./...
+	go test ./app/cmd -run TestIntegration -v
+	go test ./app/modules/admin/services ./app/modules/invoice/services
+	go test -cover ./app/modules/.../services

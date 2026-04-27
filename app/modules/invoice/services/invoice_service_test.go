@@ -130,3 +130,127 @@ func TestInvoiceService_CreateInvoice(t *testing.T) {
 		})
 	}
 }
+
+func TestInvoiceService_ListInvoices(t *testing.T) {
+	tests := []struct {
+		name       string
+		userID     string
+		status     string
+		page       int
+		limit      int
+		setupMocks func(repo *repoMocks.MockIInvoiceRepository)
+		wantTotal  int
+		wantLen    int
+		wantErr    string
+	}{
+		{
+			name:   "merchant lookup failed",
+			userID: "user-1",
+			status: "PENDING",
+			page:   1,
+			limit:  10,
+			setupMocks: func(repo *repoMocks.MockIInvoiceRepository) {
+				repo.EXPECT().MerchantIDByUserID("user-1").Return("", errors.New("merchant not found"))
+			},
+			wantErr: "merchant not found",
+		},
+		{
+			name:   "success",
+			userID: "user-1",
+			status: "PAID",
+			page:   2,
+			limit:  5,
+			setupMocks: func(repo *repoMocks.MockIInvoiceRepository) {
+				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
+				repo.EXPECT().
+					ListInvoices("merchant-1", "PAID", invoiceEntity.ListOptions{Page: 2, Limit: 5}).
+					Return([]invoiceEntity.Invoice{{ID: "inv-1"}, {ID: "inv-2"}}, 11)
+			},
+			wantTotal: 11,
+			wantLen:   2,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := repoMocks.NewMockIInvoiceRepository(t)
+			tc.setupMocks(repo)
+			service := NewInvoiceService(repo)
+
+			items, total, err := service.ListInvoices(tc.userID, tc.status, tc.page, tc.limit)
+
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, tc.wantErr)
+				assert.Nil(t, items)
+				assert.Zero(t, total)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Len(t, items, tc.wantLen)
+			assert.Equal(t, tc.wantTotal, total)
+		})
+	}
+}
+
+func TestInvoiceService_InvoiceByID(t *testing.T) {
+	tests := []struct {
+		name       string
+		userID     string
+		invoiceID  string
+		setupMocks func(repo *repoMocks.MockIInvoiceRepository)
+		wantID     string
+		wantErr    string
+	}{
+		{
+			name:      "merchant lookup failed",
+			userID:    "user-1",
+			invoiceID: "inv-1",
+			setupMocks: func(repo *repoMocks.MockIInvoiceRepository) {
+				repo.EXPECT().MerchantIDByUserID("user-1").Return("", errors.New("merchant not found"))
+			},
+			wantErr: "merchant not found",
+		},
+		{
+			name:      "invoice not found for merchant",
+			userID:    "user-1",
+			invoiceID: "inv-1",
+			setupMocks: func(repo *repoMocks.MockIInvoiceRepository) {
+				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
+				repo.EXPECT().MerchantInvoiceByID("inv-1", "merchant-1").Return(invoiceEntity.Invoice{}, errors.New("invoice not found"))
+			},
+			wantErr: "invoice not found",
+		},
+		{
+			name:      "success",
+			userID:    "user-1",
+			invoiceID: "inv-1",
+			setupMocks: func(repo *repoMocks.MockIInvoiceRepository) {
+				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
+				repo.EXPECT().MerchantInvoiceByID("inv-1", "merchant-1").Return(invoiceEntity.Invoice{ID: "inv-1"}, nil)
+			},
+			wantID: "inv-1",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := repoMocks.NewMockIInvoiceRepository(t)
+			tc.setupMocks(repo)
+			service := NewInvoiceService(repo)
+
+			result, err := service.InvoiceByID(tc.userID, tc.invoiceID)
+
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, tc.wantErr)
+				assert.Empty(t, result.ID)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantID, result.ID)
+		})
+	}
+}

@@ -7,14 +7,22 @@ Backend example based on `Gin` + PostgreSQL with simple clean layering:
 - Main flows: wallet topup, invoice, payment intent, refund, admin stats
 - Transaction journey logging: MongoDB (best-effort, non-blocking for core transactions)
 
-## Run
+## Prerequisites
+
+- Go `1.24+`
+- Docker + Docker Compose
+- PostgreSQL client (`psql`) for manual schema initialization (optional if DB already initialized)
+
+## Environment
+
+Copy example env:
 
 ```bash
-go mod tidy
-go run ./app/cmd
+cp .env.example .env
 ```
 
-Default env:
+Default env (local):
+
 - `APP_PORT=8080`
 - `DB_HOST=127.0.0.1`
 - `DB_PORT=5432`
@@ -30,10 +38,18 @@ Default env:
 - `MONGO_COLLECTION=journey_logs`
 - `MONGO_JOURNEY_ENABLE=true`
 
-## Docker Compose
+## Database and Services Setup
+
+Start dependencies:
 
 ```bash
 docker compose up -d
+```
+
+Initialize PostgreSQL schema (idempotent):
+
+```bash
+PGPASSWORD=secretpassword psql -h 127.0.0.1 -p 5432 -U root -d payment_sandbox -f misc/init-sql/init-database.sql
 ```
 
 Notes:
@@ -45,49 +61,45 @@ docker compose down -v
 docker compose up -d
 ```
 
-## Seeded Admin
+## Run API
+
+```bash
+go mod tidy
+go run ./app/cmd
+```
+
+Open Swagger UI:
+- `http://localhost:8080/swagger/index.html`
+
+## Seeded Admin Account
 
 - Email: `admin@sandbox.local`
 - Password: `admin1234`
 
-## Main Endpoints
+## Verification and Test Commands
 
-Public:
-- `POST /api/v1/auth/register`
-- `POST /api/v1/auth/login`
-- `GET /api/v1/pay/:token`
-- `POST /api/v1/pay/:token/intents`
-
-Merchant:
-- `GET /api/v1/merchant/wallet`
-- `POST /api/v1/merchant/topups`
-- `POST /api/v1/merchant/invoices`
-- `GET /api/v1/merchant/invoices`
-- `GET /api/v1/merchant/invoices/:id`
-- `POST /api/v1/merchant/refunds`
-
-Admin:
-- `GET /api/v1/admin/topups`
-- `PATCH /api/v1/admin/topups/:id/status`
-- `GET /api/v1/admin/payment-intents`
-- `PATCH /api/v1/admin/payment-intents/:id/status`
-- `GET /api/v1/admin/refunds`
-- `PATCH /api/v1/admin/refunds/:id/review`
-- `PATCH /api/v1/admin/refunds/:id/process`
-- `GET /api/v1/admin/stats`
-
-## Swagger / OpenAPI
-
-Generate docs:
+Unit + integration bundle:
 
 ```bash
-go run github.com/swaggo/swag/cmd/swag@v1.8.12 init -g app/cmd/main.go -o docs --parseDependency --parseInternal
+go test ./...
 ```
 
-Or using Makefile:
+DB-backed integration tests only:
 
 ```bash
-make swag
+make test-integration
+```
+
+Service-layer coverage snapshot:
+
+```bash
+make coverage-services
+```
+
+Full Batch 10 verification bundle:
+
+```bash
+make verify-batch10
 ```
 
 Generate mocks:
@@ -96,12 +108,25 @@ Generate mocks:
 make mock
 ```
 
-Run API:
+## Swagger / OpenAPI
+
+Generate docs (direct command):
 
 ```bash
-go run ./app/cmd
+go run github.com/swaggo/swag/cmd/swag@v1.8.12 init -g app/cmd/main.go -o docs --parseDependency --parseInternal
 ```
 
-Open Swagger UI:
+Or via Makefile:
 
-- `http://localhost:8080/swagger/index.html`
+```bash
+make swag
+```
+
+## Delivery Artifacts
+
+- API contract: `docs/api-contract-v1.md`
+- Requirement gap tracker: `docs/requirement-gap.md`
+- Batch 10 test report: `docs/batch10-test-report.md`
+- Batch 11 performance report: `docs/batch11-performance-report.md`
+- Swagger parity review: `docs/swagger-parity-review.md`
+- Backend acceptance checklist: `docs/backend-acceptance-checklist.md`

@@ -630,7 +630,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/healthz": {
+        "/ping": {
             "get": {
                 "description": "Check API health status",
                 "produces": [

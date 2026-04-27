@@ -18,21 +18,20 @@ Legend:
 | Payment intent simulation + admin update | done | Public create + admin update |
 | Refund request/review/process | done | Merchant/admin flows complete |
 | Admin dashboard stats | done | `/admin/stats` endpoint available |
-| Atomic transaction handling (payment/refund/top-up success) | partial | Implemented in repository flows; needs integration tests to prove atomicity end-to-end |
-| State transition rules | partial | Implemented in service/repo logic; needs additional negative integration coverage |
+| Atomic transaction handling (payment/refund/top-up success) | done | DB-backed integration flow tests now verify top-up, payment, and refund success effects |
+| State transition rules | done | Negative integration tests cover finalized reprocessing and refund process-before-approval failures |
 | Standard JSON response + errors | done | Shared envelope utilities used broadly |
 | Pagination standardization | done | Shared pagination utility added and used in invoice list |
 | Shared validation utilities | done | Shared validator package added with tests |
 | Structured logging key events | done | Journey log events emitted in handlers |
 | MongoDB transaction journey persistence | done | `shared/journeylog` + Mongo logger available |
-| Swagger/OpenAPI accuracy | partial | Swagger exists; contract parity review still needed |
+| Swagger/OpenAPI accuracy | partial | Parity review documented in `docs/swagger-parity-review.md`; `/healthz` -> `/ping` mismatch fixed, annotation coverage follow-up remains |
 | Unit tests for business logic | done | Table-driven tests across service/handler layers with mockery |
-| Integration tests for core flows | partial | Route coverage exists; full DB-backed flow integration tests still pending |
+| Integration tests for core flows | done | DB-backed integration tests in `app/cmd/integration_batch10_test.go` cover auth, invoice, payment, refund, and access-control negatives |
 | README operational documentation | partial | Core run docs exist; verify final completeness before release |
 
 ## Next Focus
 
-1. Add DB-backed integration tests for core transactional flows (payment success, refund success, top-up success).
-2. Review Swagger contract against `docs/api-contract-v1.md` and align examples/error codes.
-3. Finalize acceptance checklist and README completeness for handoff.
-
+1. Expand/standardize Swagger annotations across non-auth handlers to reduce future drift.
+2. Finalize backend acceptance checklist and handoff notes for assessment delivery.
+3. Continue Batch 11 reliability/performance verification (query plan checks and response-time evidence).

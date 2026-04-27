@@ -496,7 +496,7 @@ paths:
       summary: Register merchant
       tags:
       - auth
-  /healthz:
+  /ping:
     get:
       description: Check API health status
       produces:
