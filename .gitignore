@@ -68,3 +68,4 @@ go.work.sum
 # Custom ignore
 .agents/
 AGENTS.md
+frontend/

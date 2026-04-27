@@ -39,6 +39,7 @@ func newRouter(
 	docs.SwaggerInfo.Schemes = []string{"http"}
 
 	router := gin.New()
+	router.Use(middleware.CORSMiddleware())
 	router.Use(middleware.RequestIDMiddleware())
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery(), gin.LoggerWithFormatter(func(params gin.LogFormatterParams) string {
