@@ -12,7 +12,9 @@ Last updated: 2026-04-27 (WIB)
    - `make test-integration`
 4. Run Batch 10 verification bundle:
    - `make verify-batch10`
-5. Open Swagger UI:
+5. Run Batch 11 reliability/performance verification bundle:
+   - `make verify-batch11`
+6. Open Swagger UI:
    - `http://localhost:8080/swagger/index.html`
 
 ## Primary Evidence Documents

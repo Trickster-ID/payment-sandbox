@@ -75,3 +75,12 @@ Representative checks were run for key list/aggregate patterns.
 
 - The current dataset is small, so planner choices can differ from higher-volume production data.
 - Query plan checks should be rerun with larger seeded volumes for stronger evidence under load.
+
+## Repeatable Verification Command
+
+- Full Batch 11 verification can be re-run with:
+  - `make verify-batch11`
+- This runs:
+  - `go test ./...`
+  - route registration parity test
+  - SQL `EXPLAIN (ANALYZE, BUFFERS)` checks via `misc/verify/batch11-query-plans.sh`

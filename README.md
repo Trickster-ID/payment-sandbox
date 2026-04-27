@@ -102,6 +102,12 @@ Full Batch 10 verification bundle:
 make verify-batch10
 ```
 
+Batch 11 reliability/performance verification bundle:
+
+```bash
+make verify-batch11
+```
+
 Generate mocks:
 
 ```bash
