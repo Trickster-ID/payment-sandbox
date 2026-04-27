@@ -28,6 +28,19 @@ type CreateInvoiceRequest struct {
 	DueDate       string  `json:"due_date" binding:"required"`
 }
 
+// CreateInvoice godoc
+// @Summary Create invoice
+// @Description Merchant creates a new invoice
+// @Tags invoice
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateInvoiceRequest true "Create invoice payload"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /merchant/invoices [post]
 func (h *InvoiceHandler) CreateInvoice(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
 	if !ok {
@@ -80,6 +93,20 @@ func (h *InvoiceHandler) CreateInvoice(c *gin.Context) {
 	response.Created(c, invoice)
 }
 
+// ListInvoices godoc
+// @Summary List merchant invoices
+// @Description Merchant lists invoices with optional status and pagination
+// @Tags invoice
+// @Produce json
+// @Security BearerAuth
+// @Param status query string false "Invoice status"
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Page size" default(10)
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /merchant/invoices [get]
 func (h *InvoiceHandler) ListInvoices(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
 	if !ok {
@@ -102,6 +129,18 @@ func (h *InvoiceHandler) ListInvoices(c *gin.Context) {
 	})
 }
 
+// GetInvoice godoc
+// @Summary Get merchant invoice detail
+// @Description Merchant gets invoice detail by ID
+// @Tags invoice
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Invoice ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /merchant/invoices/{id} [get]
 func (h *InvoiceHandler) GetInvoice(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
 	if !ok {

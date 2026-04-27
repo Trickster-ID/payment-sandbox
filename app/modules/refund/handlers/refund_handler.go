@@ -32,6 +32,19 @@ type ProcessRefundRequest struct {
 	Status string `json:"status" binding:"required"`
 }
 
+// RequestRefund godoc
+// @Summary Request refund
+// @Description Merchant requests refund for successful payment intent
+// @Tags refund
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateRefundRequest true "Refund request payload"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /merchant/refunds [post]
 func (h *RefundHandler) RequestRefund(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
 	if !ok {
@@ -81,10 +94,35 @@ func (h *RefundHandler) RequestRefund(c *gin.Context) {
 	response.Created(c, refund)
 }
 
+// ListRefunds godoc
+// @Summary List refunds
+// @Description Admin lists refunds with optional status filter
+// @Tags refund
+// @Produce json
+// @Security BearerAuth
+// @Param status query string false "Refund status"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /admin/refunds [get]
 func (h *RefundHandler) ListRefunds(c *gin.Context) {
 	response.OK(c, h.service.ListRefunds(c.Query("status")))
 }
 
+// ReviewRefund godoc
+// @Summary Review refund
+// @Description Admin reviews refund request (APPROVE or REJECT)
+// @Tags refund
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Refund ID"
+// @Param request body ReviewRefundRequest true "Refund review payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /admin/refunds/{id}/review [patch]
 func (h *RefundHandler) ReviewRefund(c *gin.Context) {
 	var req ReviewRefundRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -128,6 +166,20 @@ func (h *RefundHandler) ReviewRefund(c *gin.Context) {
 	response.OK(c, refund)
 }
 
+// ProcessRefund godoc
+// @Summary Process refund
+// @Description Admin processes approved refund to SUCCESS or FAILED
+// @Tags refund
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Refund ID"
+// @Param request body ProcessRefundRequest true "Refund process payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /admin/refunds/{id}/process [patch]
 func (h *RefundHandler) ProcessRefund(c *gin.Context) {
 	var req ProcessRefundRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

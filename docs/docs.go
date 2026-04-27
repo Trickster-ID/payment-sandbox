@@ -28,13 +28,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "payment"
                 ],
                 "summary": "List payment intents",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Payment status",
+                        "description": "Payment intent status",
                         "name": "status",
                         "in": "query"
                     }
@@ -83,7 +83,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "payment"
                 ],
                 "summary": "Update payment intent status",
                 "parameters": [
@@ -100,7 +100,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/app_modules_sandbox_handlers.UpdatePaymentIntentStatusRequest"
+                            "$ref": "#/definitions/app_modules_payment_handlers.UpdatePaymentIntentStatusRequest"
                         }
                     }
                 ],
@@ -149,12 +149,12 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Admin lists refund requests with optional status filter",
+                "description": "Admin lists refunds with optional status filter",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "refund"
                 ],
                 "summary": "List refunds",
                 "parameters": [
@@ -209,9 +209,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "refund"
                 ],
-                "summary": "Process approved refund",
+                "summary": "Process refund",
                 "parameters": [
                     {
                         "type": "string",
@@ -226,7 +226,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/app_modules_sandbox_handlers.ProcessRefundRequest"
+                            "$ref": "#/definitions/app_modules_refund_handlers.ProcessRefundRequest"
                         }
                     }
                 ],
@@ -275,7 +275,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Admin approves or rejects a refund request",
+                "description": "Admin reviews refund request (APPROVE or REJECT)",
                 "consumes": [
                     "application/json"
                 ],
@@ -283,9 +283,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "refund"
                 ],
-                "summary": "Review refund request",
+                "summary": "Review refund",
                 "parameters": [
                     {
                         "type": "string",
@@ -300,7 +300,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/app_modules_sandbox_handlers.ReviewRefundRequest"
+                            "$ref": "#/definitions/app_modules_refund_handlers.ReviewRefundRequest"
                         }
                     }
                 ],
@@ -349,14 +349,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Admin gets aggregated dashboard statistics",
+                "description": "Get aggregated invoice/payment/refund stats with optional filters",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "admin"
                 ],
-                "summary": "Get dashboard statistics",
+                "summary": "Admin dashboard stats",
                 "parameters": [
                     {
                         "type": "string",
@@ -427,7 +427,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "wallet"
                 ],
                 "summary": "List top-ups",
                 "responses": {
@@ -474,7 +474,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "admin"
+                    "wallet"
                 ],
                 "summary": "Update top-up status",
                 "parameters": [
@@ -491,7 +491,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/app_modules_sandbox_handlers.UpdateTopupStatusRequest"
+                            "$ref": "#/definitions/app_modules_wallet_handlers.UpdateTopupStatusRequest"
                         }
                     }
                 ],
@@ -630,29 +630,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/ping": {
-            "get": {
-                "description": "Check API health status",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "system"
-                ],
-                "summary": "Health check",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
         "/merchant/invoices": {
             "get": {
                 "security": [
@@ -665,10 +642,16 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "merchant"
+                    "invoice"
                 ],
-                "summary": "List invoices",
+                "summary": "List merchant invoices",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Invoice status",
+                        "name": "status",
+                        "in": "query"
+                    },
                     {
                         "type": "integer",
                         "default": 1,
@@ -681,12 +664,6 @@ const docTemplate = `{
                         "default": 10,
                         "description": "Page size",
                         "name": "limit",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Invoice status",
-                        "name": "status",
                         "in": "query"
                     }
                 ],
@@ -715,6 +692,15 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             },
@@ -724,7 +710,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Merchant creates an invoice",
+                "description": "Merchant creates a new invoice",
                 "consumes": [
                     "application/json"
                 ],
@@ -732,17 +718,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "merchant"
+                    "invoice"
                 ],
                 "summary": "Create invoice",
                 "parameters": [
                     {
-                        "description": "Invoice payload",
+                        "description": "Create invoice payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/app_modules_sandbox_handlers.CreateInvoiceRequest"
+                            "$ref": "#/definitions/app_modules_invoice_handlers.CreateInvoiceRequest"
                         }
                     }
                 ],
@@ -771,6 +757,15 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
@@ -787,9 +782,9 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "merchant"
+                    "invoice"
                 ],
-                "summary": "Get invoice detail",
+                "summary": "Get merchant invoice detail",
                 "parameters": [
                     {
                         "type": "string",
@@ -816,6 +811,15 @@ const docTemplate = `{
                             }
                         }
                     },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -835,7 +839,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Merchant requests a refund for a successful payment intent",
+                "description": "Merchant requests refund for successful payment intent",
                 "consumes": [
                     "application/json"
                 ],
@@ -843,7 +847,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "merchant"
+                    "refund"
                 ],
                 "summary": "Request refund",
                 "parameters": [
@@ -853,7 +857,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/app_modules_sandbox_handlers.CreateRefundRequest"
+                            "$ref": "#/definitions/app_modules_refund_handlers.CreateRefundRequest"
                         }
                     }
                 ],
@@ -876,6 +880,15 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -893,7 +906,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Merchant creates a top-up with initial PENDING status",
+                "description": "Merchant creates top-up request with pending status",
                 "consumes": [
                     "application/json"
                 ],
@@ -901,17 +914,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "merchant"
+                    "wallet"
                 ],
                 "summary": "Create top-up request",
                 "parameters": [
                     {
-                        "description": "Top-up payload",
+                        "description": "Create top-up payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/app_modules_sandbox_handlers.CreateTopupRequest"
+                            "$ref": "#/definitions/app_modules_wallet_handlers.CreateTopupRequest"
                         }
                     }
                 ],
@@ -940,6 +953,15 @@ const docTemplate = `{
                                 "type": "string"
                             }
                         }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
@@ -951,12 +973,12 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get merchant wallet balance",
+                "description": "Merchant gets current wallet state",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "merchant"
+                    "wallet"
                 ],
                 "summary": "Get merchant wallet",
                 "responses": {
@@ -969,6 +991,15 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -990,18 +1021,18 @@ const docTemplate = `{
         },
         "/pay/{token}": {
             "get": {
-                "description": "Public endpoint to get invoice details for payment page",
+                "description": "Public endpoint to fetch invoice detail by payment link token",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "public"
+                    "payment"
                 ],
                 "summary": "Get invoice by payment token",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Payment link token",
+                        "description": "Payment token",
                         "name": "token",
                         "in": "path",
                         "required": true
@@ -1029,7 +1060,7 @@ const docTemplate = `{
         },
         "/pay/{token}/intents": {
             "post": {
-                "description": "Public endpoint to create payment intent from invoice token",
+                "description": "Public endpoint to create payment intent for an invoice token",
                 "consumes": [
                     "application/json"
                 ],
@@ -1037,13 +1068,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "public"
+                    "payment"
                 ],
                 "summary": "Create payment intent",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Payment link token",
+                        "description": "Payment token",
                         "name": "token",
                         "in": "path",
                         "required": true
@@ -1054,7 +1085,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/app_modules_sandbox_handlers.CreatePaymentIntentRequest"
+                            "$ref": "#/definitions/app_modules_payment_handlers.CreatePaymentIntentRequest"
                         }
                     }
                 ],
@@ -1068,6 +1099,29 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/ping": {
+            "get": {
+                "description": "Check API health status",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1114,7 +1168,7 @@ const docTemplate = `{
                 }
             }
         },
-        "app_modules_sandbox_handlers.CreateInvoiceRequest": {
+        "app_modules_invoice_handlers.CreateInvoiceRequest": {
             "type": "object",
             "required": [
                 "amount",
@@ -1140,7 +1194,7 @@ const docTemplate = `{
                 }
             }
         },
-        "app_modules_sandbox_handlers.CreatePaymentIntentRequest": {
+        "app_modules_payment_handlers.CreatePaymentIntentRequest": {
             "type": "object",
             "required": [
                 "method"
@@ -1151,7 +1205,18 @@ const docTemplate = `{
                 }
             }
         },
-        "app_modules_sandbox_handlers.CreateRefundRequest": {
+        "app_modules_payment_handlers.UpdatePaymentIntentStatusRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "app_modules_refund_handlers.CreateRefundRequest": {
             "type": "object",
             "required": [
                 "payment_intent_id",
@@ -1166,18 +1231,7 @@ const docTemplate = `{
                 }
             }
         },
-        "app_modules_sandbox_handlers.CreateTopupRequest": {
-            "type": "object",
-            "required": [
-                "amount"
-            ],
-            "properties": {
-                "amount": {
-                    "type": "number"
-                }
-            }
-        },
-        "app_modules_sandbox_handlers.ProcessRefundRequest": {
+        "app_modules_refund_handlers.ProcessRefundRequest": {
             "type": "object",
             "required": [
                 "status"
@@ -1188,7 +1242,7 @@ const docTemplate = `{
                 }
             }
         },
-        "app_modules_sandbox_handlers.ReviewRefundRequest": {
+        "app_modules_refund_handlers.ReviewRefundRequest": {
             "type": "object",
             "required": [
                 "decision"
@@ -1199,18 +1253,18 @@ const docTemplate = `{
                 }
             }
         },
-        "app_modules_sandbox_handlers.UpdatePaymentIntentStatusRequest": {
+        "app_modules_wallet_handlers.CreateTopupRequest": {
             "type": "object",
             "required": [
-                "status"
+                "amount"
             ],
             "properties": {
-                "status": {
-                    "type": "string"
+                "amount": {
+                    "type": "number"
                 }
             }
         },
-        "app_modules_sandbox_handlers.UpdateTopupStatusRequest": {
+        "app_modules_wallet_handlers.UpdateTopupStatusRequest": {
             "type": "object",
             "required": [
                 "status"

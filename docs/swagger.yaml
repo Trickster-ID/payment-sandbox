@@ -23,7 +23,7 @@ definitions:
     - name
     - password
     type: object
-  app_modules_sandbox_handlers.CreateInvoiceRequest:
+  app_modules_invoice_handlers.CreateInvoiceRequest:
     properties:
       amount:
         type: number
@@ -41,14 +41,21 @@ definitions:
     - customer_name
     - due_date
     type: object
-  app_modules_sandbox_handlers.CreatePaymentIntentRequest:
+  app_modules_payment_handlers.CreatePaymentIntentRequest:
     properties:
       method:
         type: string
     required:
     - method
     type: object
-  app_modules_sandbox_handlers.CreateRefundRequest:
+  app_modules_payment_handlers.UpdatePaymentIntentStatusRequest:
+    properties:
+      status:
+        type: string
+    required:
+    - status
+    type: object
+  app_modules_refund_handlers.CreateRefundRequest:
     properties:
       payment_intent_id:
         type: string
@@ -58,35 +65,28 @@ definitions:
     - payment_intent_id
     - reason
     type: object
-  app_modules_sandbox_handlers.CreateTopupRequest:
-    properties:
-      amount:
-        type: number
-    required:
-    - amount
-    type: object
-  app_modules_sandbox_handlers.ProcessRefundRequest:
+  app_modules_refund_handlers.ProcessRefundRequest:
     properties:
       status:
         type: string
     required:
     - status
     type: object
-  app_modules_sandbox_handlers.ReviewRefundRequest:
+  app_modules_refund_handlers.ReviewRefundRequest:
     properties:
       decision:
         type: string
     required:
     - decision
     type: object
-  app_modules_sandbox_handlers.UpdatePaymentIntentStatusRequest:
+  app_modules_wallet_handlers.CreateTopupRequest:
     properties:
-      status:
-        type: string
+      amount:
+        type: number
     required:
-    - status
+    - amount
     type: object
-  app_modules_sandbox_handlers.UpdateTopupStatusRequest:
+  app_modules_wallet_handlers.UpdateTopupStatusRequest:
     properties:
       status:
         type: string
@@ -103,7 +103,7 @@ paths:
     get:
       description: Admin lists payment intents with optional status filter
       parameters:
-      - description: Payment status
+      - description: Payment intent status
         in: query
         name: status
         type: string
@@ -131,7 +131,7 @@ paths:
       - BearerAuth: []
       summary: List payment intents
       tags:
-      - admin
+      - payment
   /admin/payment-intents/{id}/status:
     patch:
       consumes:
@@ -148,7 +148,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/app_modules_sandbox_handlers.UpdatePaymentIntentStatusRequest'
+          $ref: '#/definitions/app_modules_payment_handlers.UpdatePaymentIntentStatusRequest'
       produces:
       - application/json
       responses:
@@ -179,10 +179,10 @@ paths:
       - BearerAuth: []
       summary: Update payment intent status
       tags:
-      - admin
+      - payment
   /admin/refunds:
     get:
-      description: Admin lists refund requests with optional status filter
+      description: Admin lists refunds with optional status filter
       parameters:
       - description: Refund status
         in: query
@@ -212,7 +212,7 @@ paths:
       - BearerAuth: []
       summary: List refunds
       tags:
-      - admin
+      - refund
   /admin/refunds/{id}/process:
     patch:
       consumes:
@@ -229,7 +229,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/app_modules_sandbox_handlers.ProcessRefundRequest'
+          $ref: '#/definitions/app_modules_refund_handlers.ProcessRefundRequest'
       produces:
       - application/json
       responses:
@@ -258,14 +258,14 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Process approved refund
+      summary: Process refund
       tags:
-      - admin
+      - refund
   /admin/refunds/{id}/review:
     patch:
       consumes:
       - application/json
-      description: Admin approves or rejects a refund request
+      description: Admin reviews refund request (APPROVE or REJECT)
       parameters:
       - description: Refund ID
         in: path
@@ -277,7 +277,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/app_modules_sandbox_handlers.ReviewRefundRequest'
+          $ref: '#/definitions/app_modules_refund_handlers.ReviewRefundRequest'
       produces:
       - application/json
       responses:
@@ -306,12 +306,12 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Review refund request
+      summary: Review refund
       tags:
-      - admin
+      - refund
   /admin/stats:
     get:
-      description: Admin gets aggregated dashboard statistics
+      description: Get aggregated invoice/payment/refund stats with optional filters
       parameters:
       - description: Merchant ID
         in: query
@@ -353,7 +353,7 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Get dashboard statistics
+      summary: Admin dashboard stats
       tags:
       - admin
   /admin/topups:
@@ -383,7 +383,7 @@ paths:
       - BearerAuth: []
       summary: List top-ups
       tags:
-      - admin
+      - wallet
   /admin/topups/{id}/status:
     patch:
       consumes:
@@ -400,7 +400,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/app_modules_sandbox_handlers.UpdateTopupStatusRequest'
+          $ref: '#/definitions/app_modules_wallet_handlers.UpdateTopupStatusRequest'
       produces:
       - application/json
       responses:
@@ -431,7 +431,7 @@ paths:
       - BearerAuth: []
       summary: Update top-up status
       tags:
-      - admin
+      - wallet
   /auth/login:
     post:
       consumes:
@@ -496,25 +496,14 @@ paths:
       summary: Register merchant
       tags:
       - auth
-  /ping:
-    get:
-      description: Check API health status
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Health check
-      tags:
-      - system
   /merchant/invoices:
     get:
       description: Merchant lists invoices with optional status and pagination
       parameters:
+      - description: Invoice status
+        in: query
+        name: status
+        type: string
       - default: 1
         description: Page number
         in: query
@@ -525,10 +514,6 @@ paths:
         in: query
         name: limit
         type: integer
-      - description: Invoice status
-        in: query
-        name: status
-        type: string
       produces:
       - application/json
       responses:
@@ -549,22 +534,28 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
       security:
       - BearerAuth: []
-      summary: List invoices
+      summary: List merchant invoices
       tags:
-      - merchant
+      - invoice
     post:
       consumes:
       - application/json
-      description: Merchant creates an invoice
+      description: Merchant creates a new invoice
       parameters:
-      - description: Invoice payload
+      - description: Create invoice payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/app_modules_sandbox_handlers.CreateInvoiceRequest'
+          $ref: '#/definitions/app_modules_invoice_handlers.CreateInvoiceRequest'
       produces:
       - application/json
       responses:
@@ -585,11 +576,17 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
       security:
       - BearerAuth: []
       summary: Create invoice
       tags:
-      - merchant
+      - invoice
   /merchant/invoices/{id}:
     get:
       description: Merchant gets invoice detail by ID
@@ -613,6 +610,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "404":
           description: Not Found
           schema:
@@ -621,21 +624,21 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Get invoice detail
+      summary: Get merchant invoice detail
       tags:
-      - merchant
+      - invoice
   /merchant/refunds:
     post:
       consumes:
       - application/json
-      description: Merchant requests a refund for a successful payment intent
+      description: Merchant requests refund for successful payment intent
       parameters:
       - description: Refund request payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/app_modules_sandbox_handlers.CreateRefundRequest'
+          $ref: '#/definitions/app_modules_refund_handlers.CreateRefundRequest'
       produces:
       - application/json
       responses:
@@ -652,6 +655,12 @@ paths:
             type: object
         "401":
           description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden
           schema:
             additionalProperties:
               type: string
@@ -660,19 +669,19 @@ paths:
       - BearerAuth: []
       summary: Request refund
       tags:
-      - merchant
+      - refund
   /merchant/topups:
     post:
       consumes:
       - application/json
-      description: Merchant creates a top-up with initial PENDING status
+      description: Merchant creates top-up request with pending status
       parameters:
-      - description: Top-up payload
+      - description: Create top-up payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/app_modules_sandbox_handlers.CreateTopupRequest'
+          $ref: '#/definitions/app_modules_wallet_handlers.CreateTopupRequest'
       produces:
       - application/json
       responses:
@@ -693,14 +702,20 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
       security:
       - BearerAuth: []
       summary: Create top-up request
       tags:
-      - merchant
+      - wallet
   /merchant/wallet:
     get:
-      description: Get merchant wallet balance
+      description: Merchant gets current wallet state
       produces:
       - application/json
       responses:
@@ -715,6 +730,12 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "404":
           description: Not Found
           schema:
@@ -725,12 +746,12 @@ paths:
       - BearerAuth: []
       summary: Get merchant wallet
       tags:
-      - merchant
+      - wallet
   /pay/{token}:
     get:
-      description: Public endpoint to get invoice details for payment page
+      description: Public endpoint to fetch invoice detail by payment link token
       parameters:
-      - description: Payment link token
+      - description: Payment token
         in: path
         name: token
         required: true
@@ -751,14 +772,14 @@ paths:
             type: object
       summary: Get invoice by payment token
       tags:
-      - public
+      - payment
   /pay/{token}/intents:
     post:
       consumes:
       - application/json
-      description: Public endpoint to create payment intent from invoice token
+      description: Public endpoint to create payment intent for an invoice token
       parameters:
-      - description: Payment link token
+      - description: Payment token
         in: path
         name: token
         required: true
@@ -768,7 +789,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/app_modules_sandbox_handlers.CreatePaymentIntentRequest'
+          $ref: '#/definitions/app_modules_payment_handlers.CreatePaymentIntentRequest'
       produces:
       - application/json
       responses:
@@ -785,7 +806,22 @@ paths:
             type: object
       summary: Create payment intent
       tags:
-      - public
+      - payment
+  /ping:
+    get:
+      description: Check API health status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Health check
+      tags:
+      - system
 schemes:
 - http
 securityDefinitions:

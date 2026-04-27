@@ -26,6 +26,15 @@ type UpdatePaymentIntentStatusRequest struct {
 	Status string `json:"status" binding:"required"`
 }
 
+// PublicInvoice godoc
+// @Summary Get invoice by payment token
+// @Description Public endpoint to fetch invoice detail by payment link token
+// @Tags payment
+// @Produce json
+// @Param token path string true "Payment token"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {object} map[string]string
+// @Router /pay/{token} [get]
 func (h *PaymentHandler) PublicInvoice(c *gin.Context) {
 	invoice, err := h.service.PublicInvoiceByToken(c.Param("token"))
 	if err != nil {
@@ -35,6 +44,17 @@ func (h *PaymentHandler) PublicInvoice(c *gin.Context) {
 	response.OK(c, invoice)
 }
 
+// CreatePaymentIntent godoc
+// @Summary Create payment intent
+// @Description Public endpoint to create payment intent for an invoice token
+// @Tags payment
+// @Accept json
+// @Produce json
+// @Param token path string true "Payment token"
+// @Param request body CreatePaymentIntentRequest true "Payment intent payload"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Router /pay/{token}/intents [post]
 func (h *PaymentHandler) CreatePaymentIntent(c *gin.Context) {
 	var req CreatePaymentIntentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -81,10 +101,35 @@ func (h *PaymentHandler) CreatePaymentIntent(c *gin.Context) {
 	response.Created(c, gin.H{"payment_intent": intent, "invoice": invoice})
 }
 
+// ListPaymentIntents godoc
+// @Summary List payment intents
+// @Description Admin lists payment intents with optional status filter
+// @Tags payment
+// @Produce json
+// @Security BearerAuth
+// @Param status query string false "Payment intent status"
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /admin/payment-intents [get]
 func (h *PaymentHandler) ListPaymentIntents(c *gin.Context) {
 	response.OK(c, h.service.ListPaymentIntents(c.Query("status")))
 }
 
+// UpdatePaymentIntentStatus godoc
+// @Summary Update payment intent status
+// @Description Admin updates payment intent status to SUCCESS or FAILED
+// @Tags payment
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Payment intent ID"
+// @Param request body UpdatePaymentIntentStatusRequest true "Payment status payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /admin/payment-intents/{id}/status [patch]
 func (h *PaymentHandler) UpdatePaymentIntentStatus(c *gin.Context) {
 	var req UpdatePaymentIntentStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

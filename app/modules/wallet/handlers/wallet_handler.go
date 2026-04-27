@@ -27,6 +27,17 @@ type UpdateTopupStatusRequest struct {
 	Status string `json:"status" binding:"required"`
 }
 
+// Wallet godoc
+// @Summary Get merchant wallet
+// @Description Merchant gets current wallet state
+// @Tags wallet
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /merchant/wallet [get]
 func (h *WalletHandler) Wallet(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
 	if !ok {
@@ -41,6 +52,19 @@ func (h *WalletHandler) Wallet(c *gin.Context) {
 	response.OK(c, wallet)
 }
 
+// CreateTopup godoc
+// @Summary Create top-up request
+// @Description Merchant creates top-up request with pending status
+// @Tags wallet
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateTopupRequest true "Create top-up payload"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /merchant/topups [post]
 func (h *WalletHandler) CreateTopup(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
 	if !ok {
@@ -93,10 +117,34 @@ func (h *WalletHandler) CreateTopup(c *gin.Context) {
 	response.Created(c, topup)
 }
 
+// ListTopups godoc
+// @Summary List top-ups
+// @Description Admin lists top-up requests
+// @Tags wallet
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /admin/topups [get]
 func (h *WalletHandler) ListTopups(c *gin.Context) {
 	response.OK(c, h.service.ListTopups())
 }
 
+// UpdateTopupStatus godoc
+// @Summary Update top-up status
+// @Description Admin updates top-up status to SUCCESS or FAILED
+// @Tags wallet
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Top-up ID"
+// @Param request body UpdateTopupStatusRequest true "Top-up status payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 401 {object} map[string]string
+// @Failure 403 {object} map[string]string
+// @Router /admin/topups/{id}/status [patch]
 func (h *WalletHandler) UpdateTopupStatus(c *gin.Context) {
 	var req UpdateTopupStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
