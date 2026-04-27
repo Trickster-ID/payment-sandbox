@@ -51,6 +51,6 @@ Last updated: 2026-04-27 (WIB)
 
 ## Remaining for Final Handoff
 
-- [ ] Swagger/OpenAPI parity review against live behavior and error examples
-- [ ] Performance evidence capture for key endpoints (target <= 300ms in normal local load)
-- [ ] Query plan validation notes for key aggregate/list endpoints
+- [x] Swagger/OpenAPI parity review against live behavior and error examples
+- [x] Performance evidence capture for key endpoints (target <= 300ms in normal local load)
+- [x] Query plan validation notes for key aggregate/list endpoints

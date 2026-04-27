@@ -19,21 +19,21 @@ Quick parity check between:
   - `docs/swagger.json`
   - `docs/docs.go`
 
-2. Annotation coverage risk
-- `@Router` tags currently present in auth handler only (`/auth/register`, `/auth/login`).
-- Other paths exist in generated swagger, but without broad in-code annotations the source of truth is less explicit and easier to drift.
+2. Annotation coverage (fixed)
+- `@Router` tags are now standardized across auth + non-auth handlers:
+  - wallet
+  - invoice
+  - payment
+  - refund
+  - admin
 
 ## Recommended Fix
 
 1. Update Swagger health path to match runtime:
 - replace `/healthz` with `/ping` (base path `/api/v1` remains unchanged).
 
-2. Add/standardize Swagger annotations across remaining handlers:
-- wallet
-- invoice
-- payment
-- refund
-- admin
+2. Add/standardize Swagger annotations across remaining handlers.
+  - status: completed
 
 3. Regenerate docs and re-verify:
 
@@ -42,7 +42,12 @@ make swag
 go test ./app/cmd -run TestNewRouter_RegistersExpectedRoutes
 ```
 
+Verification result:
+- `make swag` completed successfully.
+- `go test ./app/cmd -run TestNewRouter_RegistersExpectedRoutes -v` passed.
+
 ## Current Status
 
 - Health-path mismatch is resolved.
-- Swagger parity remains **partial** because annotation coverage is still uneven outside auth handlers.
+- Swagger annotation coverage standardization is complete for current routes.
+- Swagger parity is **done** for the reviewed scope.

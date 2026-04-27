@@ -25,13 +25,13 @@ Legend:
 | Shared validation utilities | done | Shared validator package added with tests |
 | Structured logging key events | done | Journey log events emitted in handlers |
 | MongoDB transaction journey persistence | done | `shared/journeylog` + Mongo logger available |
-| Swagger/OpenAPI accuracy | partial | Parity review documented in `docs/swagger-parity-review.md`; `/healthz` -> `/ping` mismatch fixed, annotation coverage follow-up remains |
+| Swagger/OpenAPI accuracy | done | Parity review completed in `docs/swagger-parity-review.md`; `/healthz` -> `/ping` aligned and non-auth handler annotations standardized + regenerated |
 | Unit tests for business logic | done | Table-driven tests across service/handler layers with mockery |
 | Integration tests for core flows | done | DB-backed integration tests in `app/cmd/integration_batch10_test.go` cover auth, invoice, payment, refund, and access-control negatives |
-| README operational documentation | partial | Core run docs exist; verify final completeness before release |
+| README operational documentation | done | README includes prerequisites, env vars, DB init, run/test/mock/swagger commands, and delivery artifact links |
 
 ## Next Focus
 
-1. Expand/standardize Swagger annotations across non-auth handlers to reduce future drift.
-2. Finalize backend acceptance checklist and handoff notes for assessment delivery.
-3. Continue Batch 11 reliability/performance verification (query plan checks and response-time evidence).
+1. Keep docs and generated swagger artifacts in sync when endpoint contracts change.
+2. Re-run performance/query-plan checks on larger seeded datasets for stronger non-functional evidence.
+3. Proceed with assessment handoff/review packaging.
