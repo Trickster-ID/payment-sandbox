@@ -130,3 +130,4 @@ make swag
 - Batch 11 performance report: `docs/batch11-performance-report.md`
 - Swagger parity review: `docs/swagger-parity-review.md`
 - Backend acceptance checklist: `docs/backend-acceptance-checklist.md`
+- Submission handoff: `docs/submission-handoff.md`
