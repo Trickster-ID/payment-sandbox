@@ -17,14 +17,33 @@ func NewAuthHandler(service authServices.IAuthService) *AuthHandler {
 }
 
 type RegisterRequest struct {
-	Name     string `json:"name" binding:"required"`
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Name     string `json:"name" binding:"required" example:"Jane Merchant"`
+	Email    string `json:"email" binding:"required,email" example:"jane.merchant@example.com"`
+	Password string `json:"password" binding:"required" example:"merchant1234"`
 }
 
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
+	Email    string `json:"email" binding:"required,email" example:"jane.merchant@example.com"`
+	Password string `json:"password" binding:"required" example:"merchant1234"`
+}
+
+type AuthUserResponse struct {
+	ID    string `json:"id" example:"0196aee7-7eca-7e8c-96fb-4fdfa75b2177"`
+	Name  string `json:"name" example:"Jane Merchant"`
+	Email string `json:"email" example:"jane.merchant@example.com"`
+	Role  string `json:"role" example:"MERCHANT" enums:"MERCHANT,ADMIN"`
+}
+
+type RegisterMerchantResponse struct {
+	ID    string `json:"id" example:"0196aee7-7eca-7e8c-96fb-4fdfa75b2177"`
+	Name  string `json:"name" example:"Jane Merchant"`
+	Email string `json:"email" example:"jane.merchant@example.com"`
+	Role  string `json:"role" example:"MERCHANT" enums:"MERCHANT,ADMIN"`
+}
+
+type LoginResponse struct {
+	AccessToken string           `json:"access_token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	User        AuthUserResponse `json:"user"`
 }
 
 // RegisterMerchant godoc
@@ -34,8 +53,8 @@ type LoginRequest struct {
 // @Accept json
 // @Produce json
 // @Param request body RegisterRequest true "Register payload"
-// @Success 201 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
+// @Success 201 {object} response.Envelope{data=handlers.RegisterMerchantResponse}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /auth/register [post]
 func (h *AuthHandler) RegisterMerchant(c *gin.Context) {
 	var req RegisterRequest
@@ -65,9 +84,9 @@ func (h *AuthHandler) RegisterMerchant(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param request body LoginRequest true "Login payload"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
+// @Success 200 {object} response.Envelope{data=handlers.LoginResponse}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest

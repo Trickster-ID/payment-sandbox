@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	adminEntity "payment-sandbox/app/modules/admin/models/entity"
 	adminServices "payment-sandbox/app/modules/admin/services"
 	appErrors "payment-sandbox/app/shared/errors"
 	"payment-sandbox/app/shared/response"
@@ -12,6 +13,12 @@ type AdminHandler struct {
 	service adminServices.IAdminService
 }
 
+type HealthResponse struct {
+	Status string `json:"status" example:"ok"`
+}
+
+type DashboardStatsResponse = adminEntity.DashboardStats
+
 func NewAdminHandler(service adminServices.IAdminService) *AdminHandler {
 	return &AdminHandler{service: service}
 }
@@ -21,7 +28,7 @@ func NewAdminHandler(service adminServices.IAdminService) *AdminHandler {
 // @Description Check API health status
 // @Tags system
 // @Produce json
-// @Success 200 {object} map[string]string
+// @Success 200 {object} response.Envelope{data=handlers.HealthResponse}
 // @Router /ping [get]
 func (h *AdminHandler) Healthz(c *gin.Context) {
 	response.OK(c, gin.H{"status": "ok"})
@@ -36,10 +43,10 @@ func (h *AdminHandler) Healthz(c *gin.Context) {
 // @Param merchant_id query string false "Merchant ID"
 // @Param start_date query string false "Start date (YYYY-MM-DD)"
 // @Param end_date query string false "End date (YYYY-MM-DD)"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
+// @Success 200 {object} response.Envelope{data=handlers.DashboardStatsResponse}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /admin/stats [get]
 func (h *AdminHandler) DashboardStats(c *gin.Context) {
 	stats, err := h.service.Stats(c.Query("merchant_id"), c.Query("start_date"), c.Query("end_date"))

@@ -11,13 +11,8 @@ FROM alpine:3.22
 
 # Read build arguments
 ARG REPOSITORY_NAME
-ARG APP_ENV
-ARG APP_VERSION
-ARG COMMIT_ID
 
 WORKDIR /srv/app
-ENV APP_VERSION=$APP_VERSION
-ENV COMMIT_ID=$COMMIT_ID
 
 # Copy zone info
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo

@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"payment-sandbox/app/middleware"
+	refundEntity "payment-sandbox/app/modules/refund/models/entity"
 	"payment-sandbox/app/modules/refund/services"
+	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
 	appErrors "payment-sandbox/app/shared/errors"
 	"payment-sandbox/app/shared/journeylog"
 	"payment-sandbox/app/shared/response"
@@ -20,17 +22,26 @@ func NewRefundHandler(service services.IRefundService, journeyLogger journeylog.
 }
 
 type CreateRefundRequest struct {
-	PaymentIntentID string `json:"payment_intent_id" binding:"required"`
-	Reason          string `json:"reason" binding:"required"`
+	PaymentIntentID string `json:"payment_intent_id" binding:"required" example:"0196aee7-80b0-7d57-b38f-26b315d8f9bb"`
+	Reason          string `json:"reason" binding:"required" example:"Customer requested cancellation"`
 }
 
 type ReviewRefundRequest struct {
-	Decision string `json:"decision" binding:"required"`
+	Decision string `json:"decision" binding:"required" example:"APPROVE" enums:"APPROVE,REJECT"`
 }
 
 type ProcessRefundRequest struct {
-	Status string `json:"status" binding:"required"`
+	Status string `json:"status" binding:"required" example:"SUCCESS" enums:"SUCCESS,FAILED"`
 }
+
+type RefundProcessResponse struct {
+	Refund   refundEntity.Refund   `json:"refund"`
+	Merchant walletEntity.Merchant `json:"merchant"`
+}
+
+type RefundResponse = refundEntity.Refund
+
+type RefundListResponse []refundEntity.Refund
 
 // RequestRefund godoc
 // @Summary Request refund
@@ -40,10 +51,10 @@ type ProcessRefundRequest struct {
 // @Produce json
 // @Security BearerAuth
 // @Param request body CreateRefundRequest true "Refund request payload"
-// @Success 201 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
+// @Success 201 {object} response.Envelope{data=handlers.RefundResponse}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /merchant/refunds [post]
 func (h *RefundHandler) RequestRefund(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
@@ -100,10 +111,10 @@ func (h *RefundHandler) RequestRefund(c *gin.Context) {
 // @Tags refund
 // @Produce json
 // @Security BearerAuth
-// @Param status query string false "Refund status"
-// @Success 200 {object} map[string]interface{}
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
+// @Param status query string false "Refund status" Enums(REQUESTED,APPROVED,REJECTED,SUCCESS,FAILED)
+// @Success 200 {object} response.Envelope{data=handlers.RefundListResponse}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /admin/refunds [get]
 func (h *RefundHandler) ListRefunds(c *gin.Context) {
 	response.OK(c, h.service.ListRefunds(c.Query("status")))
@@ -118,10 +129,10 @@ func (h *RefundHandler) ListRefunds(c *gin.Context) {
 // @Security BearerAuth
 // @Param id path string true "Refund ID"
 // @Param request body ReviewRefundRequest true "Refund review payload"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
+// @Success 200 {object} response.Envelope{data=handlers.RefundResponse}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /admin/refunds/{id}/review [patch]
 func (h *RefundHandler) ReviewRefund(c *gin.Context) {
 	var req ReviewRefundRequest
@@ -175,10 +186,10 @@ func (h *RefundHandler) ReviewRefund(c *gin.Context) {
 // @Security BearerAuth
 // @Param id path string true "Refund ID"
 // @Param request body ProcessRefundRequest true "Refund process payload"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
+// @Success 200 {object} response.Envelope{data=handlers.RefundProcessResponse}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /admin/refunds/{id}/process [patch]
 func (h *RefundHandler) ProcessRefund(c *gin.Context) {
 	var req ProcessRefundRequest

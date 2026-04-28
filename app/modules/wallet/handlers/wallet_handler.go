@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"payment-sandbox/app/middleware"
+	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
 	walletServices "payment-sandbox/app/modules/wallet/services"
 	appErrors "payment-sandbox/app/shared/errors"
 	"payment-sandbox/app/shared/journeylog"
@@ -20,12 +21,18 @@ func NewWalletHandler(service walletServices.IWalletService, journeyLogger journ
 }
 
 type CreateTopupRequest struct {
-	Amount float64 `json:"amount" binding:"required,gt=0"`
+	Amount float64 `json:"amount" binding:"required,gt=0" example:"500000"`
 }
 
 type UpdateTopupStatusRequest struct {
-	Status string `json:"status" binding:"required"`
+	Status string `json:"status" binding:"required" example:"SUCCESS" enums:"SUCCESS,FAILED"`
 }
+
+type WalletResponse = walletEntity.Merchant
+
+type TopupResponse = walletEntity.Topup
+
+type TopupListResponse []walletEntity.Topup
 
 // Wallet godoc
 // @Summary Get merchant wallet
@@ -33,10 +40,10 @@ type UpdateTopupStatusRequest struct {
 // @Tags wallet
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]interface{}
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
-// @Failure 404 {object} map[string]string
+// @Success 200 {object} response.Envelope{data=handlers.WalletResponse}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 404 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /merchant/wallet [get]
 func (h *WalletHandler) Wallet(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
@@ -60,10 +67,10 @@ func (h *WalletHandler) Wallet(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param request body CreateTopupRequest true "Create top-up payload"
-// @Success 201 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
+// @Success 201 {object} response.Envelope{data=handlers.TopupResponse}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /merchant/topups [post]
 func (h *WalletHandler) CreateTopup(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
@@ -123,9 +130,9 @@ func (h *WalletHandler) CreateTopup(c *gin.Context) {
 // @Tags wallet
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]interface{}
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
+// @Success 200 {object} response.Envelope{data=handlers.TopupListResponse}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /admin/topups [get]
 func (h *WalletHandler) ListTopups(c *gin.Context) {
 	response.OK(c, h.service.ListTopups())
@@ -140,10 +147,10 @@ func (h *WalletHandler) ListTopups(c *gin.Context) {
 // @Security BearerAuth
 // @Param id path string true "Top-up ID"
 // @Param request body UpdateTopupStatusRequest true "Top-up status payload"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
+// @Success 200 {object} response.Envelope{data=handlers.TopupResponse}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /admin/topups/{id}/status [patch]
 func (h *WalletHandler) UpdateTopupStatus(c *gin.Context) {
 	var req UpdateTopupStatusRequest

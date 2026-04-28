@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
+	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
 	paymentServices "payment-sandbox/app/modules/payment/services"
 	appErrors "payment-sandbox/app/shared/errors"
 	"payment-sandbox/app/shared/journeylog"
@@ -19,11 +21,25 @@ func NewPaymentHandler(service paymentServices.IPaymentService, journeyLogger jo
 }
 
 type CreatePaymentIntentRequest struct {
-	Method string `json:"method" binding:"required"`
+	Method string `json:"method" binding:"required" example:"WALLET" enums:"WALLET,VA_DUMMY,EWALLET_DUMMY"`
 }
 
 type UpdatePaymentIntentStatusRequest struct {
-	Status string `json:"status" binding:"required"`
+	Status string `json:"status" binding:"required" example:"SUCCESS" enums:"SUCCESS,FAILED"`
+}
+
+type PaymentIntentCreateResponse struct {
+	PaymentIntent paymentEntity.PaymentIntent `json:"payment_intent"`
+	Invoice       invoiceEntity.Invoice       `json:"invoice"`
+}
+
+type PublicInvoiceResponse = invoiceEntity.Invoice
+
+type PaymentIntentListResponse []paymentEntity.PaymentIntent
+
+type PaymentIntentStatusUpdateResponse struct {
+	PaymentIntent paymentEntity.PaymentIntent `json:"payment_intent"`
+	Invoice       invoiceEntity.Invoice       `json:"invoice"`
 }
 
 // PublicInvoice godoc
@@ -32,8 +48,8 @@ type UpdatePaymentIntentStatusRequest struct {
 // @Tags payment
 // @Produce json
 // @Param token path string true "Payment token"
-// @Success 200 {object} map[string]interface{}
-// @Failure 404 {object} map[string]string
+// @Success 200 {object} response.Envelope{data=handlers.PublicInvoiceResponse}
+// @Failure 404 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /pay/{token} [get]
 func (h *PaymentHandler) PublicInvoice(c *gin.Context) {
 	invoice, err := h.service.PublicInvoiceByToken(c.Param("token"))
@@ -52,8 +68,8 @@ func (h *PaymentHandler) PublicInvoice(c *gin.Context) {
 // @Produce json
 // @Param token path string true "Payment token"
 // @Param request body CreatePaymentIntentRequest true "Payment intent payload"
-// @Success 201 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
+// @Success 201 {object} response.Envelope{data=handlers.PaymentIntentCreateResponse}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /pay/{token}/intents [post]
 func (h *PaymentHandler) CreatePaymentIntent(c *gin.Context) {
 	var req CreatePaymentIntentRequest
@@ -107,10 +123,10 @@ func (h *PaymentHandler) CreatePaymentIntent(c *gin.Context) {
 // @Tags payment
 // @Produce json
 // @Security BearerAuth
-// @Param status query string false "Payment intent status"
-// @Success 200 {object} map[string]interface{}
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
+// @Param status query string false "Payment intent status" Enums(PENDING,SUCCESS,FAILED)
+// @Success 200 {object} response.Envelope{data=handlers.PaymentIntentListResponse}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /admin/payment-intents [get]
 func (h *PaymentHandler) ListPaymentIntents(c *gin.Context) {
 	response.OK(c, h.service.ListPaymentIntents(c.Query("status")))
@@ -125,10 +141,10 @@ func (h *PaymentHandler) ListPaymentIntents(c *gin.Context) {
 // @Security BearerAuth
 // @Param id path string true "Payment intent ID"
 // @Param request body UpdatePaymentIntentStatusRequest true "Payment status payload"
-// @Success 200 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string
-// @Failure 401 {object} map[string]string
-// @Failure 403 {object} map[string]string
+// @Success 200 {object} response.Envelope{data=handlers.PaymentIntentStatusUpdateResponse}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /admin/payment-intents/{id}/status [patch]
 func (h *PaymentHandler) UpdatePaymentIntentStatus(c *gin.Context) {
 	var req UpdatePaymentIntentStatusRequest

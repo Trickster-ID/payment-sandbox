@@ -33,6 +33,11 @@ const docTemplate = `{
                 "summary": "List payment intents",
                 "parameters": [
                     {
+                        "enum": [
+                            "PENDING",
+                            "SUCCESS",
+                            "FAILED"
+                        ],
                         "type": "string",
                         "description": "Payment intent status",
                         "name": "status",
@@ -43,26 +48,58 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentIntent"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -108,35 +145,73 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_payment_handlers.PaymentIntentStatusUpdateResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -159,6 +234,13 @@ const docTemplate = `{
                 "summary": "List refunds",
                 "parameters": [
                     {
+                        "enum": [
+                            "REQUESTED",
+                            "APPROVED",
+                            "REJECTED",
+                            "SUCCESS",
+                            "FAILED"
+                        ],
                         "type": "string",
                         "description": "Refund status",
                         "name": "status",
@@ -169,26 +251,58 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/payment-sandbox_app_modules_refund_models_entity.Refund"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -234,35 +348,73 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_refund_handlers.RefundProcessResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -308,35 +460,73 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_refund_handlers.RefundResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -381,35 +571,73 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_admin_handlers.DashboardStatsResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -434,26 +662,58 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/payment-sandbox_app_modules_wallet_models_entity.Topup"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -499,35 +759,73 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_wallet_handlers.TopupResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -561,26 +859,55 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_auth_handlers.LoginResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -614,17 +941,37 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_auth_handlers.RegisterMerchantResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -647,6 +994,11 @@ const docTemplate = `{
                 "summary": "List merchant invoices",
                 "parameters": [
                     {
+                        "enum": [
+                            "PENDING",
+                            "PAID",
+                            "EXPIRED"
+                        ],
                         "type": "string",
                         "description": "Invoice status",
                         "name": "status",
@@ -671,35 +1023,79 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/payment-sandbox_app_modules_invoice_models_entity.Invoice"
+                                            }
+                                        },
+                                        "meta": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.PaginationMeta"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -736,35 +1132,73 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_invoice_handlers.InvoiceResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -798,35 +1232,73 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_invoice_handlers.InvoiceResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -865,35 +1337,73 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_refund_handlers.RefundResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -932,35 +1442,73 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_wallet_handlers.TopupResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -985,35 +1533,73 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_wallet_handlers.WalletResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -1042,17 +1628,37 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_payment_handlers.PublicInvoiceResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -1093,17 +1699,37 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_payment_handlers.PaymentIntentCreateResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -1123,10 +1749,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_admin_handlers.HealthResponse"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     }
                 }
@@ -1134,6 +1769,60 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "app_modules_admin_handlers.DashboardStatsResponse": {
+            "type": "object",
+            "properties": {
+                "total_by_status": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "total_invoice_created": {
+                    "type": "integer"
+                },
+                "total_payment_nominal": {
+                    "type": "number"
+                },
+                "total_refund_nominal": {
+                    "type": "number"
+                }
+            }
+        },
+        "app_modules_admin_handlers.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
+        "app_modules_auth_handlers.AuthUserResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "jane.merchant@example.com"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0196aee7-7eca-7e8c-96fb-4fdfa75b2177"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Jane Merchant"
+                },
+                "role": {
+                    "type": "string",
+                    "enum": [
+                        "MERCHANT",
+                        "ADMIN"
+                    ],
+                    "example": "MERCHANT"
+                }
+            }
+        },
         "app_modules_auth_handlers.LoginRequest": {
             "type": "object",
             "required": [
@@ -1142,10 +1831,49 @@ const docTemplate = `{
             ],
             "properties": {
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "jane.merchant@example.com"
                 },
                 "password": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "merchant1234"
+                }
+            }
+        },
+        "app_modules_auth_handlers.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                },
+                "user": {
+                    "$ref": "#/definitions/app_modules_auth_handlers.AuthUserResponse"
+                }
+            }
+        },
+        "app_modules_auth_handlers.RegisterMerchantResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "jane.merchant@example.com"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0196aee7-7eca-7e8c-96fb-4fdfa75b2177"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Jane Merchant"
+                },
+                "role": {
+                    "type": "string",
+                    "enum": [
+                        "MERCHANT",
+                        "ADMIN"
+                    ],
+                    "example": "MERCHANT"
                 }
             }
         },
@@ -1158,13 +1886,16 @@ const docTemplate = `{
             ],
             "properties": {
                 "email": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "jane.merchant@example.com"
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Jane Merchant"
                 },
                 "password": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "merchant1234"
                 }
             }
         },
@@ -1178,7 +1909,35 @@ const docTemplate = `{
             ],
             "properties": {
                 "amount": {
+                    "type": "number",
+                    "example": 250000
+                },
+                "customer_email": {
+                    "type": "string",
+                    "example": "john.customer@example.com"
+                },
+                "customer_name": {
+                    "type": "string",
+                    "example": "John Customer"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Invoice for April subscription"
+                },
+                "due_date": {
+                    "type": "string",
+                    "example": "2026-05-01T10:00:00Z"
+                }
+            }
+        },
+        "app_modules_invoice_handlers.InvoiceResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
                     "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
                 },
                 "customer_email": {
                     "type": "string"
@@ -1191,6 +1950,24 @@ const docTemplate = `{
                 },
                 "due_date": {
                     "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "invoice_number": {
+                    "type": "string"
+                },
+                "merchant_id": {
+                    "type": "string"
+                },
+                "payment_link_token": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_invoice_models_entity.InvoiceStatus"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -1201,6 +1978,75 @@ const docTemplate = `{
             ],
             "properties": {
                 "method": {
+                    "type": "string",
+                    "enum": [
+                        "WALLET",
+                        "VA_DUMMY",
+                        "EWALLET_DUMMY"
+                    ],
+                    "example": "WALLET"
+                }
+            }
+        },
+        "app_modules_payment_handlers.PaymentIntentCreateResponse": {
+            "type": "object",
+            "properties": {
+                "invoice": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_invoice_models_entity.Invoice"
+                },
+                "payment_intent": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentIntent"
+                }
+            }
+        },
+        "app_modules_payment_handlers.PaymentIntentStatusUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "invoice": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_invoice_models_entity.Invoice"
+                },
+                "payment_intent": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentIntent"
+                }
+            }
+        },
+        "app_modules_payment_handlers.PublicInvoiceResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "customer_email": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "due_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "invoice_number": {
+                    "type": "string"
+                },
+                "merchant_id": {
+                    "type": "string"
+                },
+                "payment_link_token": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_invoice_models_entity.InvoiceStatus"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -1212,7 +2058,12 @@ const docTemplate = `{
             ],
             "properties": {
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "SUCCESS",
+                        "FAILED"
+                    ],
+                    "example": "SUCCESS"
                 }
             }
         },
@@ -1224,10 +2075,12 @@ const docTemplate = `{
             ],
             "properties": {
                 "payment_intent_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "0196aee7-80b0-7d57-b38f-26b315d8f9bb"
                 },
                 "reason": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "Customer requested cancellation"
                 }
             }
         },
@@ -1238,6 +2091,51 @@ const docTemplate = `{
             ],
             "properties": {
                 "status": {
+                    "type": "string",
+                    "enum": [
+                        "SUCCESS",
+                        "FAILED"
+                    ],
+                    "example": "SUCCESS"
+                }
+            }
+        },
+        "app_modules_refund_handlers.RefundProcessResponse": {
+            "type": "object",
+            "properties": {
+                "merchant": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_wallet_models_entity.Merchant"
+                },
+                "refund": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_refund_models_entity.Refund"
+                }
+            }
+        },
+        "app_modules_refund_handlers.RefundResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "merchant_id": {
+                    "type": "string"
+                },
+                "payment_intent_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_refund_models_entity.RefundStatus"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }
@@ -1249,7 +2147,12 @@ const docTemplate = `{
             ],
             "properties": {
                 "decision": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "APPROVE",
+                        "REJECT"
+                    ],
+                    "example": "APPROVE"
                 }
             }
         },
@@ -1260,7 +2163,31 @@ const docTemplate = `{
             ],
             "properties": {
                 "amount": {
+                    "type": "number",
+                    "example": 500000
+                }
+            }
+        },
+        "app_modules_wallet_handlers.TopupResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
                     "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "merchant_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentStatus"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -1271,7 +2198,263 @@ const docTemplate = `{
             ],
             "properties": {
                 "status": {
+                    "type": "string",
+                    "enum": [
+                        "SUCCESS",
+                        "FAILED"
+                    ],
+                    "example": "SUCCESS"
+                }
+            }
+        },
+        "app_modules_wallet_handlers.WalletResponse": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "number"
+                },
+                "created_at": {
                     "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "payment-sandbox_app_modules_invoice_models_entity.Invoice": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "customer_email": {
+                    "type": "string"
+                },
+                "customer_name": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "due_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "invoice_number": {
+                    "type": "string"
+                },
+                "merchant_id": {
+                    "type": "string"
+                },
+                "payment_link_token": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_invoice_models_entity.InvoiceStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "payment-sandbox_app_modules_invoice_models_entity.InvoiceStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "PAID",
+                "EXPIRED"
+            ],
+            "x-enum-varnames": [
+                "InvoicePending",
+                "InvoicePaid",
+                "InvoiceExpired"
+            ]
+        },
+        "payment-sandbox_app_modules_payment_models_entity.PaymentIntent": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "invoice_id": {
+                    "type": "string"
+                },
+                "method": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentMethod"
+                },
+                "status": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "payment-sandbox_app_modules_payment_models_entity.PaymentMethod": {
+            "type": "string",
+            "enum": [
+                "WALLET",
+                "VA_DUMMY",
+                "EWALLET_DUMMY"
+            ],
+            "x-enum-varnames": [
+                "MethodWallet",
+                "MethodVADummy",
+                "MethodEWalletDummy"
+            ]
+        },
+        "payment-sandbox_app_modules_payment_models_entity.PaymentStatus": {
+            "type": "string",
+            "enum": [
+                "PENDING",
+                "SUCCESS",
+                "FAILED"
+            ],
+            "x-enum-varnames": [
+                "PaymentPending",
+                "PaymentSuccess",
+                "PaymentFailed"
+            ]
+        },
+        "payment-sandbox_app_modules_refund_models_entity.Refund": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "merchant_id": {
+                    "type": "string"
+                },
+                "payment_intent_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_refund_models_entity.RefundStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "payment-sandbox_app_modules_refund_models_entity.RefundStatus": {
+            "type": "string",
+            "enum": [
+                "REQUESTED",
+                "APPROVED",
+                "REJECTED",
+                "SUCCESS",
+                "FAILED"
+            ],
+            "x-enum-varnames": [
+                "RefundRequested",
+                "RefundApproved",
+                "RefundRejected",
+                "RefundSuccess",
+                "RefundFailed"
+            ]
+        },
+        "payment-sandbox_app_modules_wallet_models_entity.Merchant": {
+            "type": "object",
+            "properties": {
+                "balance": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "payment-sandbox_app_modules_wallet_models_entity.Topup": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "merchant_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "payment-sandbox_app_shared_response.Envelope": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                },
+                "meta": {}
+            }
+        },
+        "payment-sandbox_app_shared_response.ErrorPayload": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "details": {},
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "payment-sandbox_app_shared_response.PaginationMeta": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 42
                 }
             }
         }

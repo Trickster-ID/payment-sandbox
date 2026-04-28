@@ -1,22 +1,90 @@
 basePath: /api/v1
 definitions:
+  app_modules_admin_handlers.DashboardStatsResponse:
+    properties:
+      total_by_status:
+        additionalProperties:
+          type: integer
+        type: object
+      total_invoice_created:
+        type: integer
+      total_payment_nominal:
+        type: number
+      total_refund_nominal:
+        type: number
+    type: object
+  app_modules_admin_handlers.HealthResponse:
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
+  app_modules_auth_handlers.AuthUserResponse:
+    properties:
+      email:
+        example: jane.merchant@example.com
+        type: string
+      id:
+        example: 0196aee7-7eca-7e8c-96fb-4fdfa75b2177
+        type: string
+      name:
+        example: Jane Merchant
+        type: string
+      role:
+        enum:
+        - MERCHANT
+        - ADMIN
+        example: MERCHANT
+        type: string
+    type: object
   app_modules_auth_handlers.LoginRequest:
     properties:
       email:
+        example: jane.merchant@example.com
         type: string
       password:
+        example: merchant1234
         type: string
     required:
     - email
     - password
     type: object
+  app_modules_auth_handlers.LoginResponse:
+    properties:
+      access_token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      user:
+        $ref: '#/definitions/app_modules_auth_handlers.AuthUserResponse'
+    type: object
+  app_modules_auth_handlers.RegisterMerchantResponse:
+    properties:
+      email:
+        example: jane.merchant@example.com
+        type: string
+      id:
+        example: 0196aee7-7eca-7e8c-96fb-4fdfa75b2177
+        type: string
+      name:
+        example: Jane Merchant
+        type: string
+      role:
+        enum:
+        - MERCHANT
+        - ADMIN
+        example: MERCHANT
+        type: string
+    type: object
   app_modules_auth_handlers.RegisterRequest:
     properties:
       email:
+        example: jane.merchant@example.com
         type: string
       name:
+        example: Jane Merchant
         type: string
       password:
+        example: merchant1234
         type: string
     required:
     - email
@@ -26,7 +94,32 @@ definitions:
   app_modules_invoice_handlers.CreateInvoiceRequest:
     properties:
       amount:
+        example: 250000
         type: number
+      customer_email:
+        example: john.customer@example.com
+        type: string
+      customer_name:
+        example: John Customer
+        type: string
+      description:
+        example: Invoice for April subscription
+        type: string
+      due_date:
+        example: "2026-05-01T10:00:00Z"
+        type: string
+    required:
+    - amount
+    - customer_email
+    - customer_name
+    - due_date
+    type: object
+  app_modules_invoice_handlers.InvoiceResponse:
+    properties:
+      amount:
+        type: number
+      created_at:
+        type: string
       customer_email:
         type: string
       customer_name:
@@ -35,22 +128,79 @@ definitions:
         type: string
       due_date:
         type: string
-    required:
-    - amount
-    - customer_email
-    - customer_name
-    - due_date
+      id:
+        type: string
+      invoice_number:
+        type: string
+      merchant_id:
+        type: string
+      payment_link_token:
+        type: string
+      status:
+        $ref: '#/definitions/payment-sandbox_app_modules_invoice_models_entity.InvoiceStatus'
+      updated_at:
+        type: string
     type: object
   app_modules_payment_handlers.CreatePaymentIntentRequest:
     properties:
       method:
+        enum:
+        - WALLET
+        - VA_DUMMY
+        - EWALLET_DUMMY
+        example: WALLET
         type: string
     required:
     - method
     type: object
+  app_modules_payment_handlers.PaymentIntentCreateResponse:
+    properties:
+      invoice:
+        $ref: '#/definitions/payment-sandbox_app_modules_invoice_models_entity.Invoice'
+      payment_intent:
+        $ref: '#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentIntent'
+    type: object
+  app_modules_payment_handlers.PaymentIntentStatusUpdateResponse:
+    properties:
+      invoice:
+        $ref: '#/definitions/payment-sandbox_app_modules_invoice_models_entity.Invoice'
+      payment_intent:
+        $ref: '#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentIntent'
+    type: object
+  app_modules_payment_handlers.PublicInvoiceResponse:
+    properties:
+      amount:
+        type: number
+      created_at:
+        type: string
+      customer_email:
+        type: string
+      customer_name:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      id:
+        type: string
+      invoice_number:
+        type: string
+      merchant_id:
+        type: string
+      payment_link_token:
+        type: string
+      status:
+        $ref: '#/definitions/payment-sandbox_app_modules_invoice_models_entity.InvoiceStatus'
+      updated_at:
+        type: string
+    type: object
   app_modules_payment_handlers.UpdatePaymentIntentStatusRequest:
     properties:
       status:
+        enum:
+        - SUCCESS
+        - FAILED
+        example: SUCCESS
         type: string
     required:
     - status
@@ -58,8 +208,10 @@ definitions:
   app_modules_refund_handlers.CreateRefundRequest:
     properties:
       payment_intent_id:
+        example: 0196aee7-80b0-7d57-b38f-26b315d8f9bb
         type: string
       reason:
+        example: Customer requested cancellation
         type: string
     required:
     - payment_intent_id
@@ -68,13 +220,47 @@ definitions:
   app_modules_refund_handlers.ProcessRefundRequest:
     properties:
       status:
+        enum:
+        - SUCCESS
+        - FAILED
+        example: SUCCESS
         type: string
     required:
     - status
     type: object
+  app_modules_refund_handlers.RefundProcessResponse:
+    properties:
+      merchant:
+        $ref: '#/definitions/payment-sandbox_app_modules_wallet_models_entity.Merchant'
+      refund:
+        $ref: '#/definitions/payment-sandbox_app_modules_refund_models_entity.Refund'
+    type: object
+  app_modules_refund_handlers.RefundResponse:
+    properties:
+      amount:
+        type: number
+      created_at:
+        type: string
+      id:
+        type: string
+      merchant_id:
+        type: string
+      payment_intent_id:
+        type: string
+      reason:
+        type: string
+      status:
+        $ref: '#/definitions/payment-sandbox_app_modules_refund_models_entity.RefundStatus'
+      updated_at:
+        type: string
+    type: object
   app_modules_refund_handlers.ReviewRefundRequest:
     properties:
       decision:
+        enum:
+        - APPROVE
+        - REJECT
+        example: APPROVE
         type: string
     required:
     - decision
@@ -82,16 +268,209 @@ definitions:
   app_modules_wallet_handlers.CreateTopupRequest:
     properties:
       amount:
+        example: 500000
         type: number
     required:
     - amount
     type: object
+  app_modules_wallet_handlers.TopupResponse:
+    properties:
+      amount:
+        type: number
+      created_at:
+        type: string
+      id:
+        type: string
+      merchant_id:
+        type: string
+      status:
+        $ref: '#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentStatus'
+      updated_at:
+        type: string
+    type: object
   app_modules_wallet_handlers.UpdateTopupStatusRequest:
     properties:
       status:
+        enum:
+        - SUCCESS
+        - FAILED
+        example: SUCCESS
         type: string
     required:
     - status
+    type: object
+  app_modules_wallet_handlers.WalletResponse:
+    properties:
+      balance:
+        type: number
+      created_at:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  payment-sandbox_app_modules_invoice_models_entity.Invoice:
+    properties:
+      amount:
+        type: number
+      created_at:
+        type: string
+      customer_email:
+        type: string
+      customer_name:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      id:
+        type: string
+      invoice_number:
+        type: string
+      merchant_id:
+        type: string
+      payment_link_token:
+        type: string
+      status:
+        $ref: '#/definitions/payment-sandbox_app_modules_invoice_models_entity.InvoiceStatus'
+      updated_at:
+        type: string
+    type: object
+  payment-sandbox_app_modules_invoice_models_entity.InvoiceStatus:
+    enum:
+    - PENDING
+    - PAID
+    - EXPIRED
+    type: string
+    x-enum-varnames:
+    - InvoicePending
+    - InvoicePaid
+    - InvoiceExpired
+  payment-sandbox_app_modules_payment_models_entity.PaymentIntent:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      invoice_id:
+        type: string
+      method:
+        $ref: '#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentMethod'
+      status:
+        $ref: '#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentStatus'
+      updated_at:
+        type: string
+    type: object
+  payment-sandbox_app_modules_payment_models_entity.PaymentMethod:
+    enum:
+    - WALLET
+    - VA_DUMMY
+    - EWALLET_DUMMY
+    type: string
+    x-enum-varnames:
+    - MethodWallet
+    - MethodVADummy
+    - MethodEWalletDummy
+  payment-sandbox_app_modules_payment_models_entity.PaymentStatus:
+    enum:
+    - PENDING
+    - SUCCESS
+    - FAILED
+    type: string
+    x-enum-varnames:
+    - PaymentPending
+    - PaymentSuccess
+    - PaymentFailed
+  payment-sandbox_app_modules_refund_models_entity.Refund:
+    properties:
+      amount:
+        type: number
+      created_at:
+        type: string
+      id:
+        type: string
+      merchant_id:
+        type: string
+      payment_intent_id:
+        type: string
+      reason:
+        type: string
+      status:
+        $ref: '#/definitions/payment-sandbox_app_modules_refund_models_entity.RefundStatus'
+      updated_at:
+        type: string
+    type: object
+  payment-sandbox_app_modules_refund_models_entity.RefundStatus:
+    enum:
+    - REQUESTED
+    - APPROVED
+    - REJECTED
+    - SUCCESS
+    - FAILED
+    type: string
+    x-enum-varnames:
+    - RefundRequested
+    - RefundApproved
+    - RefundRejected
+    - RefundSuccess
+    - RefundFailed
+  payment-sandbox_app_modules_wallet_models_entity.Merchant:
+    properties:
+      balance:
+        type: number
+      created_at:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  payment-sandbox_app_modules_wallet_models_entity.Topup:
+    properties:
+      amount:
+        type: number
+      created_at:
+        type: string
+      id:
+        type: string
+      merchant_id:
+        type: string
+      status:
+        $ref: '#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentStatus'
+      updated_at:
+        type: string
+    type: object
+  payment-sandbox_app_shared_response.Envelope:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+      meta: {}
+    type: object
+  payment-sandbox_app_shared_response.ErrorPayload:
+    properties:
+      code:
+        type: string
+      details: {}
+      message:
+        type: string
+    type: object
+  payment-sandbox_app_shared_response.PaginationMeta:
+    properties:
+      limit:
+        example: 10
+        type: integer
+      page:
+        example: 1
+        type: integer
+      total:
+        example: 42
+        type: integer
     type: object
 info:
   contact: {}
@@ -104,6 +483,10 @@ paths:
       description: Admin lists payment intents with optional status filter
       parameters:
       - description: Payment intent status
+        enum:
+        - PENDING
+        - SUCCESS
+        - FAILED
         in: query
         name: status
         type: string
@@ -113,20 +496,32 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentIntent'
+                  type: array
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: List payment intents
@@ -155,26 +550,39 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_payment_handlers.PaymentIntentStatusUpdateResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: Update payment intent status
@@ -185,6 +593,12 @@ paths:
       description: Admin lists refunds with optional status filter
       parameters:
       - description: Refund status
+        enum:
+        - REQUESTED
+        - APPROVED
+        - REJECTED
+        - SUCCESS
+        - FAILED
         in: query
         name: status
         type: string
@@ -194,20 +608,32 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/payment-sandbox_app_modules_refund_models_entity.Refund'
+                  type: array
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: List refunds
@@ -236,26 +662,39 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_refund_handlers.RefundProcessResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: Process refund
@@ -284,26 +723,39 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_refund_handlers.RefundResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: Review refund
@@ -331,26 +783,39 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_admin_handlers.DashboardStatsResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: Admin dashboard stats
@@ -365,20 +830,32 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/payment-sandbox_app_modules_wallet_models_entity.Topup'
+                  type: array
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: List top-ups
@@ -407,26 +884,39 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_wallet_handlers.TopupResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: Update top-up status
@@ -450,20 +940,30 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_auth_handlers.LoginResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       summary: Login user
       tags:
       - auth
@@ -485,14 +985,21 @@ paths:
         "201":
           description: Created
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_auth_handlers.RegisterMerchantResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       summary: Register merchant
       tags:
       - auth
@@ -501,6 +1008,10 @@ paths:
       description: Merchant lists invoices with optional status and pagination
       parameters:
       - description: Invoice status
+        enum:
+        - PENDING
+        - PAID
+        - EXPIRED
         in: query
         name: status
         type: string
@@ -520,26 +1031,43 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/payment-sandbox_app_modules_invoice_models_entity.Invoice'
+                  type: array
+                meta:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.PaginationMeta'
+              type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: List merchant invoices
@@ -562,26 +1090,39 @@ paths:
         "201":
           description: Created
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_invoice_handlers.InvoiceResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: Create invoice
@@ -602,26 +1143,39 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_invoice_handlers.InvoiceResponse'
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "404":
           description: Not Found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: Get merchant invoice detail
@@ -645,26 +1199,39 @@ paths:
         "201":
           description: Created
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_refund_handlers.RefundResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: Request refund
@@ -688,26 +1255,39 @@ paths:
         "201":
           description: Created
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_wallet_handlers.TopupResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: Create top-up request
@@ -722,26 +1302,39 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_wallet_handlers.WalletResponse'
+              type: object
         "401":
           description: Unauthorized
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "403":
           description: Forbidden
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
         "404":
           description: Not Found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       security:
       - BearerAuth: []
       summary: Get merchant wallet
@@ -762,14 +1355,21 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_payment_handlers.PublicInvoiceResponse'
+              type: object
         "404":
           description: Not Found
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       summary: Get invoice by payment token
       tags:
       - payment
@@ -796,14 +1396,21 @@ paths:
         "201":
           description: Created
           schema:
-            additionalProperties: true
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_payment_handlers.PaymentIntentCreateResponse'
+              type: object
         "400":
           description: Bad Request
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
       summary: Create payment intent
       tags:
       - payment
@@ -816,9 +1423,12 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_admin_handlers.HealthResponse'
+              type: object
       summary: Health check
       tags:
       - system
