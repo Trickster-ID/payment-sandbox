@@ -1,0 +1,25 @@
+name: ISO Verification
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  verify-iso-ci:
+    name: Verify ISO (CI-safe)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify ISO CI Bundle
+        run: make verify-iso-ci
