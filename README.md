@@ -24,6 +24,7 @@ cp .env.example .env
 Default env (local):
 
 - `APP_PORT=8080`
+- `APP_ENV=local`
 - `DB_HOST=127.0.0.1`
 - `DB_PORT=5432`
 - `DB_USER=root`
@@ -108,6 +109,24 @@ Batch 11 reliability/performance verification bundle:
 make verify-batch11
 ```
 
+ISO readiness verification bundle:
+
+```bash
+make verify-iso
+```
+
+CI-safe ISO verification bundle (skips strict drill evidence gate unless explicitly enabled):
+
+```bash
+make verify-iso-ci
+```
+
+Run real backup-restore drill:
+
+```bash
+make drill-backup-restore
+```
+
 Generate mocks:
 
 ```bash
@@ -137,3 +156,14 @@ make swag
 - Swagger parity review: `docs/swagger-parity-review.md`
 - Backend acceptance checklist: `docs/backend-acceptance-checklist.md`
 - Submission handoff: `docs/submission-handoff.md`
+- ISO hardening package: `docs/iso/README.md`
+- Security policy: `SECURITY.md`
+
+## Security and ISO Operations
+
+- Config hardening guide: `docs/security/config-hardening.md`
+- Vulnerability handling workflow: `docs/iso/06-vulnerability-management.md`
+- Backup helper: `misc/ops/backup.sh`
+- Restore helper: `misc/ops/restore.sh`
+- Backup-restore drill helper: `misc/ops/drill-backup-restore.sh`
+- CI workflow for ISO checks: `.github/workflows/iso-verification.yml`

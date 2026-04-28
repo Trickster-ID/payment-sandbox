@@ -69,3 +69,4 @@ go.work.sum
 .agents/
 AGENTS.md
 frontend/
+tmp/
