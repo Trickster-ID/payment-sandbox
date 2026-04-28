@@ -22,6 +22,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if err := app.Config.Validate(); err != nil {
+		log.Fatal(err)
+	}
 
 	server := &http.Server{
 		Addr:    ":" + app.Config.AppPort,

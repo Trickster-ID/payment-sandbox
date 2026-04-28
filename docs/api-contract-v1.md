@@ -19,6 +19,8 @@ Notes:
 - Success responses use `data` (optional `meta`).
 - Error responses use `error` with stable `code`.
 - `X-Request-ID` is propagated by middleware.
+- All datetime fields in request/response payloads use RFC3339 (ISO 8601 profile) in UTC where applicable.
+- Monetary values in v1 are interpreted as `IDR` (ISO 4217 single-currency policy).
 
 ## Public Endpoints
 
@@ -66,4 +68,3 @@ Notes:
 | `invoice_not_found` | 404 | Invoice not found |
 | `wallet_not_found` | 404 | Wallet not found |
 | `*_failed` | 400 | Domain-specific command failure |
-

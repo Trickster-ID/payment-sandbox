@@ -27,9 +27,21 @@ func TestIsEmail(t *testing.T) {
 }
 
 func TestIsPositiveAmount(t *testing.T) {
-	assert.True(t, IsPositiveAmount(1))
-	assert.False(t, IsPositiveAmount(0))
-	assert.False(t, IsPositiveAmount(-1))
+	tests := []struct {
+		name   string
+		amount float64
+		want   bool
+	}{
+		{name: "positive", amount: 1, want: true},
+		{name: "zero", amount: 0, want: false},
+		{name: "negative", amount: -1, want: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, IsPositiveAmount(tc.amount))
+		})
+	}
 }
 
 func TestParseRFC3339(t *testing.T) {
@@ -73,6 +85,27 @@ func TestIsTodayOrFuture(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.want, IsTodayOrFuture(tc.date, now))
+		})
+	}
+}
+
+func TestIsISO4217Code(t *testing.T) {
+	tests := []struct {
+		name string
+		code string
+		want bool
+	}{
+		{name: "supported code", code: "IDR", want: true},
+		{name: "supported code lower case", code: "usd", want: true},
+		{name: "unsupported but valid format", code: "AUD", want: false},
+		{name: "invalid format with number", code: "U5D", want: false},
+		{name: "invalid length", code: "US", want: false},
+		{name: "empty", code: " ", want: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, IsISO4217Code(tc.code))
 		})
 	}
 }

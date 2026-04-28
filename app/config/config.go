@@ -1,14 +1,17 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
+	AppEnv             string
 	AppPort            string
 	JWTSecret          string
 	JWTDuration        time.Duration
@@ -25,10 +28,18 @@ type Config struct {
 	MongoJourneyEnable bool
 }
 
+const (
+	AppEnvLocal   = "local"
+	AppEnvDev     = "dev"
+	AppEnvStaging = "staging"
+	AppEnvProd    = "prod"
+)
+
 func Load() Config {
 	_ = godotenv.Load()
 
 	return Config{
+		AppEnv:             normalizeAppEnv(getEnv("APP_ENV", AppEnvLocal)),
 		AppPort:            getEnv("APP_PORT", "8080"),
 		JWTSecret:          getEnv("JWT_SECRET", "change-me-in-env"),
 		JWTDuration:        getEnvDuration("JWT_DURATION_MINUTES", 60),
@@ -44,6 +55,24 @@ func Load() Config {
 		MongoCollection:    getEnv("MONGO_COLLECTION", "journey_logs"),
 		MongoJourneyEnable: getEnvBool("MONGO_JOURNEY_ENABLE", true),
 	}
+}
+
+func (c Config) Validate() error {
+	if c.AppEnv == AppEnvLocal {
+		return nil
+	}
+
+	secret := strings.TrimSpace(c.JWTSecret)
+	if secret == "" {
+		return fmt.Errorf("JWT_SECRET must be set for APP_ENV=%s", c.AppEnv)
+	}
+	if secret == "change-me-in-env" || secret == "supersecretkey" {
+		return fmt.Errorf("JWT_SECRET uses insecure default value for APP_ENV=%s", c.AppEnv)
+	}
+	if c.JWTDuration <= 0 {
+		return fmt.Errorf("JWT_DURATION_MINUTES must be greater than zero for APP_ENV=%s", c.AppEnv)
+	}
+	return nil
 }
 
 func getEnv(key, fallback string) string {
@@ -87,4 +116,17 @@ func getEnvBool(key string, fallback bool) bool {
 		return fallback
 	}
 	return value
+}
+
+func normalizeAppEnv(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case AppEnvDev:
+		return AppEnvDev
+	case AppEnvStaging:
+		return AppEnvStaging
+	case AppEnvProd:
+		return AppEnvProd
+	default:
+		return AppEnvLocal
+	}
 }
