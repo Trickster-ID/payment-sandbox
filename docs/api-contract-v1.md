@@ -27,8 +27,7 @@ Notes:
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | GET | `/ping` | No | Health check |
-| POST | `/auth/register` | No | Register merchant |
-| POST | `/auth/login` | No | Login |
+| POST | `/users/register` | No | Register merchant |
 | GET | `/pay/:token` | No | Public invoice detail |
 | POST | `/pay/:token/intents` | No | Create payment intent |
 

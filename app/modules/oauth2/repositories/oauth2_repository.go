@@ -3,7 +3,9 @@ package repositories
 import (
 	"database/sql"
 	"payment-sandbox/app/modules/oauth2/models/entity"
-	authEntity "payment-sandbox/app/modules/auth/models/entity"
+	userEntity "payment-sandbox/app/modules/users/models/entity"
+
+	"github.com/lib/pq"
 )
 
 type IOAuth2Repository interface {
@@ -29,8 +31,8 @@ type IOAuth2Repository interface {
 	SaveConsent(consent entity.Consent) error
 
 	// User lookup
-	FindUserByID(id string) (authEntity.User, bool)
-	FindUserByEmail(email string) (authEntity.User, bool)
+	FindUserByID(id string) (userEntity.User, bool)
+	FindUserByEmail(email string) (userEntity.User, bool)
 }
 
 type OAuth2Repository struct {
@@ -47,8 +49,8 @@ func (r *OAuth2Repository) CreateClient(client entity.OAuthClient) (entity.OAuth
 		INSERT INTO oauth2_clients (owner_id, client_secret, name, redirect_uris, scopes, is_first_party, is_confidential)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id::text, owner_id::text, name, redirect_uris, scopes, is_first_party, is_confidential, created_at, updated_at
-	`, client.OwnerID, client.SecretHash, client.Name, client.RedirectURIs, client.Scopes, client.IsFirstParty, client.IsConfidential).
-		Scan(&result.ID, &result.OwnerID, &result.Name, &result.RedirectURIs, &result.Scopes, &result.IsFirstParty, &result.IsConfidential, &result.CreatedAt, &result.UpdatedAt)
+	`, client.OwnerID, client.SecretHash, client.Name, pq.Array(client.RedirectURIs), pq.Array(client.Scopes), client.IsFirstParty, client.IsConfidential).
+		Scan(&result.ID, &result.OwnerID, &result.Name, pq.Array(&result.RedirectURIs), pq.Array(&result.Scopes), &result.IsFirstParty, &result.IsConfidential, &result.CreatedAt, &result.UpdatedAt)
 	
 	if err != nil {
 		return entity.OAuthClient{}, err
@@ -63,8 +65,8 @@ func (r *OAuth2Repository) FindClientByID(id string) (entity.OAuthClient, bool) 
 		FROM oauth2_clients
 		WHERE id = $1 AND deleted_at IS NULL
 	`, id).
-		Scan(&client.ID, &client.OwnerID, &client.SecretHash, &client.Name, &client.RedirectURIs, &client.Scopes, &client.IsFirstParty, &client.IsConfidential, &client.CreatedAt, &client.UpdatedAt)
-	
+		Scan(&client.ID, &client.OwnerID, &client.SecretHash, &client.Name, pq.Array(&client.RedirectURIs), pq.Array(&client.Scopes), &client.IsFirstParty, &client.IsConfidential, &client.CreatedAt, &client.UpdatedAt)
+
 	if err != nil {
 		return entity.OAuthClient{}, false
 	}
@@ -86,7 +88,7 @@ func (r *OAuth2Repository) ListClientsByOwner(ownerID string) ([]entity.OAuthCli
 	var clients []entity.OAuthClient
 	for rows.Next() {
 		var c entity.OAuthClient
-		if err := rows.Scan(&c.ID, &c.OwnerID, &c.Name, &c.RedirectURIs, &c.Scopes, &c.IsFirstParty, &c.IsConfidential, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.OwnerID, &c.Name, pq.Array(&c.RedirectURIs), pq.Array(&c.Scopes), &c.IsFirstParty, &c.IsConfidential, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
 		clients = append(clients, c)
@@ -200,8 +202,8 @@ func (r *OAuth2Repository) SaveConsent(consent entity.Consent) error {
 	return err
 }
 
-func (r *OAuth2Repository) FindUserByID(id string) (authEntity.User, bool) {
-	var user authEntity.User
+func (r *OAuth2Repository) FindUserByID(id string) (userEntity.User, bool) {
+	var user userEntity.User
 	err := r.db.QueryRow(`
 		SELECT id::text, name, email, password_hash, role::text, created_at
 		FROM users
@@ -209,13 +211,13 @@ func (r *OAuth2Repository) FindUserByID(id string) (authEntity.User, bool) {
 	`, id).
 		Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.Role, &user.CreatedAt)
 	if err != nil {
-		return authEntity.User{}, false
+		return userEntity.User{}, false
 	}
 	return user, true
 }
 
-func (r *OAuth2Repository) FindUserByEmail(email string) (authEntity.User, bool) {
-	var user authEntity.User
+func (r *OAuth2Repository) FindUserByEmail(email string) (userEntity.User, bool) {
+	var user userEntity.User
 	err := r.db.QueryRow(`
 		SELECT id::text, name, email, password_hash, role::text, created_at
 		FROM users
@@ -223,7 +225,7 @@ func (r *OAuth2Repository) FindUserByEmail(email string) (authEntity.User, bool)
 	`, email).
 		Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.Role, &user.CreatedAt)
 	if err != nil {
-		return authEntity.User{}, false
+		return userEntity.User{}, false
 	}
 	return user, true
 }

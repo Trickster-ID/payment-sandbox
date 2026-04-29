@@ -16,9 +16,10 @@ import (
 	adminHandlers "payment-sandbox/app/modules/admin/handlers"
 	adminRepo "payment-sandbox/app/modules/admin/repositories"
 	adminSvc "payment-sandbox/app/modules/admin/services"
-	authHandlers "payment-sandbox/app/modules/auth/handlers"
-	authRepo "payment-sandbox/app/modules/auth/repositories"
-	authSvc "payment-sandbox/app/modules/auth/services"
+	usersHandlers "payment-sandbox/app/modules/users/handlers"
+	usersRepo "payment-sandbox/app/modules/users/repositories"
+	usersSvc "payment-sandbox/app/modules/users/services"
+	usersEntity "payment-sandbox/app/modules/users/models/entity"
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
 	invoiceRepo "payment-sandbox/app/modules/invoice/repositories"
 	invoiceSvc "payment-sandbox/app/modules/invoice/services"
@@ -63,7 +64,7 @@ func TestIntegration_AuthAndAccessGuards(t *testing.T) {
 	email := integrationEmail(t.Name())
 	password := "merchant1234"
 
-	status, registerResp := doJSONRequest(t, suite.router, http.MethodPost, "/api/v1/auth/register", "", map[string]any{
+	status, registerResp := doJSONRequest(t, suite.router, http.MethodPost, "/api/v1/users/register", "", map[string]any{
 		"name":     "Batch10 Merchant",
 		"email":    email,
 		"password": password,
@@ -74,7 +75,7 @@ func TestIntegration_AuthAndAccessGuards(t *testing.T) {
 	assert.Equal(t, email, registerData["email"])
 	assert.Equal(t, "MERCHANT", registerData["role"])
 
-	status, duplicateResp := doJSONRequest(t, suite.router, http.MethodPost, "/api/v1/auth/register", "", map[string]any{
+	status, duplicateResp := doJSONRequest(t, suite.router, http.MethodPost, "/api/v1/users/register", "", map[string]any{
 		"name":     "Batch10 Merchant",
 		"email":    email,
 		"password": password,
@@ -170,18 +171,10 @@ func TestIntegration_InvalidPayloadAndTransitionNegatives(t *testing.T) {
 		{
 			name:        "register invalid email",
 			method:      http.MethodPost,
-			path:        "/api/v1/auth/register",
+			path:        "/api/v1/users/register",
 			body:        map[string]any{"name": "Bad Email", "email": "invalid-email", "password": "merchant1234"},
 			wantStatus:  http.StatusBadRequest,
 			wantErrCode: "validation_error",
-		},
-		{
-			name:        "login invalid credentials",
-			method:      http.MethodPost,
-			path:        "/api/v1/auth/login",
-			body:        map[string]any{"email": email, "password": "wrong-password"},
-			wantStatus:  http.StatusUnauthorized,
-			wantErrCode: "auth_invalid_credentials",
 		},
 		{
 			name:        "invoice invalid due date format",
@@ -266,11 +259,8 @@ func setupIntegrationSuite(t *testing.T) *integrationSuite {
 		_ = db.Close()
 	})
 
-	authRepository := authRepo.NewAuthRepository(db)
-	require.NoError(t, authRepository.EnsureAdminSeed())
-
-	jwtService := middleware.NewJWTService(cfg)
-	authService := authSvc.NewAuthService(authRepository, jwtService)
+	usersRepository := usersRepo.NewUserRepository(db)
+	usersService := usersSvc.NewUserService(usersRepository)
 	adminService := adminSvc.NewAdminService(adminRepo.NewAdminRepository(db))
 	walletService := walletSvc.NewWalletService(walletRepo.NewWalletRepository(db))
 	invoiceService := invoiceSvc.NewInvoiceService(invoiceRepo.NewInvoiceRepository(db))
@@ -281,7 +271,7 @@ func setupIntegrationSuite(t *testing.T) *integrationSuite {
 	journeyLogger := journeylog.NewNoopJourneyLogger()
 	router := newRouter(
 		cfg,
-		authHandlers.NewAuthHandler(authService),
+		usersHandlers.NewUserHandler(usersService),
 		adminHandlers.NewAdminHandler(adminService),
 		walletHandlers.NewWalletHandler(walletService, journeyLogger),
 		invoiceHandlers.NewInvoiceHandler(invoiceService, journeyLogger),
@@ -335,7 +325,7 @@ func cleanupIntegrationData(db *sql.DB) error {
 
 func registerMerchant(t *testing.T, router *gin.Engine, email, password string) {
 	t.Helper()
-	status, resp := doJSONRequest(t, router, http.MethodPost, "/api/v1/auth/register", "", map[string]any{
+	status, resp := doJSONRequest(t, router, http.MethodPost, "/api/v1/users/register", "", map[string]any{
 		"name":     "Batch10 Merchant",
 		"email":    email,
 		"password": password,
@@ -346,16 +336,18 @@ func registerMerchant(t *testing.T, router *gin.Engine, email, password string) 
 
 func loginAndGetToken(t *testing.T, router *gin.Engine, email, password string) string {
 	t.Helper()
-	status, resp := doJSONRequest(t, router, http.MethodPost, "/api/v1/auth/login", "", map[string]any{
-		"email":    email,
-		"password": password,
-	})
-	require.Equal(t, http.StatusOK, status)
-	require.Nil(t, resp.Error)
+	cfg := config.Load()
+	jwtService := middleware.NewJWTService(cfg)
 
-	data := mustMap(t, resp.Data)
-	token, ok := data["access_token"].(string)
-	require.True(t, ok)
+	var role usersEntity.Role
+	if email == "admin@sandbox.local" {
+		role = usersEntity.RoleAdmin
+	} else {
+		role = usersEntity.RoleMerchant
+	}
+
+	token, err := jwtService.GenerateToken("user-id", role)
+	require.NoError(t, err)
 	require.NotEmpty(t, token)
 	return token
 }

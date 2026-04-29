@@ -7,9 +7,9 @@ import (
 	"payment-sandbox/app/middleware"
 	adminAPI "payment-sandbox/app/modules/admin/api"
 	adminHandlers "payment-sandbox/app/modules/admin/handlers"
-	authAPI "payment-sandbox/app/modules/auth/api"
-	authHandlers "payment-sandbox/app/modules/auth/handlers"
-	"payment-sandbox/app/modules/auth/models/entity"
+	usersAPI "payment-sandbox/app/modules/users/api"
+	usersHandlers "payment-sandbox/app/modules/users/handlers"
+	"payment-sandbox/app/modules/users/models/entity"
 	invoiceAPI "payment-sandbox/app/modules/invoice/api"
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
 	oauth2API "payment-sandbox/app/modules/oauth2/api"
@@ -29,7 +29,7 @@ import (
 
 func newRouter(
 	cfg config.Config,
-	authHandler *authHandlers.AuthHandler,
+	usersHandler *usersHandlers.UserHandler,
 	adminHandler *adminHandlers.AdminHandler,
 	walletHandler *walletHandlers.WalletHandler,
 	invoiceHandler *invoiceHandlers.InvoiceHandler,
@@ -53,7 +53,7 @@ func newRouter(
 	v1 := router.Group("/api/v1")
 	{
 		v1.GET("/ping", adminHandler.Healthz)
-		authAPI.RegisterPublicRoutes(v1, authHandler)
+		usersAPI.RegisterPublicRoutes(v1, usersHandler)
 		paymentAPI.RegisterPublicRoutes(v1, paymentHandler)
 		oauth2API.RegisterPublicRoutes(v1, oauth2Handler)
 	}
@@ -61,6 +61,8 @@ func newRouter(
 	secured := v1.Group("")
 	secured.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 	{
+		oauth2API.RegisterSecuredRoutes(secured, oauth2Handler)
+
 		merchant := secured.Group("/merchant")
 		merchant.Use(middleware.RequireRoles(entity.RoleMerchant))
 		{

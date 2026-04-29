@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
-	"payment-sandbox/app/modules/auth/models/entity"
+	"payment-sandbox/app/modules/users/models/entity"
 	"testing"
 	"time"
 

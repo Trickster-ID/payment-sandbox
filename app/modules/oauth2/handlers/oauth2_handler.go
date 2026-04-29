@@ -247,7 +247,7 @@ func (h *OAuth2Handler) handlePasswordGrant(c *gin.Context, req dto.TokenRequest
 		scope = strings.Join(client.Scopes, " ")
 	}
 
-	accessToken, _ := h.service.IssueAccessToken(client.ID, user.ID, scope)
+	accessToken, _ := h.service.IssueAccessToken(client.ID, user.ID, scope, user.Role)
 	refreshToken, _ := h.service.IssueRefreshToken(client.ID, user.ID, scope)
 
 	response.OK(c, dto.TokenResponse{
@@ -274,8 +274,15 @@ func (h *OAuth2Handler) handleAuthCodeGrant(c *gin.Context, req dto.TokenRequest
 		return
 	}
 
-	// 3. Issue Tokens
-	accessToken, _ := h.service.IssueAccessToken(client.ID, authCode.UserID, authCode.Scope)
+	// 3. Fetch User for Role
+	user, err := h.service.GetUserByID(authCode.UserID)
+	if err != nil {
+		response.Fail(c, appErrors.Internal("user_lookup_error", "failed to fetch user", nil))
+		return
+	}
+
+	// 4. Issue Tokens
+	accessToken, _ := h.service.IssueAccessToken(client.ID, authCode.UserID, authCode.Scope, user.Role)
 	refreshToken, _ := h.service.IssueRefreshToken(client.ID, authCode.UserID, authCode.Scope)
 
 	response.OK(c, dto.TokenResponse{
@@ -300,7 +307,7 @@ func (h *OAuth2Handler) handleClientCredentialsGrant(c *gin.Context, req dto.Tok
 		scope = strings.Join(client.Scopes, " ")
 	}
 
-	accessToken, _ := h.service.IssueAccessToken(client.ID, "", scope) // No user_id for CC grant
+	accessToken, _ := h.service.IssueAccessToken(client.ID, "", scope, "") // No user_id for CC grant
 
 	response.OK(c, dto.TokenResponse{
 		AccessToken: accessToken,
@@ -323,7 +330,13 @@ func (h *OAuth2Handler) handleRefreshTokenGrant(c *gin.Context, req dto.TokenReq
 		return
 	}
 
-	accessToken, _ := h.service.IssueAccessToken(client.ID, oldToken.UserID, oldToken.Scope)
+	user, err := h.service.GetUserByID(oldToken.UserID)
+	if err != nil {
+		response.Fail(c, appErrors.Internal("user_lookup_error", "failed to fetch user", nil))
+		return
+	}
+
+	accessToken, _ := h.service.IssueAccessToken(client.ID, oldToken.UserID, oldToken.Scope, user.Role)
 	refreshToken, _ := h.service.IssueRefreshToken(client.ID, oldToken.UserID, oldToken.Scope)
 
 	response.OK(c, dto.TokenResponse{

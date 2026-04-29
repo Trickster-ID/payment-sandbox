@@ -9,7 +9,7 @@ import (
 	"payment-sandbox/app/config"
 	"payment-sandbox/app/modules/oauth2/models/entity"
 	"payment-sandbox/app/modules/oauth2/repositories"
-	authEntity "payment-sandbox/app/modules/auth/models/entity"
+	userEntity "payment-sandbox/app/modules/users/models/entity"
 	"strings"
 	"time"
 
@@ -23,9 +23,10 @@ type ClientWithSecret struct {
 }
 
 type OAuth2Claims struct {
-	UserID   string `json:"user_id,omitempty"`
-	ClientID string `json:"client_id"`
-	Scope    string `json:"scope"`
+	UserID   string            `json:"user_id,omitempty"`
+	ClientID string            `json:"client_id"`
+	Scope    string            `json:"scope"`
+	Role     userEntity.Role   `json:"role,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -42,9 +43,10 @@ type IOAuth2Service interface {
 	ExchangeAuthCode(code, clientID, redirectURI string) (entity.AuthorizationCode, error)
 	IssueRefreshToken(clientID, userID, scope string) (string, error)
 	ExchangeRefreshToken(token, clientID string) (entity.RefreshToken, error)
-	IssueAccessToken(clientID, userID, scope string) (string, error)
+	IssueAccessToken(clientID, userID, scope string, role userEntity.Role) (string, error)
 	ValidateToken(token string) (*OAuth2Claims, error)
-	ValidateUserCredentials(email, password string) (authEntity.User, error)
+	ValidateUserCredentials(email, password string) (userEntity.User, error)
+	GetUserByID(userID string) (userEntity.User, error)
 	RevokeRefreshToken(token, clientID string) error
 }
 
@@ -221,12 +223,13 @@ func (s *OAuth2Service) ExchangeRefreshToken(token, clientID string) (entity.Ref
 	return refreshToken, nil
 }
 
-func (s *OAuth2Service) IssueAccessToken(clientID, userID, scope string) (string, error) {
+func (s *OAuth2Service) IssueAccessToken(clientID, userID, scope string, role userEntity.Role) (string, error) {
 	now := time.Now()
 	claims := OAuth2Claims{
 		UserID:   userID,
 		ClientID: clientID,
 		Scope:    scope,
+		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(s.cfg.OAuth2AccessTokenDuration)),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -255,16 +258,24 @@ func (s *OAuth2Service) ValidateToken(tokenString string) (*OAuth2Claims, error)
 	return claims, nil
 }
 
-func (s *OAuth2Service) ValidateUserCredentials(email, password string) (authEntity.User, error) {
+func (s *OAuth2Service) ValidateUserCredentials(email, password string) (userEntity.User, error) {
 	user, found := s.repo.FindUserByEmail(email)
 	if !found {
-		return authEntity.User{}, errors.New("invalid credentials")
+		return userEntity.User{}, errors.New("invalid credentials")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return authEntity.User{}, errors.New("invalid credentials")
+		return userEntity.User{}, errors.New("invalid credentials")
 	}
 
+	return user, nil
+}
+
+func (s *OAuth2Service) GetUserByID(userID string) (userEntity.User, error) {
+	user, found := s.repo.FindUserByID(userID)
+	if !found {
+		return userEntity.User{}, errors.New("user not found")
+	}
 	return user, nil
 }
 

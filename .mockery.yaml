@@ -8,9 +8,9 @@ disable-version-string: true
 issue-845-fix: true
 
 packages:
-  payment-sandbox/app/modules/auth/repositories:
+  payment-sandbox/app/modules/users/repositories:
     interfaces:
-      IAuthRepository:
+      IUserRepository:
   payment-sandbox/app/modules/admin/repositories:
     interfaces:
       IAdminRepository:
@@ -32,9 +32,9 @@ packages:
   payment-sandbox/app/shared/journeylog:
     interfaces:
       IJourneyLogger:
-  payment-sandbox/app/modules/auth/services:
+  payment-sandbox/app/modules/users/services:
     interfaces:
-      IAuthService:
+      IUserService:
   payment-sandbox/app/modules/admin/services:
     interfaces:
       IAdminService:

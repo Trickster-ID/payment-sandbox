@@ -4,7 +4,7 @@ Last updated: 2026-04-27 (WIB)
 
 ## Functional Requirements
 
-- [x] Authentication endpoints work (`/auth/register`, `/auth/login`)
+- [x] User registration and OAuth2 auth flows work (`/users/register`, `/oauth2/token`)
 - [x] JWT auth middleware and role-based access (`MERCHANT`, `ADMIN`)
 - [x] Merchant wallet flow (view wallet, create top-up)
 - [x] Admin top-up status update flow

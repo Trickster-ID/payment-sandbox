@@ -8,12 +8,9 @@ package main
 
 import (
 	"payment-sandbox/app/config"
-	"payment-sandbox/app/middleware"
 	handlers2 "payment-sandbox/app/modules/admin/handlers"
 	"payment-sandbox/app/modules/admin/repositories"
 	services2 "payment-sandbox/app/modules/admin/services"
-	"payment-sandbox/app/modules/auth/handlers"
-	"payment-sandbox/app/modules/auth/services"
 	handlers4 "payment-sandbox/app/modules/invoice/handlers"
 	repositories3 "payment-sandbox/app/modules/invoice/repositories"
 	services4 "payment-sandbox/app/modules/invoice/services"
@@ -26,6 +23,8 @@ import (
 	handlers6 "payment-sandbox/app/modules/refund/handlers"
 	repositories5 "payment-sandbox/app/modules/refund/repositories"
 	services6 "payment-sandbox/app/modules/refund/services"
+	"payment-sandbox/app/modules/users/handlers"
+	"payment-sandbox/app/modules/users/services"
 	handlers3 "payment-sandbox/app/modules/wallet/handlers"
 	repositories2 "payment-sandbox/app/modules/wallet/repositories"
 	services3 "payment-sandbox/app/modules/wallet/services"
@@ -40,13 +39,9 @@ func initApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	authRepository, err := provideAuthRepository(db)
-	if err != nil {
-		return nil, err
-	}
-	jwtService := middleware.NewJWTService(configConfig)
-	authService := services.NewAuthService(authRepository, jwtService)
-	authHandler := handlers.NewAuthHandler(authService)
+	userRepository := provideUserRepository(db)
+	userService := services.NewUserService(userRepository)
+	userHandler := handlers.NewUserHandler(userService)
 	adminRepository := repositories.NewAdminRepository(db)
 	adminService := services2.NewAdminService(adminRepository)
 	adminHandler := handlers2.NewAdminHandler(adminService)
@@ -66,7 +61,7 @@ func initApp() (*App, error) {
 	oAuth2Repository := repositories6.NewOAuth2Repository(db)
 	oAuth2Service := services7.NewOAuth2Service(oAuth2Repository, configConfig)
 	oAuth2Handler := handlers7.NewOAuth2Handler(oAuth2Service)
-	engine := newRouter(configConfig, authHandler, adminHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler, oAuth2Handler)
+	engine := newRouter(configConfig, userHandler, adminHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler, oAuth2Handler)
 	app := newApp(configConfig, engine)
 	return app, nil
 }

@@ -826,30 +826,21 @@
                 }
             }
         },
-        "/auth/login": {
-            "post": {
-                "description": "Login with email and password",
-                "consumes": [
-                    "application/json"
+        "/merchant/clients": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
                 ],
+                "description": "List all OAuth2 clients owned by the merchant",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "oauth2"
                 ],
-                "summary": "Login user",
-                "parameters": [
-                    {
-                        "description": "Login payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/app_modules_auth_handlers.LoginRequest"
-                        }
-                    }
-                ],
+                "summary": "List OAuth2 clients",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -862,43 +853,10 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/app_modules_auth_handlers.LoginResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "error": {
-                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "error": {
-                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/payment-sandbox_app_modules_oauth2_models_dto.ClientResponse"
+                                            }
                                         }
                                     }
                                 }
@@ -906,11 +864,14 @@
                         }
                     }
                 }
-            }
-        },
-        "/auth/register": {
+            },
             "post": {
-                "description": "Register a new merchant account",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Register a new OAuth2 client for the merchant",
                 "consumes": [
                     "application/json"
                 ],
@@ -918,9 +879,9 @@
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "oauth2"
                 ],
-                "summary": "Register merchant",
+                "summary": "Register OAuth2 client",
                 "parameters": [
                     {
                         "description": "Register payload",
@@ -928,7 +889,7 @@
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/app_modules_auth_handlers.RegisterRequest"
+                            "$ref": "#/definitions/payment-sandbox_app_modules_oauth2_models_dto.RegisterClientRequest"
                         }
                     }
                 ],
@@ -944,7 +905,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/app_modules_auth_handlers.RegisterMerchantResponse"
+                                            "$ref": "#/definitions/payment-sandbox_app_modules_oauth2_models_dto.RegisterClientResponse"
                                         }
                                     }
                                 }
@@ -1600,6 +1561,298 @@
                 }
             }
         },
+        "/oauth2/authorize": {
+            "get": {
+                "description": "Authorization endpoint (RFC 6749 Section 4.1.1)",
+                "tags": [
+                    "oauth2"
+                ],
+                "summary": "Authorize client",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Response type (code)",
+                        "name": "response_type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client ID",
+                        "name": "client_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Redirect URI",
+                        "name": "redirect_uri",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Scopes",
+                        "name": "scope",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "State",
+                        "name": "state",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to client callback"
+                    }
+                }
+            }
+        },
+        "/oauth2/introspect": {
+            "post": {
+                "description": "Introspection endpoint (RFC 7662)",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oauth2"
+                ],
+                "summary": "Introspect token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token to introspect",
+                        "name": "token",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/payment-sandbox_app_modules_oauth2_models_dto.IntrospectResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/oauth2/revoke": {
+            "post": {
+                "description": "Token revocation endpoint (RFC 7009)",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oauth2"
+                ],
+                "summary": "Revoke token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Token to revoke",
+                        "name": "token",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client ID",
+                        "name": "client_id",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client Secret",
+                        "name": "client_secret",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/oauth2/token": {
+            "post": {
+                "description": "Token endpoint (RFC 6749 Section 3.2)",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oauth2"
+                ],
+                "summary": "Issue token",
+                "parameters": [
+                    {
+                        "enum": [
+                            "authorization_code",
+                            "client_credentials",
+                            "refresh_token",
+                            "password"
+                        ],
+                        "type": "string",
+                        "description": "Grant type",
+                        "name": "grant_type",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Auth code",
+                        "name": "code",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Redirect URI",
+                        "name": "redirect_uri",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client ID",
+                        "name": "client_id",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Client Secret",
+                        "name": "client_secret",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Refresh token",
+                        "name": "refresh_token",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Username (password grant)",
+                        "name": "username",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Password (password grant)",
+                        "name": "password",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Scopes",
+                        "name": "scope",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/payment-sandbox_app_modules_oauth2_models_dto.TokenResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/oauth2/userinfo": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "UserInfo endpoint",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "oauth2"
+                ],
+                "summary": "User information",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/pay/{token}": {
             "get": {
                 "description": "Public endpoint to fetch invoice detail by payment link token",
@@ -1761,6 +2014,70 @@
                     }
                 }
             }
+        },
+        "/users/register": {
+            "post": {
+                "description": "Register a new merchant account",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Register merchant",
+                "parameters": [
+                    {
+                        "description": "Register payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app_modules_users_handlers.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_users_handlers.UserResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1790,107 +2107,6 @@
                 "status": {
                     "type": "string",
                     "example": "ok"
-                }
-            }
-        },
-        "app_modules_auth_handlers.AuthUserResponse": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string",
-                    "example": "jane.merchant@example.com"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "0196aee7-7eca-7e8c-96fb-4fdfa75b2177"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "Jane Merchant"
-                },
-                "role": {
-                    "type": "string",
-                    "enum": [
-                        "MERCHANT",
-                        "ADMIN"
-                    ],
-                    "example": "MERCHANT"
-                }
-            }
-        },
-        "app_modules_auth_handlers.LoginRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "password"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string",
-                    "example": "jane.merchant@example.com"
-                },
-                "password": {
-                    "type": "string",
-                    "example": "merchant1234"
-                }
-            }
-        },
-        "app_modules_auth_handlers.LoginResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string",
-                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                },
-                "user": {
-                    "$ref": "#/definitions/app_modules_auth_handlers.AuthUserResponse"
-                }
-            }
-        },
-        "app_modules_auth_handlers.RegisterMerchantResponse": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string",
-                    "example": "jane.merchant@example.com"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "0196aee7-7eca-7e8c-96fb-4fdfa75b2177"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "Jane Merchant"
-                },
-                "role": {
-                    "type": "string",
-                    "enum": [
-                        "MERCHANT",
-                        "ADMIN"
-                    ],
-                    "example": "MERCHANT"
-                }
-            }
-        },
-        "app_modules_auth_handlers.RegisterRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "name",
-                "password"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string",
-                    "example": "jane.merchant@example.com"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "Jane Merchant"
-                },
-                "password": {
-                    "type": "string",
-                    "example": "merchant1234"
                 }
             }
         },
@@ -2151,6 +2367,53 @@
                 }
             }
         },
+        "app_modules_users_handlers.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "name",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "jane.merchant@example.com"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Jane Merchant"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "merchant1234"
+                }
+            }
+        },
+        "app_modules_users_handlers.UserResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "jane.merchant@example.com"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0196aee7-7eca-7e8c-96fb-4fdfa75b2177"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Jane Merchant"
+                },
+                "role": {
+                    "type": "string",
+                    "enum": [
+                        "MERCHANT",
+                        "ADMIN"
+                    ],
+                    "example": "MERCHANT"
+                }
+            }
+        },
         "app_modules_wallet_handlers.CreateTopupRequest": {
             "type": "object",
             "required": [
@@ -2275,6 +2538,115 @@
                 "InvoicePaid",
                 "InvoiceExpired"
             ]
+        },
+        "payment-sandbox_app_modules_oauth2_models_dto.ClientResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_confidential": {
+                    "type": "boolean"
+                },
+                "is_first_party": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "redirect_uris": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "payment-sandbox_app_modules_oauth2_models_dto.IntrospectResponse": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean"
+                },
+                "client_id": {
+                    "type": "string"
+                },
+                "exp": {
+                    "type": "integer"
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "payment-sandbox_app_modules_oauth2_models_dto.RegisterClientRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "redirect_uris",
+                "scopes"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 255
+                },
+                "redirect_uris": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "payment-sandbox_app_modules_oauth2_models_dto.RegisterClientResponse": {
+            "type": "object",
+            "properties": {
+                "client": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_oauth2_models_dto.ClientResponse"
+                },
+                "client_secret": {
+                    "type": "string"
+                }
+            }
+        },
+        "payment-sandbox_app_modules_oauth2_models_dto.TokenResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "token_type": {
+                    "type": "string"
+                }
+            }
         },
         "payment-sandbox_app_modules_payment_models_entity.PaymentIntent": {
             "type": "object",

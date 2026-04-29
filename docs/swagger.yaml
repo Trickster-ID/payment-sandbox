@@ -19,78 +19,6 @@ definitions:
         example: ok
         type: string
     type: object
-  app_modules_auth_handlers.AuthUserResponse:
-    properties:
-      email:
-        example: jane.merchant@example.com
-        type: string
-      id:
-        example: 0196aee7-7eca-7e8c-96fb-4fdfa75b2177
-        type: string
-      name:
-        example: Jane Merchant
-        type: string
-      role:
-        enum:
-        - MERCHANT
-        - ADMIN
-        example: MERCHANT
-        type: string
-    type: object
-  app_modules_auth_handlers.LoginRequest:
-    properties:
-      email:
-        example: jane.merchant@example.com
-        type: string
-      password:
-        example: merchant1234
-        type: string
-    required:
-    - email
-    - password
-    type: object
-  app_modules_auth_handlers.LoginResponse:
-    properties:
-      access_token:
-        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-        type: string
-      user:
-        $ref: '#/definitions/app_modules_auth_handlers.AuthUserResponse'
-    type: object
-  app_modules_auth_handlers.RegisterMerchantResponse:
-    properties:
-      email:
-        example: jane.merchant@example.com
-        type: string
-      id:
-        example: 0196aee7-7eca-7e8c-96fb-4fdfa75b2177
-        type: string
-      name:
-        example: Jane Merchant
-        type: string
-      role:
-        enum:
-        - MERCHANT
-        - ADMIN
-        example: MERCHANT
-        type: string
-    type: object
-  app_modules_auth_handlers.RegisterRequest:
-    properties:
-      email:
-        example: jane.merchant@example.com
-        type: string
-      name:
-        example: Jane Merchant
-        type: string
-      password:
-        example: merchant1234
-        type: string
-    required:
-    - email
-    - name
-    - password
-    type: object
   app_modules_invoice_handlers.CreateInvoiceRequest:
     properties:
       amount:
@@ -265,6 +193,40 @@ definitions:
     required:
     - decision
     type: object
+  app_modules_users_handlers.RegisterRequest:
+    properties:
+      email:
+        example: jane.merchant@example.com
+        type: string
+      name:
+        example: Jane Merchant
+        type: string
+      password:
+        example: merchant1234
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  app_modules_users_handlers.UserResponse:
+    properties:
+      email:
+        example: jane.merchant@example.com
+        type: string
+      id:
+        example: 0196aee7-7eca-7e8c-96fb-4fdfa75b2177
+        type: string
+      name:
+        example: Jane Merchant
+        type: string
+      role:
+        enum:
+        - MERCHANT
+        - ADMIN
+        example: MERCHANT
+        type: string
+    type: object
   app_modules_wallet_handlers.CreateTopupRequest:
     properties:
       amount:
@@ -349,6 +311,78 @@ definitions:
     - InvoicePending
     - InvoicePaid
     - InvoiceExpired
+  payment-sandbox_app_modules_oauth2_models_dto.ClientResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      is_confidential:
+        type: boolean
+      is_first_party:
+        type: boolean
+      name:
+        type: string
+      redirect_uris:
+        items:
+          type: string
+        type: array
+      scopes:
+        items:
+          type: string
+        type: array
+    type: object
+  payment-sandbox_app_modules_oauth2_models_dto.IntrospectResponse:
+    properties:
+      active:
+        type: boolean
+      client_id:
+        type: string
+      exp:
+        type: integer
+      scope:
+        type: string
+      user_id:
+        type: string
+    type: object
+  payment-sandbox_app_modules_oauth2_models_dto.RegisterClientRequest:
+    properties:
+      name:
+        maxLength: 255
+        type: string
+      redirect_uris:
+        items:
+          type: string
+        type: array
+      scopes:
+        items:
+          type: string
+        type: array
+    required:
+    - name
+    - redirect_uris
+    - scopes
+    type: object
+  payment-sandbox_app_modules_oauth2_models_dto.RegisterClientResponse:
+    properties:
+      client:
+        $ref: '#/definitions/payment-sandbox_app_modules_oauth2_models_dto.ClientResponse'
+      client_secret:
+        type: string
+    type: object
+  payment-sandbox_app_modules_oauth2_models_dto.TokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      scope:
+        type: string
+      token_type:
+        type: string
+    type: object
   payment-sandbox_app_modules_payment_models_entity.PaymentIntent:
     properties:
       created_at:
@@ -922,18 +956,9 @@ paths:
       summary: Update top-up status
       tags:
       - wallet
-  /auth/login:
-    post:
-      consumes:
-      - application/json
-      description: Login with email and password
-      parameters:
-      - description: Login payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/app_modules_auth_handlers.LoginRequest'
+  /merchant/clients:
+    get:
+      description: List all OAuth2 clients owned by the merchant
       produces:
       - application/json
       responses:
@@ -944,41 +969,26 @@ paths:
             - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
             - properties:
                 data:
-                  $ref: '#/definitions/app_modules_auth_handlers.LoginResponse'
+                  items:
+                    $ref: '#/definitions/payment-sandbox_app_modules_oauth2_models_dto.ClientResponse'
+                  type: array
               type: object
-        "400":
-          description: Bad Request
-          schema:
-            allOf:
-            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
-            - properties:
-                error:
-                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
-              type: object
-        "401":
-          description: Unauthorized
-          schema:
-            allOf:
-            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
-            - properties:
-                error:
-                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
-              type: object
-      summary: Login user
+      security:
+      - BearerAuth: []
+      summary: List OAuth2 clients
       tags:
-      - auth
-  /auth/register:
+      - oauth2
     post:
       consumes:
       - application/json
-      description: Register a new merchant account
+      description: Register a new OAuth2 client for the merchant
       parameters:
       - description: Register payload
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/app_modules_auth_handlers.RegisterRequest'
+          $ref: '#/definitions/payment-sandbox_app_modules_oauth2_models_dto.RegisterClientRequest'
       produces:
       - application/json
       responses:
@@ -989,7 +999,7 @@ paths:
             - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
             - properties:
                 data:
-                  $ref: '#/definitions/app_modules_auth_handlers.RegisterMerchantResponse'
+                  $ref: '#/definitions/payment-sandbox_app_modules_oauth2_models_dto.RegisterClientResponse'
               type: object
         "400":
           description: Bad Request
@@ -1000,9 +1010,11 @@ paths:
                 error:
                   $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
               type: object
-      summary: Register merchant
+      security:
+      - BearerAuth: []
+      summary: Register OAuth2 client
       tags:
-      - auth
+      - oauth2
   /merchant/invoices:
     get:
       description: Merchant lists invoices with optional status and pagination
@@ -1340,6 +1352,188 @@ paths:
       summary: Get merchant wallet
       tags:
       - wallet
+  /oauth2/authorize:
+    get:
+      description: Authorization endpoint (RFC 6749 Section 4.1.1)
+      parameters:
+      - description: Response type (code)
+        in: query
+        name: response_type
+        required: true
+        type: string
+      - description: Client ID
+        in: query
+        name: client_id
+        required: true
+        type: string
+      - description: Redirect URI
+        in: query
+        name: redirect_uri
+        required: true
+        type: string
+      - description: Scopes
+        in: query
+        name: scope
+        type: string
+      - description: State
+        in: query
+        name: state
+        type: string
+      responses:
+        "302":
+          description: Redirect to client callback
+      summary: Authorize client
+      tags:
+      - oauth2
+  /oauth2/introspect:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Introspection endpoint (RFC 7662)
+      parameters:
+      - description: Token to introspect
+        in: formData
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/payment-sandbox_app_modules_oauth2_models_dto.IntrospectResponse'
+              type: object
+      summary: Introspect token
+      tags:
+      - oauth2
+  /oauth2/revoke:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Token revocation endpoint (RFC 7009)
+      parameters:
+      - description: Token to revoke
+        in: formData
+        name: token
+        required: true
+        type: string
+      - description: Client ID
+        in: formData
+        name: client_id
+        required: true
+        type: string
+      - description: Client Secret
+        in: formData
+        name: client_secret
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: string
+                  type: object
+              type: object
+      summary: Revoke token
+      tags:
+      - oauth2
+  /oauth2/token:
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Token endpoint (RFC 6749 Section 3.2)
+      parameters:
+      - description: Grant type
+        enum:
+        - authorization_code
+        - client_credentials
+        - refresh_token
+        - password
+        in: formData
+        name: grant_type
+        required: true
+        type: string
+      - description: Auth code
+        in: formData
+        name: code
+        type: string
+      - description: Redirect URI
+        in: formData
+        name: redirect_uri
+        type: string
+      - description: Client ID
+        in: formData
+        name: client_id
+        type: string
+      - description: Client Secret
+        in: formData
+        name: client_secret
+        type: string
+      - description: Refresh token
+        in: formData
+        name: refresh_token
+        type: string
+      - description: Username (password grant)
+        in: formData
+        name: username
+        type: string
+      - description: Password (password grant)
+        in: formData
+        name: password
+        type: string
+      - description: Scopes
+        in: formData
+        name: scope
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/payment-sandbox_app_modules_oauth2_models_dto.TokenResponse'
+              type: object
+      summary: Issue token
+      tags:
+      - oauth2
+  /oauth2/userinfo:
+    get:
+      description: UserInfo endpoint
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  additionalProperties:
+                    type: string
+                  type: object
+              type: object
+      security:
+      - BearerAuth: []
+      summary: User information
+      tags:
+      - oauth2
   /pay/{token}:
     get:
       description: Public endpoint to fetch invoice detail by payment link token
@@ -1432,6 +1626,42 @@ paths:
       summary: Health check
       tags:
       - system
+  /users/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new merchant account
+      parameters:
+      - description: Register payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app_modules_users_handlers.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_users_handlers.UserResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+      summary: Register merchant
+      tags:
+      - users
 schemes:
 - http
 securityDefinitions:

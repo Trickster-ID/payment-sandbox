@@ -34,6 +34,17 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+  pgweb:
+    image: sosedoff/pgweb
+    container_name: payment-sandbox-pgweb
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      - DATABASE_URL=postgres://root:secretpassword@postgres:5432/payment_sandbox?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
 #  backend-app:
 #    build: .
 #    ports:

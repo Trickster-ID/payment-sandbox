@@ -3,7 +3,7 @@ package services
 import (
 	"errors"
 	"payment-sandbox/app/config"
-	authEntity "payment-sandbox/app/modules/auth/models/entity"
+	userEntity "payment-sandbox/app/modules/users/models/entity"
 	"payment-sandbox/app/modules/oauth2/models/entity"
 	repoMocks "payment-sandbox/app/modules/oauth2/repositories/mocks"
 	"testing"
@@ -465,7 +465,7 @@ func TestOAuth2Service_ValidateToken(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		r := repoMocks.NewMockIOAuth2Repository(t)
 		s := NewOAuth2Service(r, testCfg)
-		token, _ := s.IssueAccessToken("c1", "u1", "read")
+		token, _ := s.IssueAccessToken("c1", "u1", "read", "merchant")
 		claims, err := s.ValidateToken(token)
 		require.NoError(t, err)
 		assert.Equal(t, "u1", claims.UserID)
@@ -484,7 +484,7 @@ func TestOAuth2Service_ValidateToken(t *testing.T) {
 		shortLivedCfg := testCfg
 		shortLivedCfg.OAuth2AccessTokenDuration = -1 * time.Hour
 		s := NewOAuth2Service(r, shortLivedCfg)
-		token, _ := s.IssueAccessToken("c1", "u1", "read")
+		token, _ := s.IssueAccessToken("c1", "u1", "read", "merchant")
 		_, err := s.ValidateToken(token)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid or expired token")
@@ -506,7 +506,7 @@ func TestOAuth2Service_ValidateUserCredentials(t *testing.T) {
 			email:    "user@example.com",
 			password: "password123",
 			mockRepo: func(r *repoMocks.MockIOAuth2Repository) {
-				r.On("FindUserByEmail", "user@example.com").Return(authEntity.User{ID: "u1", PasswordHash: string(hash)}, true)
+				r.On("FindUserByEmail", "user@example.com").Return(userEntity.User{ID: "u1", PasswordHash: string(hash)}, true)
 			},
 			wantErr: false,
 		},
@@ -515,7 +515,7 @@ func TestOAuth2Service_ValidateUserCredentials(t *testing.T) {
 			email:    "user@example.com",
 			password: "password123",
 			mockRepo: func(r *repoMocks.MockIOAuth2Repository) {
-				r.On("FindUserByEmail", "user@example.com").Return(authEntity.User{}, false)
+				r.On("FindUserByEmail", "user@example.com").Return(userEntity.User{}, false)
 			},
 			wantErr: true,
 		},
@@ -524,7 +524,7 @@ func TestOAuth2Service_ValidateUserCredentials(t *testing.T) {
 			email:    "user@example.com",
 			password: "wrong",
 			mockRepo: func(r *repoMocks.MockIOAuth2Repository) {
-				r.On("FindUserByEmail", "user@example.com").Return(authEntity.User{ID: "u1", PasswordHash: string(hash)}, true)
+				r.On("FindUserByEmail", "user@example.com").Return(userEntity.User{ID: "u1", PasswordHash: string(hash)}, true)
 			},
 			wantErr: true,
 		},

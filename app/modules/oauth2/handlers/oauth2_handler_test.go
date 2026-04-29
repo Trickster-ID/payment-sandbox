@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"payment-sandbox/app/middleware"
-	authEntity "payment-sandbox/app/modules/auth/models/entity"
+	userEntity "payment-sandbox/app/modules/users/models/entity"
 	"payment-sandbox/app/modules/oauth2/models/entity"
 	"payment-sandbox/app/modules/oauth2/services"
 	serviceMocks "payment-sandbox/app/modules/oauth2/services/mocks"
@@ -174,7 +174,8 @@ func TestOAuth2Handler_Token(t *testing.T) {
 			setupMocks: func(s *serviceMocks.MockIOAuth2Service) {
 				s.EXPECT().ValidateClient("c1", "secret").Return(entity.OAuthClient{ID: "c1"}, nil)
 				s.EXPECT().ExchangeAuthCode("code123", "c1", "http://localhost:3000/cb").Return(entity.AuthorizationCode{UserID: "u1", Scope: "read"}, nil)
-				s.EXPECT().IssueAccessToken("c1", "u1", "read").Return("access-token", nil)
+				s.EXPECT().GetUserByID("u1").Return(userEntity.User{ID: "u1", Role: userEntity.RoleMerchant}, nil)
+				s.EXPECT().IssueAccessToken("c1", "u1", "read", userEntity.RoleMerchant).Return("access-token", nil)
 				s.EXPECT().IssueRefreshToken("c1", "u1", "read").Return("refresh-token", nil)
 			},
 			wantStatus: http.StatusOK,
@@ -190,7 +191,7 @@ func TestOAuth2Handler_Token(t *testing.T) {
 			},
 			setupMocks: func(s *serviceMocks.MockIOAuth2Service) {
 				s.EXPECT().ValidateClient("c1", "secret").Return(entity.OAuthClient{ID: "c1", Scopes: []string{"read"}}, nil)
-				s.EXPECT().IssueAccessToken("c1", "", "read").Return("access-token", nil)
+				s.EXPECT().IssueAccessToken("c1", "", "read", userEntity.Role("")).Return("access-token", nil)
 			},
 			wantStatus: http.StatusOK,
 			wantToken:  true,
@@ -206,7 +207,8 @@ func TestOAuth2Handler_Token(t *testing.T) {
 			setupMocks: func(s *serviceMocks.MockIOAuth2Service) {
 				s.EXPECT().ValidateClient("c1", "secret").Return(entity.OAuthClient{ID: "c1"}, nil)
 				s.EXPECT().ExchangeRefreshToken("rt123", "c1").Return(entity.RefreshToken{UserID: "u1", Scope: "read"}, nil)
-				s.EXPECT().IssueAccessToken("c1", "u1", "read").Return("access-token", nil)
+				s.EXPECT().GetUserByID("u1").Return(userEntity.User{ID: "u1", Role: userEntity.RoleMerchant}, nil)
+				s.EXPECT().IssueAccessToken("c1", "u1", "read", userEntity.RoleMerchant).Return("access-token", nil)
 				s.EXPECT().IssueRefreshToken("c1", "u1", "read").Return("refresh-token", nil)
 			},
 			wantStatus: http.StatusOK,
@@ -223,8 +225,8 @@ func TestOAuth2Handler_Token(t *testing.T) {
 			},
 			setupMocks: func(s *serviceMocks.MockIOAuth2Service) {
 				s.EXPECT().ValidateClient("c1", "secret").Return(entity.OAuthClient{ID: "c1", Scopes: []string{"read"}}, nil)
-				s.EXPECT().ValidateUserCredentials("user@example.com", "pass123").Return(authEntity.User{ID: "u1"}, nil)
-				s.EXPECT().IssueAccessToken("c1", "u1", "read").Return("access-token", nil)
+				s.EXPECT().ValidateUserCredentials("user@example.com", "pass123").Return(userEntity.User{ID: "u1", Role: userEntity.RoleMerchant}, nil)
+				s.EXPECT().IssueAccessToken("c1", "u1", "read", userEntity.RoleMerchant).Return("access-token", nil)
 				s.EXPECT().IssueRefreshToken("c1", "u1", "read").Return("refresh-token", nil)
 			},
 			wantStatus: http.StatusOK,

@@ -5,13 +5,12 @@ package main
 
 import (
 	"payment-sandbox/app/config"
-	"payment-sandbox/app/middleware"
 	adminHandlers "payment-sandbox/app/modules/admin/handlers"
 	adminRepo "payment-sandbox/app/modules/admin/repositories"
 	adminSvc "payment-sandbox/app/modules/admin/services"
-	authHandlers "payment-sandbox/app/modules/auth/handlers"
-	authRepo "payment-sandbox/app/modules/auth/repositories"
-	authSvc "payment-sandbox/app/modules/auth/services"
+	usersHandlers "payment-sandbox/app/modules/users/handlers"
+	usersRepo "payment-sandbox/app/modules/users/repositories"
+	usersSvc "payment-sandbox/app/modules/users/services"
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
 	invoiceRepo "payment-sandbox/app/modules/invoice/repositories"
 	invoiceSvc "payment-sandbox/app/modules/invoice/services"
@@ -36,10 +35,9 @@ func initApp() (*App, error) {
 	wire.Build(
 		config.Load,
 		database.New,
-		middleware.NewJWTService,
-		provideAuthRepository,
+		provideUserRepository,
 		provideJourneyLogger,
-		wire.Bind(new(authRepo.IAuthRepository), new(*authRepo.AuthRepository)),
+		wire.Bind(new(usersRepo.IUserRepository), new(*usersRepo.UserRepository)),
 		adminRepo.NewAdminRepository,
 		wire.Bind(new(adminRepo.IAdminRepository), new(*adminRepo.AdminRepository)),
 		walletRepo.NewWalletRepository,
@@ -52,9 +50,9 @@ func initApp() (*App, error) {
 		wire.Bind(new(refundRepo.IRefundRepository), new(*refundRepo.RefundRepository)),
 		oauth2Repo.NewOAuth2Repository,
 		wire.Bind(new(oauth2Repo.IOAuth2Repository), new(*oauth2Repo.OAuth2Repository)),
-		authSvc.NewAuthService,
-		wire.Bind(new(authSvc.IAuthService), new(*authSvc.AuthService)),
-		authHandlers.NewAuthHandler,
+		usersSvc.NewUserService,
+		wire.Bind(new(usersSvc.IUserService), new(*usersSvc.UserService)),
+		usersHandlers.NewUserHandler,
 		adminSvc.NewAdminService,
 		wire.Bind(new(adminSvc.IAdminService), new(*adminSvc.AdminService)),
 		adminHandlers.NewAdminHandler,

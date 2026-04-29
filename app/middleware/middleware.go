@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"payment-sandbox/app/config"
-	"payment-sandbox/app/modules/auth/models/entity"
+	"payment-sandbox/app/modules/users/models/entity"
 	appErrors "payment-sandbox/app/shared/errors"
 	"payment-sandbox/app/shared/response"
 

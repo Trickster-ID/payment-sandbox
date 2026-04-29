@@ -5,7 +5,7 @@ import (
 	"time"
 
 	adminHandlers "payment-sandbox/app/modules/admin/handlers"
-	authHandlers "payment-sandbox/app/modules/auth/handlers"
+	usersHandlers "payment-sandbox/app/modules/users/handlers"
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
 	oauth2Handlers "payment-sandbox/app/modules/oauth2/handlers"
 	paymentHandlers "payment-sandbox/app/modules/payment/handlers"
@@ -28,7 +28,7 @@ func TestNewRouter_RegistersExpectedRoutes(t *testing.T) {
 		ShutdownTTL: time.Second,
 	}
 
-	authHandler := &authHandlers.AuthHandler{}
+	usersHandler := &usersHandlers.UserHandler{}
 	adminHandler := &adminHandlers.AdminHandler{}
 	journeyLogger := journeylog.NewNoopJourneyLogger()
 	walletHandler := walletHandlers.NewWalletHandler(nil, journeyLogger)
@@ -37,7 +37,7 @@ func TestNewRouter_RegistersExpectedRoutes(t *testing.T) {
 	refundHandler := refundHandlers.NewRefundHandler(nil, journeyLogger)
 	oauth2Handler := oauth2Handlers.NewOAuth2Handler(nil)
 
-	router := newRouter(cfg, authHandler, adminHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler, oauth2Handler)
+	router := newRouter(cfg, usersHandler, adminHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler, oauth2Handler)
 	registered := routeMap(router.Routes())
 
 	tests := []struct {
@@ -47,8 +47,7 @@ func TestNewRouter_RegistersExpectedRoutes(t *testing.T) {
 	}{
 		{name: "swagger docs", method: "GET", path: "/swagger/*any"},
 		{name: "health check", method: "GET", path: "/api/v1/ping"},
-		{name: "auth register", method: "POST", path: "/api/v1/auth/register"},
-		{name: "auth login", method: "POST", path: "/api/v1/auth/login"},
+		{name: "users register", method: "POST", path: "/api/v1/users/register"},
 		{name: "public invoice", method: "GET", path: "/api/v1/pay/:token"},
 		{name: "public payment intent", method: "POST", path: "/api/v1/pay/:token/intents"},
 		{name: "merchant wallet", method: "GET", path: "/api/v1/merchant/wallet"},

@@ -11,10 +11,16 @@ func RegisterPublicRoutes(router *gin.RouterGroup, handler *handlers.OAuth2Handl
 		oauth2.POST("/token", handler.Token)
 		oauth2.POST("/introspect", handler.Introspect)
 		oauth2.POST("/revoke", handler.Revoke)
-		oauth2.GET("/userinfo", handler.UserInfo)
-		
+
 		oauth2.GET("/authorize", handler.Authorize)
 		oauth2.POST("/authorize", handler.ApproveAuthorize)
+	}
+}
+
+func RegisterSecuredRoutes(router *gin.RouterGroup, handler *handlers.OAuth2Handler) {
+	oauth2 := router.Group("/oauth2")
+	{
+		oauth2.GET("/userinfo", handler.UserInfo)
 	}
 }
 

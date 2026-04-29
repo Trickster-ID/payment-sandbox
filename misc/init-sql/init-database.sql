@@ -370,11 +370,30 @@ CREATE INDEX IF NOT EXISTS idx_oauth2_consents_user_client ON oauth2_consents(us
 -- ==========================================
 -- 10. SEED DATA
 -- ==========================================
-INSERT INTO oauth2_clients (name, client_secret, redirect_uris, scopes, is_first_party)
+-- Test Users
+INSERT INTO users (name, email, password_hash, role)
+VALUES
+    (
+        'Sandbox Admin',
+        'admin@sandbox.local',
+        '$2a$10$4WPj69bVTjeLdHqGwl9hKuLfM/Vi5ZKoezRwfGlJjI4UHE0CKSeC.',  -- bcrypt of 'admin1234'
+        'ADMIN'
+    ),
+    (
+        'Test Merchant',
+        'merchant@sandbox.local',
+        '$2a$10$NBYWZDciCd1yq6wLzVIBUuvT9b4gzqMDXY28KgYZfe5f.tBGGWhlS',  -- bcrypt of 'merchant1234'
+        'MERCHANT'
+    )
+ON CONFLICT (LOWER(email)) WHERE deleted_at IS NULL DO NOTHING;
+
+-- OAuth2 Clients
+INSERT INTO oauth2_clients (id, name, client_secret, redirect_uris, scopes, is_first_party)
 VALUES (
+    '00000000-0000-4000-8000-000000000001'::uuid,  -- deterministic UUID for the CMS first-party client
     'Payment Sandbox CMS',
     '$2a$10$bIJtbJtBfcDClugB82CV7OQ4zwj.UmIHw9Cow0oOGZkccdHQ54eV2',  -- bcrypt of 'payment-sandbox-secret'
     ARRAY['http://localhost:3000/callback'],
     ARRAY['read', 'write', 'admin'],
     true
-) ON CONFLICT DO NOTHING;
+) ON CONFLICT (id) DO NOTHING;

@@ -11,7 +11,7 @@ Legend:
 
 | Area | Status | Notes |
 |---|---|---|
-| Registration + login (hashed password + JWT) | done | Implemented in auth module |
+| Registration + login (hashed password + JWT) | done | Users module for registration; OAuth2 module for token flows |
 | Role-based authorization middleware | done | Merchant/Admin guards in router |
 | Wallet top-up simulation | done | Create + admin status update |
 | Invoice create/list/detail + payment token | done | Merchant flow covered |
