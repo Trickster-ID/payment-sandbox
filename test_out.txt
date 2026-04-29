@@ -1,0 +1,35 @@
+=== RUN   TestOAuth2Service_RegisterClient
+=== RUN   TestOAuth2Service_RegisterClient/success_registration
+    oauth2_service_test.go:94: 
+        	Error Trace:	/Users/pikri/Developer/personal/repositories/payment-sandbox/app/modules/oauth2/services/oauth2_service_test.go:94
+        	Error:      	Received unexpected error:
+        	            	bcrypt: password length exceeds 72 bytes
+        	Test:       	TestOAuth2Service_RegisterClient/success_registration
+    IOAuth2Repository.go:810: FAIL:	CreateClient(mock.argumentMatcher)
+        		at: [/Users/pikri/Developer/personal/repositories/payment-sandbox/app/modules/oauth2/services/oauth2_service_test.go:32 /Users/pikri/Developer/personal/repositories/payment-sandbox/app/modules/oauth2/services/oauth2_service_test.go:85]
+    IOAuth2Repository.go:810: FAIL: 0 out of 1 expectation(s) were met.
+        	The code you are testing needs to make 1 more call(s).
+        	at: [/Users/pikri/Developer/personal/repositories/payment-sandbox/app/modules/oauth2/repositories/mocks/IOAuth2Repository.go:810 /opt/homebrew/Cellar/go/1.26.2/libexec/src/testing/testing.go:1317 /opt/homebrew/Cellar/go/1.26.2/libexec/src/testing/testing.go:1667 /opt/homebrew/Cellar/go/1.26.2/libexec/src/testing/testing.go:2030 /opt/homebrew/Cellar/go/1.26.2/libexec/src/runtime/panic.go:694 /opt/homebrew/Cellar/go/1.26.2/libexec/src/testing/testing.go:1022 /Users/pikri/Developer/personal/repositories/payment-sandbox/app/modules/oauth2/services/oauth2_service_test.go:94]
+=== RUN   TestOAuth2Service_RegisterClient/empty_client_name
+=== RUN   TestOAuth2Service_RegisterClient/invalid_redirect_URI
+=== RUN   TestOAuth2Service_RegisterClient/invalid_scope
+=== RUN   TestOAuth2Service_RegisterClient/repository_error
+    oauth2_service_test.go:92: 
+        	Error Trace:	/Users/pikri/Developer/personal/repositories/payment-sandbox/app/modules/oauth2/services/oauth2_service_test.go:92
+        	Error:      	"bcrypt: password length exceeds 72 bytes" does not contain "db error"
+        	Test:       	TestOAuth2Service_RegisterClient/repository_error
+    IOAuth2Repository.go:810: FAIL:	CreateClient(string)
+        		at: [/Users/pikri/Developer/personal/repositories/payment-sandbox/app/modules/oauth2/services/oauth2_service_test.go:75 /Users/pikri/Developer/personal/repositories/payment-sandbox/app/modules/oauth2/services/oauth2_service_test.go:85]
+    IOAuth2Repository.go:810: FAIL: 0 out of 1 expectation(s) were met.
+        	The code you are testing needs to make 1 more call(s).
+        	at: [/Users/pikri/Developer/personal/repositories/payment-sandbox/app/modules/oauth2/repositories/mocks/IOAuth2Repository.go:810 /opt/homebrew/Cellar/go/1.26.2/libexec/src/testing/testing.go:1317 /opt/homebrew/Cellar/go/1.26.2/libexec/src/testing/testing.go:1667 /opt/homebrew/Cellar/go/1.26.2/libexec/src/testing/testing.go:2030]
+--- FAIL: TestOAuth2Service_RegisterClient (0.00s)
+    --- FAIL: TestOAuth2Service_RegisterClient/success_registration (0.00s)
+    --- PASS: TestOAuth2Service_RegisterClient/empty_client_name (0.00s)
+    --- PASS: TestOAuth2Service_RegisterClient/invalid_redirect_URI (0.00s)
+    --- PASS: TestOAuth2Service_RegisterClient/invalid_scope (0.00s)
+    --- FAIL: TestOAuth2Service_RegisterClient/repository_error (0.00s)
+FAIL
+FAIL	payment-sandbox/app/modules/oauth2/services	0.261s
+?   	payment-sandbox/app/modules/oauth2/services/mocks	[no test files]
+FAIL

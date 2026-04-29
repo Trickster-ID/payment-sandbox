@@ -14,8 +14,10 @@ import (
 )
 
 const (
-	ContextUserID = "user_id"
-	ContextRole   = "role"
+	ContextUserID   = "user_id"
+	ContextRole     = "role"
+	ContextClientID = "client_id"
+	ContextScope    = "scope"
 )
 
 type JWTService struct {
@@ -31,8 +33,10 @@ func NewJWTService(cfg config.Config) JWTService {
 }
 
 type Claims struct {
-	UserID string      `json:"user_id"`
-	Role   entity.Role `json:"role"`
+	UserID   string      `json:"user_id,omitempty"`
+	Role     entity.Role `json:"role,omitempty"`
+	ClientID string      `json:"client_id,omitempty"`
+	Scope    string      `json:"scope,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -78,6 +82,8 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 
 		c.Set(ContextUserID, claims.UserID)
 		c.Set(ContextRole, string(claims.Role))
+		c.Set(ContextClientID, claims.ClientID)
+		c.Set(ContextScope, claims.Scope)
 		c.Next()
 	}
 }
@@ -104,6 +110,40 @@ func RequireRoles(allowed ...entity.Role) gin.HandlerFunc {
 		}
 		response.Fail(c, appErrors.Forbidden("auth_forbidden", "forbidden", nil))
 		c.Abort()
+	}
+}
+
+func RequireScopes(required ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		scopeAny, found := c.Get(ContextScope)
+		if !found {
+			response.Fail(c, appErrors.Forbidden("auth_scope_not_found", "scope not found", nil))
+			c.Abort()
+			return
+		}
+		scopeStr, ok := scopeAny.(string)
+		if !ok {
+			response.Fail(c, appErrors.Forbidden("auth_invalid_scope", "invalid scope", nil))
+			c.Abort()
+			return
+		}
+
+		scopes := strings.Fields(scopeStr)
+		for _, req := range required {
+			foundReq := false
+			for _, s := range scopes {
+				if s == req {
+					foundReq = true
+					break
+				}
+			}
+			if !foundReq {
+				response.Fail(c, appErrors.Forbidden("auth_insufficient_scope", "insufficient scope: "+req, nil))
+				c.Abort()
+				return
+			}
+		}
+		c.Next()
 	}
 }
 

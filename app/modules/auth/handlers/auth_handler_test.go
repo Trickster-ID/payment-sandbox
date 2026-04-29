@@ -37,6 +37,15 @@ func TestAuthHandler_RegisterMerchant(t *testing.T) {
 			wantCode:   "validation_error",
 		},
 		{
+			name: "malformed json",
+			body: `{invalid-json}`,
+			setupMocks: func(service *serviceMocks.MockIAuthService) {
+				service.AssertNotCalled(t, "RegisterMerchant")
+			},
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "validation_error",
+		},
+		{
 			name: "service validation error",
 			body: `{"name":"Merchant","email":"merchant@example.com","password":"password123"}`,
 			setupMocks: func(service *serviceMocks.MockIAuthService) {
@@ -113,6 +122,15 @@ func TestAuthHandler_Login(t *testing.T) {
 		{
 			name: "validation error",
 			body: `{"email":"invalid","password":""}`,
+			setupMocks: func(service *serviceMocks.MockIAuthService) {
+				service.AssertNotCalled(t, "Login")
+			},
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "validation_error",
+		},
+		{
+			name: "malformed json",
+			body: `{invalid-json}`,
 			setupMocks: func(service *serviceMocks.MockIAuthService) {
 				service.AssertNotCalled(t, "Login")
 			},

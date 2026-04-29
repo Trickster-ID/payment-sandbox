@@ -56,6 +56,19 @@ func TestRefundService_RequestRefund(t *testing.T) {
 			},
 			wantID: "refund-1",
 		},
+		{
+			name:      "repository error",
+			userID:    "user-1",
+			paymentID: "pi-1",
+			reason:    "duplicate payment",
+			setupMocks: func(repo *repoMocks.MockIRefundRepository) {
+				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
+				repo.EXPECT().
+					RequestRefund("merchant-1", "pi-1", "duplicate payment").
+					Return(refundEntity.Refund{}, errors.New("db error"))
+			},
+			wantErr: "db error",
+		},
 	}
 
 	for _, tc := range tests {
@@ -115,6 +128,15 @@ func TestRefundService_ReviewRefund(t *testing.T) {
 			},
 			wantErr: "decision must be APPROVE or REJECT",
 		},
+		{
+			name:     "repository error",
+			refundID: "refund-1",
+			decision: "APPROVE",
+			setupMocks: func(repo *repoMocks.MockIRefundRepository) {
+				repo.EXPECT().ReviewRefund("refund-1", true).Return(refundEntity.Refund{}, errors.New("db error"))
+			},
+			wantErr: "db error",
+		},
 	}
 
 	for _, tc := range tests {
@@ -171,6 +193,32 @@ func TestRefundService_ProcessRefund(t *testing.T) {
 			},
 			wantID: "refund-1",
 		},
+		{
+			name:     "failed status mapping",
+			refundID: "refund-1",
+			status:   "failed",
+			setupMocks: func(repo *repoMocks.MockIRefundRepository) {
+				repo.EXPECT().
+					ProcessRefund("refund-1", refundEntity.RefundFailed).
+					Return(
+						refundEntity.Refund{ID: "refund-1", Status: refundEntity.RefundFailed},
+						walletEntity.Merchant{},
+						nil,
+					)
+			},
+			wantID: "refund-1",
+		},
+		{
+			name:     "repository error",
+			refundID: "refund-1",
+			status:   "success",
+			setupMocks: func(repo *repoMocks.MockIRefundRepository) {
+				repo.EXPECT().
+					ProcessRefund("refund-1", refundEntity.RefundSuccess).
+					Return(refundEntity.Refund{}, walletEntity.Merchant{}, errors.New("db error"))
+			},
+			wantErr: "db error",
+		},
 	}
 
 	for _, tc := range tests {
@@ -191,7 +239,30 @@ func TestRefundService_ProcessRefund(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantID, result.ID)
-			assert.Equal(t, "merchant-1", merchant.ID)
+			if tc.status == "success" {
+				assert.Equal(t, "merchant-1", merchant.ID)
+			}
 		})
 	}
+}
+
+func TestRefundService_ListRefunds(t *testing.T) {
+	t.Run("returns list", func(t *testing.T) {
+		repo := repoMocks.NewMockIRefundRepository(t)
+		expected := []refundEntity.Refund{{ID: "r1"}}
+		repo.EXPECT().ListRefunds("PENDING").Return(expected)
+		
+		service := NewRefundService(repo)
+		res := service.ListRefunds("PENDING")
+		assert.Equal(t, expected, res)
+	})
+
+	t.Run("empty list", func(t *testing.T) {
+		repo := repoMocks.NewMockIRefundRepository(t)
+		repo.EXPECT().ListRefunds("PENDING").Return([]refundEntity.Refund{})
+		
+		service := NewRefundService(repo)
+		res := service.ListRefunds("PENDING")
+		assert.Empty(t, res)
+	})
 }

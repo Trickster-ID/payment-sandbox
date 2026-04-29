@@ -42,6 +42,16 @@ func TestWalletHandler_CreateTopup(t *testing.T) {
 			wantCode:   "validation_error",
 		},
 		{
+			name: "malformed json",
+			body: `{invalid-json}`,
+			setupMocks: func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger) {
+				service.AssertNotCalled(t, "CreateTopup")
+				logger.AssertNotCalled(t, "Log")
+			},
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "validation_error",
+		},
+		{
 			name: "service error and logger failure still returns business error",
 			body: `{"amount":15000}`,
 			setupMocks: func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger) {

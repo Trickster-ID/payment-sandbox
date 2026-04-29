@@ -101,6 +101,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	c.Header("Warning", `299 - "This endpoint is deprecated. Please migrate to /oauth2/token"`)
+	c.Header("X-Deprecation", "true")
 	response.OK(c, gin.H{
 		"access_token": token,
 		"user": gin.H{

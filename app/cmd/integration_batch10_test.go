@@ -31,6 +31,9 @@ import (
 	walletHandlers "payment-sandbox/app/modules/wallet/handlers"
 	walletRepo "payment-sandbox/app/modules/wallet/repositories"
 	walletSvc "payment-sandbox/app/modules/wallet/services"
+	oauth2Handlers "payment-sandbox/app/modules/oauth2/handlers"
+	oauth2Repo "payment-sandbox/app/modules/oauth2/repositories"
+	oauth2Svc "payment-sandbox/app/modules/oauth2/services"
 	"payment-sandbox/app/shared/database"
 	"payment-sandbox/app/shared/journeylog"
 
@@ -273,6 +276,7 @@ func setupIntegrationSuite(t *testing.T) *integrationSuite {
 	invoiceService := invoiceSvc.NewInvoiceService(invoiceRepo.NewInvoiceRepository(db))
 	paymentService := paymentSvc.NewPaymentService(paymentRepo.NewPaymentRepository(db))
 	refundService := refundSvc.NewRefundService(refundRepo.NewRefundRepository(db))
+	oauth2Service := oauth2Svc.NewOAuth2Service(oauth2Repo.NewOAuth2Repository(db), cfg)
 
 	journeyLogger := journeylog.NewNoopJourneyLogger()
 	router := newRouter(
@@ -283,6 +287,7 @@ func setupIntegrationSuite(t *testing.T) *integrationSuite {
 		invoiceHandlers.NewInvoiceHandler(invoiceService, journeyLogger),
 		paymentHandlers.NewPaymentHandler(paymentService, journeyLogger),
 		refundHandlers.NewRefundHandler(refundService, journeyLogger),
+		oauth2Handlers.NewOAuth2Handler(oauth2Service),
 	)
 
 	return &integrationSuite{

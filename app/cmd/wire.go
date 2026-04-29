@@ -15,6 +15,9 @@ import (
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
 	invoiceRepo "payment-sandbox/app/modules/invoice/repositories"
 	invoiceSvc "payment-sandbox/app/modules/invoice/services"
+	oauth2Handlers "payment-sandbox/app/modules/oauth2/handlers"
+	oauth2Repo "payment-sandbox/app/modules/oauth2/repositories"
+	oauth2Svc "payment-sandbox/app/modules/oauth2/services"
 	paymentHandlers "payment-sandbox/app/modules/payment/handlers"
 	paymentRepo "payment-sandbox/app/modules/payment/repositories"
 	paymentSvc "payment-sandbox/app/modules/payment/services"
@@ -47,6 +50,8 @@ func initApp() (*App, error) {
 		wire.Bind(new(paymentRepo.IPaymentRepository), new(*paymentRepo.PaymentRepository)),
 		refundRepo.NewRefundRepository,
 		wire.Bind(new(refundRepo.IRefundRepository), new(*refundRepo.RefundRepository)),
+		oauth2Repo.NewOAuth2Repository,
+		wire.Bind(new(oauth2Repo.IOAuth2Repository), new(*oauth2Repo.OAuth2Repository)),
 		authSvc.NewAuthService,
 		wire.Bind(new(authSvc.IAuthService), new(*authSvc.AuthService)),
 		authHandlers.NewAuthHandler,
@@ -65,6 +70,9 @@ func initApp() (*App, error) {
 		refundSvc.NewRefundService,
 		wire.Bind(new(refundSvc.IRefundService), new(*refundSvc.RefundService)),
 		refundHandlers.NewRefundHandler,
+		oauth2Svc.NewOAuth2Service,
+		wire.Bind(new(oauth2Svc.IOAuth2Service), new(*oauth2Svc.OAuth2Service)),
+		oauth2Handlers.NewOAuth2Handler,
 		newRouter,
 		newApp,
 	)

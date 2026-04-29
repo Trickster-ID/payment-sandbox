@@ -169,6 +169,21 @@ func TestInvoiceService_ListInvoices(t *testing.T) {
 			wantTotal: 11,
 			wantLen:   2,
 		},
+		{
+			name:   "empty list",
+			userID: "user-1",
+			status: "PENDING",
+			page:   1,
+			limit:  10,
+			setupMocks: func(repo *repoMocks.MockIInvoiceRepository) {
+				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
+				repo.EXPECT().
+					ListInvoices("merchant-1", "PENDING", invoiceEntity.ListOptions{Page: 1, Limit: 10}).
+					Return([]invoiceEntity.Invoice{}, 0)
+			},
+			wantTotal: 0,
+			wantLen:   0,
+		},
 	}
 
 	for _, tc := range tests {
@@ -231,6 +246,16 @@ func TestInvoiceService_InvoiceByID(t *testing.T) {
 				repo.EXPECT().MerchantInvoiceByID("inv-1", "merchant-1").Return(invoiceEntity.Invoice{ID: "inv-1"}, nil)
 			},
 			wantID: "inv-1",
+		},
+		{
+			name:      "repository error",
+			userID:    "user-1",
+			invoiceID: "inv-1",
+			setupMocks: func(repo *repoMocks.MockIInvoiceRepository) {
+				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
+				repo.EXPECT().MerchantInvoiceByID("inv-1", "merchant-1").Return(invoiceEntity.Invoice{}, errors.New("db error"))
+			},
+			wantErr: "db error",
 		},
 	}
 

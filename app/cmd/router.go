@@ -12,6 +12,8 @@ import (
 	"payment-sandbox/app/modules/auth/models/entity"
 	invoiceAPI "payment-sandbox/app/modules/invoice/api"
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
+	oauth2API "payment-sandbox/app/modules/oauth2/api"
+	oauth2Handlers "payment-sandbox/app/modules/oauth2/handlers"
 	paymentAPI "payment-sandbox/app/modules/payment/api"
 	paymentHandlers "payment-sandbox/app/modules/payment/handlers"
 	refundAPI "payment-sandbox/app/modules/refund/api"
@@ -33,6 +35,7 @@ func newRouter(
 	invoiceHandler *invoiceHandlers.InvoiceHandler,
 	paymentHandler *paymentHandlers.PaymentHandler,
 	refundHandler *refundHandlers.RefundHandler,
+	oauth2Handler *oauth2Handlers.OAuth2Handler,
 ) *gin.Engine {
 	docs.SwaggerInfo.Host = "localhost:" + cfg.AppPort
 	docs.SwaggerInfo.BasePath = "/api/v1"
@@ -52,6 +55,7 @@ func newRouter(
 		v1.GET("/ping", adminHandler.Healthz)
 		authAPI.RegisterPublicRoutes(v1, authHandler)
 		paymentAPI.RegisterPublicRoutes(v1, paymentHandler)
+		oauth2API.RegisterPublicRoutes(v1, oauth2Handler)
 	}
 
 	secured := v1.Group("")
@@ -63,6 +67,7 @@ func newRouter(
 			walletAPI.RegisterMerchantRoutes(merchant, walletHandler)
 			invoiceAPI.RegisterMerchantRoutes(merchant, invoiceHandler)
 			refundAPI.RegisterMerchantRoutes(merchant, refundHandler)
+			oauth2API.RegisterMerchantRoutes(merchant, oauth2Handler)
 		}
 
 		admin := secured.Group("/admin")

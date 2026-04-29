@@ -7,6 +7,7 @@ import (
 	adminHandlers "payment-sandbox/app/modules/admin/handlers"
 	authHandlers "payment-sandbox/app/modules/auth/handlers"
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
+	oauth2Handlers "payment-sandbox/app/modules/oauth2/handlers"
 	paymentHandlers "payment-sandbox/app/modules/payment/handlers"
 	refundHandlers "payment-sandbox/app/modules/refund/handlers"
 	walletHandlers "payment-sandbox/app/modules/wallet/handlers"
@@ -34,8 +35,9 @@ func TestNewRouter_RegistersExpectedRoutes(t *testing.T) {
 	invoiceHandler := invoiceHandlers.NewInvoiceHandler(nil, journeyLogger)
 	paymentHandler := paymentHandlers.NewPaymentHandler(nil, journeyLogger)
 	refundHandler := refundHandlers.NewRefundHandler(nil, journeyLogger)
+	oauth2Handler := oauth2Handlers.NewOAuth2Handler(nil)
 
-	router := newRouter(cfg, authHandler, adminHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler)
+	router := newRouter(cfg, authHandler, adminHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler, oauth2Handler)
 	registered := routeMap(router.Routes())
 
 	tests := []struct {

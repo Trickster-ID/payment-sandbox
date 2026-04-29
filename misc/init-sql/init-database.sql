@@ -295,3 +295,86 @@ CREATE INDEX IF NOT EXISTS idx_refunds_payment_intent_id_active
 CREATE INDEX IF NOT EXISTS idx_refunds_status_active
     ON refunds(status)
     WHERE deleted_at IS NULL;
+
+-- ==========================================
+-- 7. OAUTH2 TABLES
+-- ==========================================
+
+-- oauth2_clients
+CREATE TABLE IF NOT EXISTS oauth2_clients (
+    id             UUID PRIMARY KEY DEFAULT app_uuid(),
+    owner_id       UUID REFERENCES users(id),          -- NULL for system/first-party
+    client_secret  VARCHAR(255) NOT NULL,               -- bcrypt hashed
+    name           VARCHAR(255) NOT NULL,
+    redirect_uris  TEXT[] NOT NULL,                      -- allowed redirect URIs
+    scopes         TEXT[] NOT NULL DEFAULT '{}',         -- allowed scopes
+    is_first_party BOOLEAN NOT NULL DEFAULT false,
+    is_confidential BOOLEAN NOT NULL DEFAULT true,      -- confidential vs public client
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at     TIMESTAMPTZ
+);
+
+-- oauth2_authorization_codes
+CREATE TABLE IF NOT EXISTS oauth2_authorization_codes (
+    id            UUID PRIMARY KEY DEFAULT app_uuid(),
+    code          VARCHAR(128) NOT NULL UNIQUE,
+    client_id     UUID NOT NULL REFERENCES oauth2_clients(id),
+    user_id       UUID NOT NULL REFERENCES users(id),
+    redirect_uri  TEXT NOT NULL,
+    scope         TEXT NOT NULL DEFAULT '',
+    expires_at    TIMESTAMPTZ NOT NULL,
+    used          BOOLEAN NOT NULL DEFAULT false,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- oauth2_refresh_tokens
+CREATE TABLE IF NOT EXISTS oauth2_refresh_tokens (
+    id           UUID PRIMARY KEY DEFAULT app_uuid(),
+    token        VARCHAR(128) NOT NULL UNIQUE,
+    client_id    UUID NOT NULL REFERENCES oauth2_clients(id),
+    user_id      UUID NOT NULL REFERENCES users(id),
+    scope        TEXT NOT NULL DEFAULT '',
+    expires_at   TIMESTAMPTZ NOT NULL,
+    revoked      BOOLEAN NOT NULL DEFAULT false,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- oauth2_consents (for third-party clients)
+CREATE TABLE IF NOT EXISTS oauth2_consents (
+    id         UUID PRIMARY KEY DEFAULT app_uuid(),
+    user_id    UUID NOT NULL REFERENCES users(id),
+    client_id  UUID NOT NULL REFERENCES oauth2_clients(id),
+    scope      TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, client_id)
+);
+
+-- ==========================================
+-- 8. OAUTH2 UPDATED_AT TRIGGERS
+-- ==========================================
+DROP TRIGGER IF EXISTS trg_oauth2_clients_updated_at ON oauth2_clients;
+CREATE TRIGGER trg_oauth2_clients_updated_at
+BEFORE UPDATE ON oauth2_clients
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+-- ==========================================
+-- 9. OAUTH2 INDEXING
+-- ==========================================
+CREATE INDEX IF NOT EXISTS idx_oauth2_codes_code ON oauth2_authorization_codes(code) WHERE used = false;
+CREATE INDEX IF NOT EXISTS idx_oauth2_refresh_token ON oauth2_refresh_tokens(token) WHERE revoked = false;
+CREATE INDEX IF NOT EXISTS idx_oauth2_clients_owner ON oauth2_clients(owner_id) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_oauth2_consents_user_client ON oauth2_consents(user_id, client_id);
+
+-- ==========================================
+-- 10. SEED DATA
+-- ==========================================
+INSERT INTO oauth2_clients (name, client_secret, redirect_uris, scopes, is_first_party)
+VALUES (
+    'Payment Sandbox CMS',
+    '$2a$10$bIJtbJtBfcDClugB82CV7OQ4zwj.UmIHw9Cow0oOGZkccdHQ54eV2',  -- bcrypt of 'payment-sandbox-secret'
+    ARRAY['http://localhost:3000/callback'],
+    ARRAY['read', 'write', 'admin'],
+    true
+) ON CONFLICT DO NOTHING;

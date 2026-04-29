@@ -17,6 +17,9 @@ import (
 	handlers4 "payment-sandbox/app/modules/invoice/handlers"
 	repositories3 "payment-sandbox/app/modules/invoice/repositories"
 	services4 "payment-sandbox/app/modules/invoice/services"
+	handlers7 "payment-sandbox/app/modules/oauth2/handlers"
+	repositories6 "payment-sandbox/app/modules/oauth2/repositories"
+	services7 "payment-sandbox/app/modules/oauth2/services"
 	handlers5 "payment-sandbox/app/modules/payment/handlers"
 	repositories4 "payment-sandbox/app/modules/payment/repositories"
 	services5 "payment-sandbox/app/modules/payment/services"
@@ -60,7 +63,10 @@ func initApp() (*App, error) {
 	refundRepository := repositories5.NewRefundRepository(db)
 	refundService := services6.NewRefundService(refundRepository)
 	refundHandler := handlers6.NewRefundHandler(refundService, iJourneyLogger)
-	engine := newRouter(configConfig, authHandler, adminHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler)
+	oAuth2Repository := repositories6.NewOAuth2Repository(db)
+	oAuth2Service := services7.NewOAuth2Service(oAuth2Repository, configConfig)
+	oAuth2Handler := handlers7.NewOAuth2Handler(oAuth2Service)
+	engine := newRouter(configConfig, authHandler, adminHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler, oAuth2Handler)
 	app := newApp(configConfig, engine)
 	return app, nil
 }

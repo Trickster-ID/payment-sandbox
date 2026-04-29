@@ -55,6 +55,17 @@ func TestInvoiceHandler_CreateInvoice(t *testing.T) {
 			wantCode:   "validation_error",
 		},
 		{
+			name:       "malformed json",
+			withUserID: true,
+			body:       `{invalid-json}`,
+			setupMocks: func(service *serviceMocks.MockIInvoiceService, logger *journeyMocks.MockIJourneyLogger) {
+				service.AssertNotCalled(t, "CreateInvoice")
+				logger.AssertNotCalled(t, "Log")
+			},
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "validation_error",
+		},
+		{
 			name:       "service error and logger failure",
 			withUserID: true,
 			body:       `{"customer_name":"Alice","customer_email":"alice@example.com","amount":10000,"description":"desc","due_date":"2026-05-01T10:00:00Z"}`,

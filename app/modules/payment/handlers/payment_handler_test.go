@@ -43,6 +43,16 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 			wantCode:   "validation_error",
 		},
 		{
+			name: "malformed json",
+			body: `{invalid-json}`,
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
+				service.AssertNotCalled(t, "CreatePaymentIntent")
+				logger.AssertNotCalled(t, "Log")
+			},
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "validation_error",
+		},
+		{
 			name: "service error and logger failure still returns business error",
 			body: `{"method":"WALLET"}`,
 			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {

@@ -136,7 +136,7 @@ func TestPaymentService_UpdatePaymentIntentStatus(t *testing.T) {
 			wantErr: "invalid payment status",
 		},
 		{
-			name:      "success mapping",
+			name:      "success mapping failed",
 			paymentID: "pi-1",
 			status:    "failed",
 			setupMocks: func(repo *repoMocks.MockIPaymentRepository) {
@@ -149,6 +149,32 @@ func TestPaymentService_UpdatePaymentIntentStatus(t *testing.T) {
 					)
 			},
 			wantStatus: paymentEntity.PaymentFailed,
+		},
+		{
+			name:      "success mapping success",
+			paymentID: "pi-1",
+			status:    "success",
+			setupMocks: func(repo *repoMocks.MockIPaymentRepository) {
+				repo.EXPECT().
+					UpdatePaymentStatus("pi-1", paymentEntity.PaymentSuccess).
+					Return(
+						paymentEntity.PaymentIntent{ID: "pi-1", Status: paymentEntity.PaymentSuccess},
+						invoiceEntity.Invoice{ID: "inv-1"},
+						nil,
+					)
+			},
+			wantStatus: paymentEntity.PaymentSuccess,
+		},
+		{
+			name:      "repository error",
+			paymentID: "pi-1",
+			status:    "success",
+			setupMocks: func(repo *repoMocks.MockIPaymentRepository) {
+				repo.EXPECT().
+					UpdatePaymentStatus("pi-1", paymentEntity.PaymentSuccess).
+					Return(paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, errors.New("db error"))
+			},
+			wantErr: "db error",
 		},
 	}
 
@@ -174,12 +200,24 @@ func TestPaymentService_UpdatePaymentIntentStatus(t *testing.T) {
 }
 
 func TestPaymentService_ListPaymentIntents(t *testing.T) {
-	repo := repoMocks.NewMockIPaymentRepository(t)
-	service := NewPaymentService(repo)
+	t.Run("returns list", func(t *testing.T) {
+		repo := repoMocks.NewMockIPaymentRepository(t)
+		service := NewPaymentService(repo)
 
-	expected := []paymentEntity.PaymentIntent{{ID: "pi-1"}, {ID: "pi-2"}}
-	repo.EXPECT().ListPaymentIntents("SUCCESS").Return(expected)
+		expected := []paymentEntity.PaymentIntent{{ID: "pi-1"}, {ID: "pi-2"}}
+		repo.EXPECT().ListPaymentIntents("SUCCESS").Return(expected)
 
-	result := service.ListPaymentIntents(" success ")
-	assert.Equal(t, expected, result)
+		result := service.ListPaymentIntents(" success ")
+		assert.Equal(t, expected, result)
+	})
+
+	t.Run("empty list", func(t *testing.T) {
+		repo := repoMocks.NewMockIPaymentRepository(t)
+		service := NewPaymentService(repo)
+
+		repo.EXPECT().ListPaymentIntents("SUCCESS").Return([]paymentEntity.PaymentIntent{})
+
+		result := service.ListPaymentIntents(" success ")
+		assert.Empty(t, result)
+	})
 }

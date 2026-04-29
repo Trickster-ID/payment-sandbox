@@ -56,6 +56,17 @@ func TestRefundHandler_RequestRefund(t *testing.T) {
 			wantCode:   "validation_error",
 		},
 		{
+			name:       "malformed json",
+			withUserID: true,
+			body:       `{invalid-json}`,
+			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
+				service.AssertNotCalled(t, "RequestRefund")
+				logger.AssertNotCalled(t, "Log")
+			},
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "validation_error",
+		},
+		{
 			name:       "service error and logger failure",
 			withUserID: true,
 			body:       `{"payment_intent_id":"pi-1","reason":"duplicate payment"}`,

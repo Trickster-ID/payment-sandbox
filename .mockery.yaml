@@ -26,6 +26,9 @@ packages:
   payment-sandbox/app/modules/refund/repositories:
     interfaces:
       IRefundRepository:
+  payment-sandbox/app/modules/oauth2/repositories:
+    interfaces:
+      IOAuth2Repository:
   payment-sandbox/app/shared/journeylog:
     interfaces:
       IJourneyLogger:
@@ -47,3 +50,6 @@ packages:
   payment-sandbox/app/modules/refund/services:
     interfaces:
       IRefundService:
+  payment-sandbox/app/modules/oauth2/services:
+    interfaces:
+      IOAuth2Service:

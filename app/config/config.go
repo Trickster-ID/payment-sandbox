@@ -26,6 +26,9 @@ type Config struct {
 	MongoDBName        string
 	MongoCollection    string
 	MongoJourneyEnable bool
+	OAuth2AccessTokenDuration  time.Duration
+	OAuth2RefreshTokenDuration time.Duration
+	OAuth2AuthCodeDuration     time.Duration
 }
 
 const (
@@ -54,6 +57,9 @@ func Load() Config {
 		MongoDBName:        getEnv("MONGO_DB_NAME", "payment_sandbox"),
 		MongoCollection:    getEnv("MONGO_COLLECTION", "journey_logs"),
 		MongoJourneyEnable: getEnvBool("MONGO_JOURNEY_ENABLE", true),
+		OAuth2AccessTokenDuration:  getEnvDuration("OAUTH2_ACCESS_TOKEN_DURATION_MINUTES", 15),
+		OAuth2RefreshTokenDuration: time.Duration(getEnvInt("OAUTH2_REFRESH_TOKEN_DURATION_DAYS", 30)) * 24 * time.Hour,
+		OAuth2AuthCodeDuration:     getEnvDuration("OAUTH2_AUTH_CODE_DURATION_MINUTES", 10),
 	}
 }
 
