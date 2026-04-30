@@ -10,6 +10,7 @@ import (
 
 type IPaymentRepository interface {
 	GetInvoiceByToken(token string) (invoiceEntity.Invoice, bool)
+	GetInvoiceByID(id string) (invoiceEntity.Invoice, bool)
 	CreatePaymentIntent(invoiceToken string, method paymentEntity.PaymentMethod) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error)
 	ListPaymentIntents(status string) []paymentEntity.PaymentIntent
 	UpdatePaymentStatus(paymentID string, nextStatus paymentEntity.PaymentStatus) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error)
@@ -74,6 +75,8 @@ func (r *PaymentRepository) CreatePaymentIntent(invoiceToken string, method paym
 	if err := tx.Commit(); err != nil {
 		return paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, err
 	}
+	normalizePaymentIntentTimes(&intent)
+	normalizeInvoiceTimes(&invoice)
 	return intent, invoice, nil
 }
 
@@ -100,6 +103,7 @@ func (r *PaymentRepository) ListPaymentIntents(status string) []paymentEntity.Pa
 	for rows.Next() {
 		var item paymentEntity.PaymentIntent
 		if err := rows.Scan(&item.ID, &item.InvoiceID, &item.Method, &item.Status, &item.CreatedAt, &item.UpdatedAt); err == nil {
+			normalizePaymentIntentTimes(&item)
 			items = append(items, item)
 		}
 	}
@@ -157,7 +161,7 @@ func (r *PaymentRepository) UpdatePaymentStatus(paymentID string, nextStatus pay
 		return paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, err
 	}
 	intent, _ = r.getPaymentIntentByID(paymentID)
-	invoice, _ = r.getInvoiceByID(invoice.ID)
+	invoice, _ = r.GetInvoiceByID(invoice.ID)
 	return intent, invoice, nil
 }
 
@@ -171,7 +175,7 @@ func (r *PaymentRepository) expireDueInvoices() {
 	`)
 }
 
-func (r *PaymentRepository) getInvoiceByID(id string) (invoiceEntity.Invoice, bool) {
+func (r *PaymentRepository) GetInvoiceByID(id string) (invoiceEntity.Invoice, bool) {
 	var invoice invoiceEntity.Invoice
 	err := r.db.QueryRow(`
 		SELECT id::text, merchant_id::text, invoice_number, customer_name, customer_email,
@@ -183,6 +187,7 @@ func (r *PaymentRepository) getInvoiceByID(id string) (invoiceEntity.Invoice, bo
 	if err != nil {
 		return invoiceEntity.Invoice{}, false
 	}
+	normalizeInvoiceTimes(&invoice)
 	return invoice, true
 }
 
@@ -196,5 +201,17 @@ func (r *PaymentRepository) getPaymentIntentByID(id string) (paymentEntity.Payme
 	if err != nil {
 		return paymentEntity.PaymentIntent{}, false
 	}
+	normalizePaymentIntentTimes(&intent)
 	return intent, true
+}
+
+func normalizeInvoiceTimes(invoice *invoiceEntity.Invoice) {
+	invoice.DueDate = invoice.DueDate.UTC()
+	invoice.CreatedAt = invoice.CreatedAt.UTC()
+	invoice.UpdatedAt = invoice.UpdatedAt.UTC()
+}
+
+func normalizePaymentIntentTimes(intent *paymentEntity.PaymentIntent) {
+	intent.CreatedAt = intent.CreatedAt.UTC()
+	intent.UpdatedAt = intent.UpdatedAt.UTC()
 }

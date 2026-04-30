@@ -15,6 +15,7 @@ type PaymentService struct {
 
 type IPaymentService interface {
 	PublicInvoiceByToken(token string) (invoiceEntity.Invoice, error)
+	GetInvoiceByID(id string) (invoiceEntity.Invoice, error)
 	CreatePaymentIntent(token, method string) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error)
 	ListPaymentIntents(status string) []paymentEntity.PaymentIntent
 	UpdatePaymentIntentStatus(paymentID, status string) (paymentEntity.PaymentIntent, invoiceEntity.Invoice, error)
@@ -26,6 +27,14 @@ func NewPaymentService(repo repositories.IPaymentRepository) *PaymentService {
 
 func (s *PaymentService) PublicInvoiceByToken(token string) (invoiceEntity.Invoice, error) {
 	invoice, found := s.repo.GetInvoiceByToken(token)
+	if !found {
+		return invoiceEntity.Invoice{}, errors.New("invoice not found")
+	}
+	return invoice, nil
+}
+
+func (s *PaymentService) GetInvoiceByID(id string) (invoiceEntity.Invoice, error) {
+	invoice, found := s.repo.GetInvoiceByID(id)
 	if !found {
 		return invoiceEntity.Invoice{}, errors.New("invoice not found")
 	}

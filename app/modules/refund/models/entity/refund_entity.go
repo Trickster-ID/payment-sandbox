@@ -25,6 +25,8 @@ type Refund struct {
 	Amount          float64      `json:"amount"`
 	CreatedAt       time.Time    `json:"created_at"`
 	UpdatedAt       time.Time    `json:"updated_at"`
+	InvoiceNumber   *string      `json:"invoice_number,omitempty"`
+	MerchantName    *string      `json:"merchant_name,omitempty"`
 }
 
 func ParseRefundProcessStatus(value string) (RefundStatus, error) {

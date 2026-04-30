@@ -22,8 +22,8 @@ func NewRefundHandler(service services.IRefundService, journeyLogger journeylog.
 }
 
 type CreateRefundRequest struct {
-	PaymentIntentID string `json:"payment_intent_id" binding:"required" example:"0196aee7-80b0-7d57-b38f-26b315d8f9bb"`
-	Reason          string `json:"reason" binding:"required" example:"Customer requested cancellation"`
+	InvoiceID string `json:"invoice_id" binding:"required" example:"0196aee7-80b0-7d57-b38f-26b315d8f9bb"`
+	Reason    string `json:"reason" binding:"required" example:"Customer requested cancellation"`
 }
 
 type ReviewRefundRequest struct {
@@ -68,7 +68,7 @@ func (h *RefundHandler) RequestRefund(c *gin.Context) {
 		return
 	}
 
-	refund, err := h.service.RequestRefund(userID, req.PaymentIntentID, req.Reason)
+	refund, err := h.service.RequestRefund(userID, req.InvoiceID, req.Reason)
 	if err != nil {
 		actorID, actorRole := journeylog.ActorFromContext(c)
 		journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
@@ -103,6 +103,25 @@ func (h *RefundHandler) RequestRefund(c *gin.Context) {
 		},
 	})
 	response.Created(c, refund)
+}
+
+// MerchantListRefunds godoc
+// @Summary List merchant refunds
+// @Description Merchant lists their own refund requests
+// @Tags refund
+// @Produce json
+// @Security BearerAuth
+// @Param status query string false "Refund status" Enums(REQUESTED,APPROVED,REJECTED,SUCCESS,FAILED)
+// @Success 200 {object} response.Envelope{data=handlers.RefundListResponse}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
+// @Router /merchant/refunds [get]
+func (h *RefundHandler) MerchantListRefunds(c *gin.Context) {
+	userID, ok := middleware.MustUserID(c)
+	if !ok {
+		return
+	}
+	response.OK(c, h.service.MerchantListRefunds(userID, c.Query("status")))
 }
 
 // ListRefunds godoc

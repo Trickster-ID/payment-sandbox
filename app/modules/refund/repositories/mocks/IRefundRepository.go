@@ -22,6 +22,55 @@ func (_m *MockIRefundRepository) EXPECT() *MockIRefundRepository_Expecter {
 	return &MockIRefundRepository_Expecter{mock: &_m.Mock}
 }
 
+// ListMerchantRefunds provides a mock function with given fields: merchantID, status
+func (_m *MockIRefundRepository) ListMerchantRefunds(merchantID string, status string) []entity.Refund {
+	ret := _m.Called(merchantID, status)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListMerchantRefunds")
+	}
+
+	var r0 []entity.Refund
+	if rf, ok := ret.Get(0).(func(string, string) []entity.Refund); ok {
+		r0 = rf(merchantID, status)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]entity.Refund)
+		}
+	}
+
+	return r0
+}
+
+// MockIRefundRepository_ListMerchantRefunds_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListMerchantRefunds'
+type MockIRefundRepository_ListMerchantRefunds_Call struct {
+	*mock.Call
+}
+
+// ListMerchantRefunds is a helper method to define mock.On call
+//   - merchantID string
+//   - status string
+func (_e *MockIRefundRepository_Expecter) ListMerchantRefunds(merchantID interface{}, status interface{}) *MockIRefundRepository_ListMerchantRefunds_Call {
+	return &MockIRefundRepository_ListMerchantRefunds_Call{Call: _e.mock.On("ListMerchantRefunds", merchantID, status)}
+}
+
+func (_c *MockIRefundRepository_ListMerchantRefunds_Call) Run(run func(merchantID string, status string)) *MockIRefundRepository_ListMerchantRefunds_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockIRefundRepository_ListMerchantRefunds_Call) Return(_a0 []entity.Refund) *MockIRefundRepository_ListMerchantRefunds_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockIRefundRepository_ListMerchantRefunds_Call) RunAndReturn(run func(string, string) []entity.Refund) *MockIRefundRepository_ListMerchantRefunds_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListRefunds provides a mock function with given fields: status
 func (_m *MockIRefundRepository) ListRefunds(status string) []entity.Refund {
 	ret := _m.Called(status)
@@ -190,9 +239,9 @@ func (_c *MockIRefundRepository_ProcessRefund_Call) RunAndReturn(run func(string
 	return _c
 }
 
-// RequestRefund provides a mock function with given fields: merchantID, paymentIntentID, reason
-func (_m *MockIRefundRepository) RequestRefund(merchantID string, paymentIntentID string, reason string) (entity.Refund, error) {
-	ret := _m.Called(merchantID, paymentIntentID, reason)
+// RequestRefund provides a mock function with given fields: merchantID, invoiceID, reason
+func (_m *MockIRefundRepository) RequestRefund(merchantID string, invoiceID string, reason string) (entity.Refund, error) {
+	ret := _m.Called(merchantID, invoiceID, reason)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RequestRefund")
@@ -201,16 +250,16 @@ func (_m *MockIRefundRepository) RequestRefund(merchantID string, paymentIntentI
 	var r0 entity.Refund
 	var r1 error
 	if rf, ok := ret.Get(0).(func(string, string, string) (entity.Refund, error)); ok {
-		return rf(merchantID, paymentIntentID, reason)
+		return rf(merchantID, invoiceID, reason)
 	}
 	if rf, ok := ret.Get(0).(func(string, string, string) entity.Refund); ok {
-		r0 = rf(merchantID, paymentIntentID, reason)
+		r0 = rf(merchantID, invoiceID, reason)
 	} else {
 		r0 = ret.Get(0).(entity.Refund)
 	}
 
 	if rf, ok := ret.Get(1).(func(string, string, string) error); ok {
-		r1 = rf(merchantID, paymentIntentID, reason)
+		r1 = rf(merchantID, invoiceID, reason)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -225,13 +274,13 @@ type MockIRefundRepository_RequestRefund_Call struct {
 
 // RequestRefund is a helper method to define mock.On call
 //   - merchantID string
-//   - paymentIntentID string
+//   - invoiceID string
 //   - reason string
-func (_e *MockIRefundRepository_Expecter) RequestRefund(merchantID interface{}, paymentIntentID interface{}, reason interface{}) *MockIRefundRepository_RequestRefund_Call {
-	return &MockIRefundRepository_RequestRefund_Call{Call: _e.mock.On("RequestRefund", merchantID, paymentIntentID, reason)}
+func (_e *MockIRefundRepository_Expecter) RequestRefund(merchantID interface{}, invoiceID interface{}, reason interface{}) *MockIRefundRepository_RequestRefund_Call {
+	return &MockIRefundRepository_RequestRefund_Call{Call: _e.mock.On("RequestRefund", merchantID, invoiceID, reason)}
 }
 
-func (_c *MockIRefundRepository_RequestRefund_Call) Run(run func(merchantID string, paymentIntentID string, reason string)) *MockIRefundRepository_RequestRefund_Call {
+func (_c *MockIRefundRepository_RequestRefund_Call) Run(run func(merchantID string, invoiceID string, reason string)) *MockIRefundRepository_RequestRefund_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(string), args[1].(string), args[2].(string))
 	})

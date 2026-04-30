@@ -8,6 +8,7 @@ import (
 
 func RegisterMerchantRoutes(merchant *gin.RouterGroup, handler *refundHandlers.RefundHandler) {
 	merchant.POST("/refunds", handler.RequestRefund)
+	merchant.GET("/refunds", handler.MerchantListRefunds)
 }
 
 func RegisterAdminRoutes(admin *gin.RouterGroup, handler *refundHandlers.RefundHandler) {

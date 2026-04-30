@@ -422,7 +422,7 @@ func (h *OAuth2Handler) Revoke(c *gin.Context) {
 // @Tags oauth2
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} response.Envelope{data=map[string]string}
+// @Success 200 {object} response.Envelope{data=map[string]interface{}}
 // @Router /oauth2/userinfo [get]
 func (h *OAuth2Handler) UserInfo(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
@@ -430,8 +430,17 @@ func (h *OAuth2Handler) UserInfo(c *gin.Context) {
 		response.Fail(c, appErrors.Unauthorized("auth_required", "authentication required", nil))
 		return
 	}
-	
+
+	user, err := h.service.GetUserByID(userID)
+	if err != nil {
+		response.Fail(c, appErrors.Internal("user_lookup_error", "failed to fetch user", nil))
+		return
+	}
+
 	response.OK(c, gin.H{
-		"sub": userID,
+		"id":    user.ID,
+		"name":  user.Name,
+		"email": user.Email,
+		"role":  user.Role,
 	})
 }

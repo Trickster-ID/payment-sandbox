@@ -35,7 +35,17 @@ type PaymentIntentCreateResponse struct {
 
 type PublicInvoiceResponse = invoiceEntity.Invoice
 
-type PaymentIntentListResponse []paymentEntity.PaymentIntent
+type PaymentIntentWithAmount struct {
+	ID        string                `json:"id"`
+	InvoiceID string                `json:"invoice_id"`
+	Method    paymentEntity.PaymentMethod `json:"method"`
+	Status    paymentEntity.PaymentStatus `json:"status"`
+	Amount    float64               `json:"amount"`
+	CreatedAt string                `json:"created_at"`
+	UpdatedAt string                `json:"updated_at"`
+}
+
+type PaymentIntentListResponse []PaymentIntentWithAmount
 
 type PaymentIntentStatusUpdateResponse struct {
 	PaymentIntent paymentEntity.PaymentIntent `json:"payment_intent"`
@@ -129,7 +139,29 @@ func (h *PaymentHandler) CreatePaymentIntent(c *gin.Context) {
 // @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /admin/payment-intents [get]
 func (h *PaymentHandler) ListPaymentIntents(c *gin.Context) {
-	response.OK(c, h.service.ListPaymentIntents(c.Query("status")))
+	intents := h.service.ListPaymentIntents(c.Query("status"))
+
+	// Convert to response with amounts
+	result := make(PaymentIntentListResponse, len(intents))
+	for i, intent := range intents {
+		invoice, err := h.service.GetInvoiceByID(intent.InvoiceID)
+		amount := 0.0
+		if err == nil {
+			amount = invoice.Amount
+		}
+
+		result[i] = PaymentIntentWithAmount{
+			ID:        intent.ID,
+			InvoiceID: intent.InvoiceID,
+			Method:    intent.Method,
+			Status:    intent.Status,
+			Amount:    amount,
+			CreatedAt: intent.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			UpdatedAt: intent.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		}
+	}
+
+	response.OK(c, result)
 }
 
 // UpdatePaymentIntentStatus godoc

@@ -21,9 +21,9 @@ Sample runs:
 
 Observed range: ~0.0007s to ~0.0033s
 
-### `POST /api/v1/auth/login`
+### `POST /api/v1/oauth2/token`
 
-Sample runs:
+Sample runs (password grant):
 - 0.083810 s
 - 0.079587 s
 - 0.088413 s
@@ -31,6 +31,8 @@ Sample runs:
 - 0.081728 s
 
 Observed range: ~0.077s to ~0.088s
+
+Note: `/auth/login` was removed as part of the auth → users refactor. Use `/oauth2/token` with `grant_type=password` for authentication.
 
 ### `GET /api/v1/admin/stats?start_date=2026-04-01&end_date=2026-04-30`
 

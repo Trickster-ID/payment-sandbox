@@ -86,6 +86,62 @@ func (_c *MockIPaymentRepository_CreatePaymentIntent_Call) RunAndReturn(run func
 	return _c
 }
 
+// GetInvoiceByID provides a mock function with given fields: id
+func (_m *MockIPaymentRepository) GetInvoiceByID(id string) (modelsentity.Invoice, bool) {
+	ret := _m.Called(id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetInvoiceByID")
+	}
+
+	var r0 modelsentity.Invoice
+	var r1 bool
+	if rf, ok := ret.Get(0).(func(string) (modelsentity.Invoice, bool)); ok {
+		return rf(id)
+	}
+	if rf, ok := ret.Get(0).(func(string) modelsentity.Invoice); ok {
+		r0 = rf(id)
+	} else {
+		r0 = ret.Get(0).(modelsentity.Invoice)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) bool); ok {
+		r1 = rf(id)
+	} else {
+		r1 = ret.Get(1).(bool)
+	}
+
+	return r0, r1
+}
+
+// MockIPaymentRepository_GetInvoiceByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetInvoiceByID'
+type MockIPaymentRepository_GetInvoiceByID_Call struct {
+	*mock.Call
+}
+
+// GetInvoiceByID is a helper method to define mock.On call
+//   - id string
+func (_e *MockIPaymentRepository_Expecter) GetInvoiceByID(id interface{}) *MockIPaymentRepository_GetInvoiceByID_Call {
+	return &MockIPaymentRepository_GetInvoiceByID_Call{Call: _e.mock.On("GetInvoiceByID", id)}
+}
+
+func (_c *MockIPaymentRepository_GetInvoiceByID_Call) Run(run func(id string)) *MockIPaymentRepository_GetInvoiceByID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockIPaymentRepository_GetInvoiceByID_Call) Return(_a0 modelsentity.Invoice, _a1 bool) *MockIPaymentRepository_GetInvoiceByID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockIPaymentRepository_GetInvoiceByID_Call) RunAndReturn(run func(string) (modelsentity.Invoice, bool)) *MockIPaymentRepository_GetInvoiceByID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetInvoiceByToken provides a mock function with given fields: token
 func (_m *MockIPaymentRepository) GetInvoiceByToken(token string) (modelsentity.Invoice, bool) {
 	ret := _m.Called(token)

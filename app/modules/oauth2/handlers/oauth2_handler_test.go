@@ -368,6 +368,12 @@ func TestOAuth2Handler_UserInfo(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		s := serviceMocks.NewMockIOAuth2Service(t)
+		s.EXPECT().GetUserByID("user-1").Return(userEntity.User{
+			ID:    "user-1",
+			Name:  "Test User",
+			Email: "test@example.com",
+			Role:  userEntity.RoleAdmin,
+		}, nil)
 		h := NewOAuth2Handler(s)
 		r := gin.New()
 		r.GET("/oauth2/userinfo", func(c *gin.Context) {
@@ -383,7 +389,10 @@ func TestOAuth2Handler_UserInfo(t *testing.T) {
 		var payload map[string]any
 		json.Unmarshal(rec.Body.Bytes(), &payload)
 		data := payload["data"].(map[string]any)
-		assert.Equal(t, "user-1", data["sub"])
+		assert.Equal(t, "user-1", data["id"])
+		assert.Equal(t, "Test User", data["name"])
+		assert.Equal(t, "test@example.com", data["email"])
+		assert.Equal(t, "ADMIN", data["role"])
 	})
 
 	t.Run("unauthorized", func(t *testing.T) {

@@ -86,6 +86,62 @@ func (_c *MockIPaymentService_CreatePaymentIntent_Call) RunAndReturn(run func(st
 	return _c
 }
 
+// GetInvoiceByID provides a mock function with given fields: id
+func (_m *MockIPaymentService) GetInvoiceByID(id string) (modelsentity.Invoice, error) {
+	ret := _m.Called(id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetInvoiceByID")
+	}
+
+	var r0 modelsentity.Invoice
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) (modelsentity.Invoice, error)); ok {
+		return rf(id)
+	}
+	if rf, ok := ret.Get(0).(func(string) modelsentity.Invoice); ok {
+		r0 = rf(id)
+	} else {
+		r0 = ret.Get(0).(modelsentity.Invoice)
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockIPaymentService_GetInvoiceByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetInvoiceByID'
+type MockIPaymentService_GetInvoiceByID_Call struct {
+	*mock.Call
+}
+
+// GetInvoiceByID is a helper method to define mock.On call
+//   - id string
+func (_e *MockIPaymentService_Expecter) GetInvoiceByID(id interface{}) *MockIPaymentService_GetInvoiceByID_Call {
+	return &MockIPaymentService_GetInvoiceByID_Call{Call: _e.mock.On("GetInvoiceByID", id)}
+}
+
+func (_c *MockIPaymentService_GetInvoiceByID_Call) Run(run func(id string)) *MockIPaymentService_GetInvoiceByID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string))
+	})
+	return _c
+}
+
+func (_c *MockIPaymentService_GetInvoiceByID_Call) Return(_a0 modelsentity.Invoice, _a1 error) *MockIPaymentService_GetInvoiceByID_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockIPaymentService_GetInvoiceByID_Call) RunAndReturn(run func(string) (modelsentity.Invoice, error)) *MockIPaymentService_GetInvoiceByID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPaymentIntents provides a mock function with given fields: status
 func (_m *MockIPaymentService) ListPaymentIntents(status string) []entity.PaymentIntent {
 	ret := _m.Called(status)

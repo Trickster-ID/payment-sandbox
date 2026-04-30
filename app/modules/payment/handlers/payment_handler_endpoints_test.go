@@ -87,7 +87,12 @@ func TestPaymentHandler_ListPaymentIntents(t *testing.T) {
 
 	service := serviceMocks.NewMockIPaymentService(t)
 	logger := journeyMocks.NewMockIJourneyLogger(t)
-	service.EXPECT().ListPaymentIntents("SUCCESS").Return([]paymentEntity.PaymentIntent{{ID: "pi-1"}})
+
+	intent := paymentEntity.PaymentIntent{ID: "pi-1", InvoiceID: "inv-1"}
+	invoice := invoiceEntity.Invoice{ID: "inv-1", Amount: 50000.0}
+
+	service.EXPECT().ListPaymentIntents("SUCCESS").Return([]paymentEntity.PaymentIntent{intent})
+	service.EXPECT().GetInvoiceByID("inv-1").Return(invoice, nil)
 
 	handler := NewPaymentHandler(service, logger)
 	router := gin.New()

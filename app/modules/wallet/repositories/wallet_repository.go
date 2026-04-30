@@ -51,6 +51,7 @@ func (r *WalletRepository) CreateTopup(merchantID string, amount float64) (walle
 	if err != nil {
 		return walletEntity.Topup{}, err
 	}
+	normalizeTopupTimes(&topup)
 	return topup, nil
 }
 
@@ -70,6 +71,7 @@ func (r *WalletRepository) ListTopups() []walletEntity.Topup {
 	for rows.Next() {
 		var item walletEntity.Topup
 		if err := rows.Scan(&item.ID, &item.MerchantID, &item.Amount, &item.Status, &item.CreatedAt, &item.UpdatedAt); err == nil {
+			normalizeTopupTimes(&item)
 			items = append(items, item)
 		}
 	}
@@ -118,6 +120,7 @@ func (r *WalletRepository) UpdateTopupStatus(topupID string, nextStatus paymentE
 	if err := tx.Commit(); err != nil {
 		return walletEntity.Topup{}, err
 	}
+	normalizeTopupTimes(&topup)
 	return topup, nil
 }
 
@@ -132,5 +135,16 @@ func (r *WalletRepository) getMerchantByUserID(userID string) (walletEntity.Merc
 	if err != nil {
 		return walletEntity.Merchant{}, false
 	}
+	normalizeMerchantTimes(&merchant)
 	return merchant, true
+}
+
+func normalizeMerchantTimes(merchant *walletEntity.Merchant) {
+	merchant.CreatedAt = merchant.CreatedAt.UTC()
+	merchant.UpdatedAt = merchant.UpdatedAt.UTC()
+}
+
+func normalizeTopupTimes(topup *walletEntity.Topup) {
+	topup.CreatedAt = topup.CreatedAt.UTC()
+	topup.UpdatedAt = topup.UpdatedAt.UTC()
 }

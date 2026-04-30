@@ -387,6 +387,13 @@ VALUES
     )
 ON CONFLICT (LOWER(email)) WHERE deleted_at IS NULL DO NOTHING;
 
+-- Merchant Records
+INSERT INTO merchants (user_id, balance)
+SELECT u.id, 0.00
+FROM users u
+WHERE u.email = 'merchant@sandbox.local' AND u.deleted_at IS NULL
+ON CONFLICT (user_id) WHERE deleted_at IS NULL DO NOTHING;
+
 -- OAuth2 Clients
 INSERT INTO oauth2_clients (id, name, client_secret, redirect_uris, scopes, is_first_party)
 VALUES (

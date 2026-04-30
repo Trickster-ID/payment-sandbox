@@ -14,7 +14,8 @@ type RefundService struct {
 }
 
 type IRefundService interface {
-	RequestRefund(userID, paymentIntentID, reason string) (refundEntity.Refund, error)
+	RequestRefund(userID, invoiceID, reason string) (refundEntity.Refund, error)
+	MerchantListRefunds(userID, status string) []refundEntity.Refund
 	ListRefunds(status string) []refundEntity.Refund
 	ReviewRefund(refundID, decision string) (refundEntity.Refund, error)
 	ProcessRefund(refundID, status string) (refundEntity.Refund, walletEntity.Merchant, error)
@@ -24,7 +25,7 @@ func NewRefundService(repo repositories.IRefundRepository) *RefundService {
 	return &RefundService{repo: repo}
 }
 
-func (s *RefundService) RequestRefund(userID, paymentIntentID, reason string) (refundEntity.Refund, error) {
+func (s *RefundService) RequestRefund(userID, invoiceID, reason string) (refundEntity.Refund, error) {
 	if strings.TrimSpace(reason) == "" {
 		return refundEntity.Refund{}, errors.New("reason is required")
 	}
@@ -32,7 +33,15 @@ func (s *RefundService) RequestRefund(userID, paymentIntentID, reason string) (r
 	if err != nil {
 		return refundEntity.Refund{}, err
 	}
-	return s.repo.RequestRefund(merchantID, paymentIntentID, reason)
+	return s.repo.RequestRefund(merchantID, invoiceID, reason)
+}
+
+func (s *RefundService) MerchantListRefunds(userID, status string) []refundEntity.Refund {
+	merchantID, err := s.repo.MerchantIDByUserID(userID)
+	if err != nil {
+		return []refundEntity.Refund{}
+	}
+	return s.repo.ListMerchantRefunds(merchantID, strings.ToUpper(strings.TrimSpace(status)))
 }
 
 func (s *RefundService) ListRefunds(status string) []refundEntity.Refund {

@@ -36,7 +36,7 @@ func TestRefundHandler_RequestRefund(t *testing.T) {
 		{
 			name:       "missing user context",
 			withUserID: false,
-			body:       `{"payment_intent_id":"pi-1","reason":"duplicate payment"}`,
+			body:       `{"invoice_id":"inv-1","reason":"duplicate payment"}`,
 			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.AssertNotCalled(t, "RequestRefund")
 				logger.AssertNotCalled(t, "Log")
@@ -47,7 +47,7 @@ func TestRefundHandler_RequestRefund(t *testing.T) {
 		{
 			name:       "validation error",
 			withUserID: true,
-			body:       `{"payment_intent_id":"","reason":""}`,
+			body:       `{"invoice_id":"","reason":""}`,
 			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.AssertNotCalled(t, "RequestRefund")
 				logger.AssertNotCalled(t, "Log")
@@ -69,10 +69,10 @@ func TestRefundHandler_RequestRefund(t *testing.T) {
 		{
 			name:       "service error and logger failure",
 			withUserID: true,
-			body:       `{"payment_intent_id":"pi-1","reason":"duplicate payment"}`,
+			body:       `{"invoice_id":"inv-1","reason":"duplicate payment"}`,
 			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
-					RequestRefund("user-1", "pi-1", "duplicate payment").
+					RequestRefund("user-1", "inv-1", "duplicate payment").
 					Return(refundEntity.Refund{}, errors.New("refund can be requested for successful payment only"))
 
 				logger.EXPECT().
@@ -93,10 +93,10 @@ func TestRefundHandler_RequestRefund(t *testing.T) {
 		{
 			name:       "success and logger failure",
 			withUserID: true,
-			body:       `{"payment_intent_id":"pi-1","reason":"duplicate payment"}`,
+			body:       `{"invoice_id":"inv-1","reason":"duplicate payment"}`,
 			setupMocks: func(service *serviceMocks.MockIRefundService, logger *journeyMocks.MockIJourneyLogger) {
 				service.EXPECT().
-					RequestRefund("user-1", "pi-1", "duplicate payment").
+					RequestRefund("user-1", "inv-1", "duplicate payment").
 					Return(refundEntity.Refund{
 						ID:              "refund-1",
 						PaymentIntentID: "pi-1",

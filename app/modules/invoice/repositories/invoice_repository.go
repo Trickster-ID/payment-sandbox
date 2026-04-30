@@ -55,6 +55,7 @@ func (r *InvoiceRepository) CreateInvoice(merchantID, customerName, customerEmai
 	if err != nil {
 		return invoiceEntity.Invoice{}, err
 	}
+	normalizeInvoiceTimes(&invoice)
 	return invoice, nil
 }
 
@@ -96,6 +97,7 @@ func (r *InvoiceRepository) ListInvoices(merchantID string, status string, optio
 	for rows.Next() {
 		var item invoiceEntity.Invoice
 		if err := rows.Scan(&item.ID, &item.MerchantID, &item.InvoiceNumber, &item.CustomerName, &item.CustomerEmail, &item.Amount, &item.Description, &item.DueDate, &item.Status, &item.PaymentLinkToken, &item.CreatedAt, &item.UpdatedAt); err == nil {
+			normalizeInvoiceTimes(&item)
 			items = append(items, item)
 		}
 	}
@@ -116,6 +118,7 @@ func (r *InvoiceRepository) MerchantInvoiceByID(invoiceID, merchantID string) (i
 	if err != nil {
 		return invoiceEntity.Invoice{}, errors.New("invoice not found")
 	}
+	normalizeInvoiceTimes(&invoice)
 	return invoice, nil
 }
 
@@ -151,4 +154,10 @@ func sanitizePaging(page, limit int) (int, int) {
 		limit = 10
 	}
 	return page, limit
+}
+
+func normalizeInvoiceTimes(invoice *invoiceEntity.Invoice) {
+	invoice.DueDate = invoice.DueDate.UTC()
+	invoice.CreatedAt = invoice.CreatedAt.UTC()
+	invoice.UpdatedAt = invoice.UpdatedAt.UTC()
 }
