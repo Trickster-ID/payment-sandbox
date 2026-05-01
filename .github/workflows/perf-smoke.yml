@@ -1,0 +1,80 @@
+name: Performance Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Backend base URL (e.g. http://localhost:8080)"
+        required: false
+        default: "http://localhost:8080"
+
+jobs:
+  perf-smoke:
+    name: K6 Smoke
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: sandbox
+          POSTGRES_PASSWORD: sandbox
+          POSTGRES_DB: sandbox
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Set up K6
+        run: |
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -q
+          sudo apt-get install -y k6
+
+      - name: Run DB migrations
+        env:
+          DATABASE_URL: postgres://sandbox:sandbox@localhost:5432/sandbox?sslmode=disable
+        run: |
+          go run ./app/cmd/migrate/... up || true
+
+      - name: Start backend
+        env:
+          APP_PORT: "8080"
+          DB_DSN: postgres://sandbox:sandbox@localhost:5432/sandbox?sslmode=disable
+          JWT_SECRET: ci-smoke-secret
+        run: |
+          go run ./app/cmd/main.go &
+          sleep 5
+          curl -sf http://localhost:8080/api/v1/ping || (echo "Backend failed to start" && exit 1)
+
+      - name: Run K6 smoke
+        env:
+          K6_BASE_URL: "http://localhost:8080"
+          K6_ADMIN_EMAIL: ${{ secrets.K6_ADMIN_EMAIL }}
+          K6_ADMIN_PASSWORD: ${{ secrets.K6_ADMIN_PASSWORD }}
+          K6_OAUTH2_CLIENT_ID: ${{ secrets.K6_OAUTH2_CLIENT_ID }}
+          K6_OAUTH2_CLIENT_SECRET: ${{ secrets.K6_OAUTH2_CLIENT_SECRET }}
+          K6_REPORT_DIR: docs/k6/reports
+        run: make perf-smoke
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-smoke-report-${{ github.run_number }}
+          path: docs/k6/reports/
+          retention-days: 30

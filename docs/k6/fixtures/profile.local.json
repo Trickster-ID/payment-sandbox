@@ -1,0 +1,6 @@
+{
+  "vus": 10,
+  "duration": "60s",
+  "rampUp": "10s",
+  "rampDown": "10s"
+}

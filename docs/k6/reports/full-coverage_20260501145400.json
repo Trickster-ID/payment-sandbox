@@ -1,0 +1,652 @@
+{
+  "setup_data": {
+    "seedPaymentIntentId": null,
+    "seedTopupId": "019de407-cfa1-779d-b6c6-c3cb0137d8be",
+    "adminToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDE5ZGUyMWMtOGFjNy03YjM5LWJiNDUtMjQxMWIxYThiNzhiIiwiY2xpZW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwic2NvcGUiOiJyZWFkIHdyaXRlIiwicm9sZSI6IkFETUlOIiwiZXhwIjoxNzc3NjQ5MDA5LCJuYmYiOjE3Nzc2NDcyMDksImlhdCI6MTc3NzY0NzIwOX0.l58VJIUyk5V5JUjFMz_JHHKutaKqmjoAJZSUQUX8-x4",
+    "merchantToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDE5ZGU0MDctY2NlYS03NWMxLWFkYWMtODAxYzAxZDY1YzQ4IiwiY2xpZW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwic2NvcGUiOiJyZWFkIHdyaXRlIiwicm9sZSI6Ik1FUkNIQU5UIiwiZXhwIjoxNzc3NjQ5MDA5LCJuYmYiOjE3Nzc2NDcyMDksImlhdCI6MTc3NzY0NzIwOX0.IlqMsoZVAf5ZST_NU2bmnfbFh7sK-W2dNtxWY2Khm-g",
+    "refundAdminToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDE5ZGUyMWMtOGFjNy03YjM5LWJiNDUtMjQxMWIxYThiNzhiIiwiY2xpZW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwic2NvcGUiOiJyZWFkIHdyaXRlIiwicm9sZSI6IkFETUlOIiwiZXhwIjoxNzc3NjQ5MDEwLCJuYmYiOjE3Nzc2NDcyMTAsImlhdCI6MTc3NzY0NzIxMH0.BVXe9ryrH2_h0jGbgy61kGt4LDcH12DO4WumIB0_p0o",
+    "refundMerchantToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMDE5ZGU0MDctZDA2YS03NTAxLWI0NTgtOTM1ZTg0YTFlNTdlIiwiY2xpZW50X2lkIjoiMDAwMDAwMDAtMDAwMC00MDAwLTgwMDAtMDAwMDAwMDAwMDAxIiwic2NvcGUiOiJyZWFkIHdyaXRlIiwicm9sZSI6Ik1FUkNIQU5UIiwiZXhwIjoxNzc3NjQ5MDEwLCJuYmYiOjE3Nzc2NDcyMTAsImlhdCI6MTc3NzY0NzIxMH0.X0dmwcApdROnkhUIW1-zbWdCAg5M-VgP4iJ14NdMepk",
+    "seedInvoiceId": null,
+    "seedMerchantId": "019de407-cf17-72be-be73-e0217ebaa790"
+  },
+  "root_group": {
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": [
+      {
+        "groups": [],
+        "checks": [
+            {
+              "path": "::setup::oauth2/token: status 200",
+              "id": "39122c4ec013e83439b54da889c6b9ec",
+              "passes": 7,
+              "fails": 0,
+              "name": "oauth2/token: status 200"
+            },
+            {
+              "id": "dbb679eddb1aa83cdfb8888136d40135",
+              "passes": 4,
+              "fails": 0,
+              "name": "users/register: status 201 or 200",
+              "path": "::setup::users/register: status 201 or 200"
+            }
+          ],
+        "name": "setup",
+        "path": "::setup",
+        "id": "5c0f8025f7e0b6654089e5b00e950f1a"
+      }
+    ],
+    "checks": [
+      {
+        "name": "ping: status 200",
+        "path": "::ping: status 200",
+        "id": "83b5fa761ef7b30f0d3a141234d837d5",
+        "passes": 6,
+        "fails": 0
+      },
+      {
+        "fails": 0,
+        "name": "ping: has data",
+        "path": "::ping: has data",
+        "id": "c1a14c9850d9bfc3832ee5b41368367b",
+        "passes": 6
+      },
+      {
+        "name": "POST /users/register: status 201",
+        "path": "::POST /users/register: status 201",
+        "id": "97ad3999fcf922def1e8859ae1072244",
+        "passes": 4,
+        "fails": 0
+      },
+      {
+        "fails": 0,
+        "name": "POST /users/register: has data",
+        "path": "::POST /users/register: has data",
+        "id": "eba7ac3067283d4158db2adb6c8825af",
+        "passes": 4
+      },
+      {
+        "id": "580cd459fd2457ebfdbfab98243575a8",
+        "passes": 4,
+        "fails": 0,
+        "name": "oauth2/token: status 200",
+        "path": "::oauth2/token: status 200"
+      },
+      {
+        "fails": 0,
+        "name": "oauth2/introspect: status 200",
+        "path": "::oauth2/introspect: status 200",
+        "id": "2586d9dc4375132e8d20157fd6a8f388",
+        "passes": 4
+      },
+      {
+        "name": "oauth2/introspect: active",
+        "path": "::oauth2/introspect: active",
+        "id": "fc643bdfe54eee55dfc1c4adf505bc34",
+        "passes": 4,
+        "fails": 0
+      },
+      {
+        "name": "GET /oauth2/userinfo: status 200",
+        "path": "::GET /oauth2/userinfo: status 200",
+        "id": "3bff0f547cdb7ff50ef1288b86b519ff",
+        "passes": 4,
+        "fails": 0
+      },
+      {
+        "name": "GET /oauth2/userinfo: has data",
+        "path": "::GET /oauth2/userinfo: has data",
+        "id": "b69de519a024d4bfcf20c118c0384283",
+        "passes": 4,
+        "fails": 0
+      },
+      {
+        "fails": 0,
+        "name": "oauth2/token refresh: status 200",
+        "path": "::oauth2/token refresh: status 200",
+        "id": "5283a323fbd2e5764a28020a387ea53d",
+        "passes": 4
+      },
+      {
+        "name": "oauth2/revoke: status 200",
+        "path": "::oauth2/revoke: status 200",
+        "id": "ea732df6e2ea443ddc8ebf6205bd5032",
+        "passes": 4,
+        "fails": 0
+      },
+      {
+        "path": "::oauth2/authorize GET: responds",
+        "id": "5308f7568cc38c552b99913088963cab",
+        "passes": 4,
+        "fails": 0,
+        "name": "oauth2/authorize GET: responds"
+      },
+      {
+        "passes": 6,
+        "fails": 0,
+        "name": "GET /merchant/wallet: status 200",
+        "path": "::GET /merchant/wallet: status 200",
+        "id": "0f58440cdba1dbe0685040f6a39bcca4"
+      },
+      {
+        "path": "::GET /merchant/wallet: has data",
+        "id": "a42d40e4274b62552a74439d9b16d545",
+        "passes": 6,
+        "fails": 0,
+        "name": "GET /merchant/wallet: has data"
+      },
+      {
+        "name": "GET /admin/topups: status 200",
+        "path": "::GET /admin/topups: status 200",
+        "id": "a80bd02915d78b201085c8bb9d4ce48d",
+        "passes": 6,
+        "fails": 0
+      },
+      {
+        "id": "379819b8ecf54d47f3aed90cf6d299cb",
+        "passes": 6,
+        "fails": 0,
+        "name": "GET /admin/topups: has data",
+        "path": "::GET /admin/topups: has data"
+      },
+      {
+        "fails": 0,
+        "name": "GET /merchant/topups: status 200",
+        "path": "::GET /merchant/topups: status 200",
+        "id": "fcb4261fb076cffee1925988a7649aab",
+        "passes": 6
+      },
+      {
+        "name": "GET /merchant/topups: has data",
+        "path": "::GET /merchant/topups: has data",
+        "id": "94cf7c1b5d9906539684799b24c7d168",
+        "passes": 6,
+        "fails": 0
+      },
+      {
+        "name": "GET /admin/payment-intents: status 200",
+        "path": "::GET /admin/payment-intents: status 200",
+        "id": "d84782fdc915d7fc1aa066a8e6e7f6d2",
+        "passes": 6,
+        "fails": 0
+      },
+      {
+        "name": "GET /admin/payment-intents: has data",
+        "path": "::GET /admin/payment-intents: has data",
+        "id": "3afe67fec84fe7b5869cfae01605ef47",
+        "passes": 6,
+        "fails": 0
+      },
+      {
+        "name": "GET /admin/refunds: status 200",
+        "path": "::GET /admin/refunds: status 200",
+        "id": "233419176b0024161b22088268a2e063",
+        "passes": 6,
+        "fails": 0
+      },
+      {
+        "id": "b819a675cc1b804f41ca7f1025c942c4",
+        "passes": 6,
+        "fails": 0,
+        "name": "GET /admin/refunds: has data",
+        "path": "::GET /admin/refunds: has data"
+      },
+      {
+        "name": "POST /merchant/topups: status 201",
+        "path": "::POST /merchant/topups: status 201",
+        "id": "e4f7ef68a0a7ea8306a288a347367fcb",
+        "passes": 6,
+        "fails": 0
+      },
+      {
+        "passes": 6,
+        "fails": 0,
+        "name": "POST /merchant/topups: has data",
+        "path": "::POST /merchant/topups: has data",
+        "id": "a94a9f4e4b5d96d18ac53054770148fa"
+      },
+      {
+        "id": "c624e1db1b4e1d2a232fc8496ef00143",
+        "passes": 0,
+        "fails": 6,
+        "name": "POST /merchant/invoices: status 201",
+        "path": "::POST /merchant/invoices: status 201"
+      },
+      {
+        "path": "::POST /merchant/invoices: has data",
+        "id": "13f05c01492719b58e436cdaf0784217",
+        "passes": 0,
+        "fails": 6,
+        "name": "POST /merchant/invoices: has data"
+      },
+      {
+        "path": "::GET /admin/stats: status 200",
+        "id": "36f7fd1c628c674fbc05bb81f98fcf7e",
+        "passes": 6,
+        "fails": 0,
+        "name": "GET /admin/stats: status 200"
+      },
+      {
+        "name": "GET /admin/stats: has data",
+        "path": "::GET /admin/stats: has data",
+        "id": "3e0fee95cb57219cf69dbc943e9516fe",
+        "passes": 6,
+        "fails": 0
+      },
+      {
+        "id": "f4f8f8ffde19d537c05f2fd96e2ef4d0",
+        "passes": 6,
+        "fails": 0,
+        "name": "GET /merchant/invoices: status 200",
+        "path": "::GET /merchant/invoices: status 200"
+      },
+      {
+        "fails": 0,
+        "name": "GET /merchant/invoices: has data",
+        "path": "::GET /merchant/invoices: has data",
+        "id": "4f866eb9c3a7a11bcb8cb5bc734c1f06",
+        "passes": 6
+      },
+      {
+        "passes": 6,
+        "fails": 0,
+        "name": "GET /admin/ledger/accounts/:merchant_id: status 200",
+        "path": "::GET /admin/ledger/accounts/:merchant_id: status 200",
+        "id": "e8c1bc6c7ef6ba29806ac930442436fc"
+      },
+      {
+        "passes": 6,
+        "fails": 0,
+        "name": "GET /admin/ledger/accounts/:merchant_id: has data",
+        "path": "::GET /admin/ledger/accounts/:merchant_id: has data",
+        "id": "a0bfb5bd7be19da7492373a6a9cf896a"
+      },
+      {
+        "id": "95af2dbabb9e451dda6ca401f3626d0d",
+        "passes": 6,
+        "fails": 0,
+        "name": "GET /merchant/refunds: status 200",
+        "path": "::GET /merchant/refunds: status 200"
+      },
+      {
+        "fails": 0,
+        "name": "GET /merchant/refunds: has data",
+        "path": "::GET /merchant/refunds: has data",
+        "id": "6e05849d5917db684bc846b2d7e4fba3",
+        "passes": 6
+      },
+      {
+        "fails": 0,
+        "name": "POST /merchant/clients: status 201",
+        "path": "::POST /merchant/clients: status 201",
+        "id": "12d51621ad64434f9bf376ca7c5b855b",
+        "passes": 6
+      },
+      {
+        "name": "POST /merchant/clients: has data",
+        "path": "::POST /merchant/clients: has data",
+        "id": "cceefbb560a826f05627cdd27fc3f82f",
+        "passes": 6,
+        "fails": 0
+      },
+      {
+        "id": "27de4b2b5fa8bba0b222d1a3de033bfd",
+        "passes": 6,
+        "fails": 0,
+        "name": "GET /merchant/clients: status 200",
+        "path": "::GET /merchant/clients: status 200"
+      },
+      {
+        "id": "985f92e170113f9cd8019d21fc28262b",
+        "passes": 6,
+        "fails": 0,
+        "name": "GET /merchant/clients: has data",
+        "path": "::GET /merchant/clients: has data"
+      },
+      {
+        "name": "DELETE /merchant/clients/:id: status 200",
+        "path": "::DELETE /merchant/clients/:id: status 200",
+        "id": "f5f5fb1978c1927c12f6ceae4c88bc90",
+        "passes": 6,
+        "fails": 0
+      },
+      {
+        "name": "lifecycle: POST /merchant/invoices: status 201",
+        "path": "::lifecycle: POST /merchant/invoices: status 201",
+        "id": "6f6076f5ce9bdbb5748cbd54cd599a73",
+        "passes": 0,
+        "fails": 4
+      },
+      {
+        "passes": 0,
+        "fails": 4,
+        "name": "lifecycle: POST /merchant/invoices: has data",
+        "path": "::lifecycle: POST /merchant/invoices: has data",
+        "id": "a7f3d7705e7c7fccca51a9e40f5e3e9d"
+      },
+      {
+        "id": "d471bdbce9d3027ec98211433616b85d",
+        "passes": 4,
+        "fails": 0,
+        "name": "lifecycle oauth2 client: POST /merchant/clients: status 201",
+        "path": "::lifecycle oauth2 client: POST /merchant/clients: status 201"
+      },
+      {
+        "passes": 4,
+        "fails": 0,
+        "name": "lifecycle oauth2 client: POST /merchant/clients: has data",
+        "path": "::lifecycle oauth2 client: POST /merchant/clients: has data",
+        "id": "cafa39e1360368354d8045dc3a372c54"
+      },
+      {
+        "fails": 0,
+        "name": "lifecycle: POST /merchant/topups: status 201",
+        "path": "::lifecycle: POST /merchant/topups: status 201",
+        "id": "f648141714d82ac4071053444505fe88",
+        "passes": 4
+      },
+      {
+        "passes": 4,
+        "fails": 0,
+        "name": "lifecycle: POST /merchant/topups: has data",
+        "path": "::lifecycle: POST /merchant/topups: has data",
+        "id": "0fed3f6250485d02559225294a68516a"
+      },
+      {
+        "name": "lifecycle oauth2 client: GET /merchant/clients: status 200",
+        "path": "::lifecycle oauth2 client: GET /merchant/clients: status 200",
+        "id": "2b45d90246cdcc159045d3425e8efdb8",
+        "passes": 4,
+        "fails": 0
+      },
+      {
+        "name": "lifecycle oauth2 client: GET /merchant/clients: has data",
+        "path": "::lifecycle oauth2 client: GET /merchant/clients: has data",
+        "id": "e584fe6d278e0475dca6f7f1706bdd17",
+        "passes": 4,
+        "fails": 0
+      },
+      {
+        "fails": 0,
+        "name": "lifecycle oauth2 client: created client in list",
+        "path": "::lifecycle oauth2 client: created client in list",
+        "id": "d9e4df626df2217e1f5b0a75beaff916",
+        "passes": 4
+      },
+      {
+        "path": "::lifecycle: GET /merchant/topups: status 200",
+        "id": "59f540c5af99d1c9bf3b9bb58027dfc0",
+        "passes": 4,
+        "fails": 0,
+        "name": "lifecycle: GET /merchant/topups: status 200"
+      },
+      {
+        "fails": 0,
+        "name": "lifecycle: GET /merchant/topups: has data",
+        "path": "::lifecycle: GET /merchant/topups: has data",
+        "id": "2db1a12e5eb098e275321d7c2db169a9",
+        "passes": 4
+      },
+      {
+        "name": "lifecycle oauth2 client: DELETE /merchant/clients/:id: status 200",
+        "path": "::lifecycle oauth2 client: DELETE /merchant/clients/:id: status 200",
+        "id": "5d51f133d343b219bb7950b6e61d5d41",
+        "passes": 4,
+        "fails": 0
+      },
+      {
+        "fails": 0,
+        "name": "lifecycle: PATCH /admin/topups/:id/status: status 200",
+        "path": "::lifecycle: PATCH /admin/topups/:id/status: status 200",
+        "id": "b4892b1c88dacabe9ad19086c8e3e41c",
+        "passes": 4
+      },
+      {
+        "name": "lifecycle: PATCH /admin/topups/:id/status: has data",
+        "path": "::lifecycle: PATCH /admin/topups/:id/status: has data",
+        "id": "7ee1dc36c53c8697f93cb419105ad437",
+        "passes": 4,
+        "fails": 0
+      },
+      {
+        "name": "lifecycle oauth2 client: deleted client absent",
+        "path": "::lifecycle oauth2 client: deleted client absent",
+        "id": "72a00d0e783d5dfa662df2b7b92b1013",
+        "passes": 4,
+        "fails": 0
+      },
+      {
+        "name": "lifecycle topup: balance increased",
+        "path": "::lifecycle topup: balance increased",
+        "id": "abf4f21fa0f1e7cad470be561dc8e46b",
+        "passes": 4,
+        "fails": 0
+      },
+      {
+        "fails": 2,
+        "name": "lifecycle refund: POST /merchant/invoices: status 201",
+        "path": "::lifecycle refund: POST /merchant/invoices: status 201",
+        "id": "056c1ab21ca42544073cbfcd6609f82b",
+        "passes": 0
+      },
+      {
+        "name": "lifecycle refund: POST /merchant/invoices: has data",
+        "path": "::lifecycle refund: POST /merchant/invoices: has data",
+        "id": "75c25aa00198757e98ff52671d1899bf",
+        "passes": 0,
+        "fails": 2
+      }
+    ],
+    "name": ""
+  },
+  "options": {
+    "summaryTrendStats": [
+      "avg",
+      "min",
+      "med",
+      "max",
+      "p(90)",
+      "p(95)"
+    ],
+    "summaryTimeUnit": "",
+    "noColor": false
+  },
+  "state": {
+    "isStdOutTTY": true,
+    "isStdErrTTY": true,
+    "testRunDurationMs": 31411.053
+  },
+  "metrics": {
+    "http_req_duration": {
+      "values": {
+        "med": 9.809,
+        "max": 208.533,
+        "p(90)": 98.47780000000002,
+        "p(95)": 127.97439999999999,
+        "avg": 32.824344632768366,
+        "min": 0.404
+      },
+      "thresholds": {
+        "p(95)<300": {
+          "ok": true
+        }
+      },
+      "type": "trend",
+      "contains": "time"
+    },
+    "checks": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 0.9180887372013652,
+        "passes": 269,
+        "fails": 24
+      },
+      "thresholds": {
+        "rate>0.99": {
+          "ok": false
+        }
+      }
+    },
+    "http_req_failed": {
+      "type": "rate",
+      "contains": "default",
+      "values": {
+        "rate": 0.1016949152542373,
+        "passes": 18,
+        "fails": 159
+      },
+      "thresholds": {
+        "rate<0.01": {
+          "ok": false
+        }
+      }
+    },
+    "data_sent": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 85550,
+        "rate": 2723.5635812654864
+      }
+    },
+    "http_req_duration{expected_response:true}": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(95)": 128.8014,
+        "avg": 34.4170566037736,
+        "min": 0.404,
+        "med": 9.345,
+        "max": 208.533,
+        "p(90)": 101.43599999999999
+      }
+    },
+    "http_req_connecting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(90)": 0,
+        "p(95)": 0.22599999999999965,
+        "avg": 0.07412429378531075,
+        "min": 0,
+        "med": 0,
+        "max": 4.012
+      }
+    },
+    "iterations": {
+      "values": {
+        "count": 36,
+        "rate": 1.1460933831158095
+      },
+      "type": "counter",
+      "contains": "default"
+    },
+    "http_reqs": {
+      "type": "counter",
+      "contains": "default",
+      "values": {
+        "count": 177,
+        "rate": 5.634959133652731
+      }
+    },
+    "http_req_tls_handshaking": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "min": 0,
+        "med": 0,
+        "max": 0,
+        "p(90)": 0,
+        "p(95)": 0,
+        "avg": 0
+      }
+    },
+    "http_req_receiving": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 0.07384745762711863,
+        "min": 0.011,
+        "med": 0.055,
+        "max": 1.539,
+        "p(90)": 0.1208,
+        "p(95)": 0.13920000000000002
+      }
+    },
+    "vus": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": 0,
+        "min": 0,
+        "max": 4
+      }
+    },
+    "data_received": {
+      "type": "counter",
+      "contains": "data",
+      "values": {
+        "count": 155786,
+        "rate": 4959.591771724431
+      }
+    },
+    "http_req_waiting": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 32.63584180790961,
+        "min": 0.356,
+        "med": 9.535,
+        "max": 207.561,
+        "p(90)": 98.35320000000002,
+        "p(95)": 127.9202
+      }
+    },
+    "vus_max": {
+      "type": "gauge",
+      "contains": "default",
+      "values": {
+        "value": 15,
+        "min": 15,
+        "max": 15
+      }
+    },
+    "iteration_duration": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 1413.4638541388892,
+        "min": 4.14275,
+        "med": 1562.098041,
+        "max": 2776.491667,
+        "p(90)": 2646.764396,
+        "p(95)": 2771.2219474999997
+      }
+    },
+    "http_req_sending": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "avg": 0.11465536723163838,
+        "min": 0.006,
+        "med": 0.031,
+        "max": 6.362,
+        "p(90)": 0.07200000000000002,
+        "p(95)": 0.10079999999999997
+      }
+    },
+    "http_req_blocked": {
+      "type": "trend",
+      "contains": "time",
+      "values": {
+        "p(95)": 0.26139999999999963,
+        "avg": 0.16367231638418073,
+        "min": 0.001,
+        "med": 0.01,
+        "max": 9.914,
+        "p(90)": 0.036600000000000056
+      }
+    }
+  }
+}

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>K6 Report — full-coverage</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f7fa;color:#333;font-size:14px}
+  header{background:#1a202c;color:#fff;padding:20px 32px}
+  header h1{font-size:1.4rem;margin-bottom:4px}
+  header .sub{opacity:.7;font-size:.85rem}
+  .status{display:inline-block;margin-left:12px;vertical-align:middle}
+  main{max-width:1100px;margin:24px auto;padding:0 16px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px}
+  .card{background:#fff;border-radius:8px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .card .label{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:#718096;margin-bottom:6px}
+  .card .value{font-size:1.6rem;font-weight:700;color:#2d3748}
+  .card .value.red{color:#e53e3e}
+  .card .value.green{color:#38a169}
+  section{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:24px;overflow:hidden}
+  section h2{padding:16px 20px;border-bottom:1px solid #e2e8f0;font-size:1rem;font-weight:600}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;padding:10px 20px;background:#f7fafc;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:#718096;border-bottom:1px solid #e2e8f0}
+  td{padding:10px 20px;border-bottom:1px solid #f0f4f8;font-size:.9rem}
+  tr:last-child td{border-bottom:none}
+  .pass-row td:first-child::before{content:'✔ ';color:#38a169}
+  .fail-row{background:#fff5f5}
+  .fail-row td:first-child::before{content:'✘ ';color:#e53e3e}
+  .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:700;text-transform:uppercase}
+  .badge.pass{background:#c6f6d5;color:#276749}
+  .badge.fail{background:#fed7d7;color:#9b2c2c}
+</style>
+</head>
+<body>
+<header>
+  <h1>K6 Performance Report — full-coverage <span class="badge pass">PASS</span></h1>
+  <div class="sub">Generated: 2026-05-01T14:54:00.840Z &nbsp;|&nbsp; Profile: full-coverage</div>
+</header>
+<main>
+  <div class="cards">
+    <div class="card"><div class="label">Total Requests</div><div class="value">177</div></div>
+    <div class="card"><div class="label">Req / sec</div><div class="value">5.63</div></div>
+    <div class="card"><div class="label">p95 Duration</div><div class="value green">127.97 ms</div></div>
+    <div class="card"><div class="label">Failure Rate</div><div class="value red">10.17%</div></div>
+    <div class="card"><div class="label">Checks Pass</div><div class="value red">91.81%</div></div>
+    <div class="card"><div class="label">Iterations</div><div class="value">36</div></div>
+    <div class="card"><div class="label">Max VUs</div><div class="value">15</div></div>
+  </div>
+
+  <section>
+    <h2>Thresholds</h2>
+    <table>
+      <tr><th>Threshold</th><th>Result</th></tr>
+      <tr><td colspan="2">No thresholds configured</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>HTTP Duration</h2>
+    <table>
+      <tr><th>Metric</th><th>Value</th></tr>
+      <tr><td>Min</td><td>0.40 ms</td></tr>
+      <tr><td>Avg</td><td>32.82 ms</td></tr>
+      <tr><td>p(95)</td><td>127.97 ms</td></tr>
+      <tr><td>p(99)</td><td>-</td></tr>
+      <tr><td>Max</td><td>208.53 ms</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>Checks (269 passed / 24 failed)</h2>
+    <table>
+      <tr><th>Check</th><th>Passes</th><th>Fails</th><th>Pass Rate</th></tr>
+      <tr class="">
+      <td>ping: status 200</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>ping: has data</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>POST /users/register: status 201</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>POST /users/register: has data</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>oauth2/token: status 200</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>oauth2/introspect: status 200</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>oauth2/introspect: active</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /oauth2/userinfo: status 200</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /oauth2/userinfo: has data</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>oauth2/token refresh: status 200</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>oauth2/revoke: status 200</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>oauth2/authorize GET: responds</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /merchant/wallet: status 200</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /merchant/wallet: has data</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /admin/topups: status 200</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /admin/topups: has data</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /merchant/topups: status 200</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /merchant/topups: has data</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /admin/payment-intents: status 200</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /admin/payment-intents: has data</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /admin/refunds: status 200</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /admin/refunds: has data</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>POST /merchant/topups: status 201</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>POST /merchant/topups: has data</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="fail-row">
+      <td>POST /merchant/invoices: status 201</td>
+      <td>0</td>
+      <td>6</td>
+      <td>0.0%</td>
+    </tr><tr class="fail-row">
+      <td>POST /merchant/invoices: has data</td>
+      <td>0</td>
+      <td>6</td>
+      <td>0.0%</td>
+    </tr><tr class="">
+      <td>GET /admin/stats: status 200</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /admin/stats: has data</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /merchant/invoices: status 200</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /merchant/invoices: has data</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /admin/ledger/accounts/:merchant_id: status 200</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /admin/ledger/accounts/:merchant_id: has data</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /merchant/refunds: status 200</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /merchant/refunds: has data</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>POST /merchant/clients: status 201</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>POST /merchant/clients: has data</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /merchant/clients: status 200</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>GET /merchant/clients: has data</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>DELETE /merchant/clients/:id: status 200</td>
+      <td>6</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="fail-row">
+      <td>lifecycle: POST /merchant/invoices: status 201</td>
+      <td>0</td>
+      <td>4</td>
+      <td>0.0%</td>
+    </tr><tr class="fail-row">
+      <td>lifecycle: POST /merchant/invoices: has data</td>
+      <td>0</td>
+      <td>4</td>
+      <td>0.0%</td>
+    </tr><tr class="">
+      <td>lifecycle oauth2 client: POST /merchant/clients: status 201</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>lifecycle oauth2 client: POST /merchant/clients: has data</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>lifecycle: POST /merchant/topups: status 201</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>lifecycle: POST /merchant/topups: has data</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>lifecycle oauth2 client: GET /merchant/clients: status 200</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>lifecycle oauth2 client: GET /merchant/clients: has data</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>lifecycle oauth2 client: created client in list</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>lifecycle: GET /merchant/topups: status 200</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>lifecycle: GET /merchant/topups: has data</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>lifecycle oauth2 client: DELETE /merchant/clients/:id: status 200</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>lifecycle: PATCH /admin/topups/:id/status: status 200</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>lifecycle: PATCH /admin/topups/:id/status: has data</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>lifecycle oauth2 client: deleted client absent</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="">
+      <td>lifecycle topup: balance increased</td>
+      <td>4</td>
+      <td>0</td>
+      <td>100.0%</td>
+    </tr><tr class="fail-row">
+      <td>lifecycle refund: POST /merchant/invoices: status 201</td>
+      <td>0</td>
+      <td>2</td>
+      <td>0.0%</td>
+    </tr><tr class="fail-row">
+      <td>lifecycle refund: POST /merchant/invoices: has data</td>
+      <td>0</td>
+      <td>2</td>
+      <td>0.0%</td>
+    </tr>
+    </table>
+  </section>
+</main>
+</body>
+</html>
