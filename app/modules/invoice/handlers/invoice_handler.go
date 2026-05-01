@@ -4,8 +4,8 @@ import (
 	"payment-sandbox/app/middleware"
 	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
 	invoiceServices "payment-sandbox/app/modules/invoice/services"
+	"payment-sandbox/app/shared/audit"
 	appErrors "payment-sandbox/app/shared/errors"
-	"payment-sandbox/app/shared/journeylog"
 	"payment-sandbox/app/shared/pagination"
 	"payment-sandbox/app/shared/response"
 
@@ -13,18 +13,18 @@ import (
 )
 
 type InvoiceHandler struct {
-	service       invoiceServices.IInvoiceService
-	journeyLogger journeylog.IJourneyLogger
+	service     invoiceServices.IInvoiceService
+	auditLogger audit.IAuditLogger
 }
 
-func NewInvoiceHandler(service invoiceServices.IInvoiceService, journeyLogger journeylog.IJourneyLogger) *InvoiceHandler {
-	return &InvoiceHandler{service: service, journeyLogger: journeyLogger}
+func NewInvoiceHandler(service invoiceServices.IInvoiceService, auditLogger audit.IAuditLogger) *InvoiceHandler {
+	return &InvoiceHandler{service: service, auditLogger: auditLogger}
 }
 
 type CreateInvoiceRequest struct {
 	CustomerName  string  `json:"customer_name" binding:"required" example:"John Customer"`
 	CustomerEmail string  `json:"customer_email" binding:"required,email" example:"john.customer@example.com"`
-	Amount        float64 `json:"amount" binding:"required,gt=0" example:"250000"`
+	Amount        int64   `json:"amount" binding:"required,gt=0" example:"250000"`
 	Description   string  `json:"description" example:"Invoice for April subscription"`
 	DueDate       string  `json:"due_date" binding:"required" example:"2026-05-01T10:00:00Z"`
 }
@@ -39,16 +39,18 @@ type InvoiceListData []invoiceEntity.Invoice
 
 // CreateInvoice godoc
 // @Summary Create invoice
-// @Description Merchant creates a new invoice
+// @Description Merchant creates a new invoice. Requires Idempotency-Key header to safely retry on network failure.
 // @Tags invoice
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Param Idempotency-Key header string true "Unique key per logical request (UUID recommended). Replaying the same key returns the original response; reusing the key with a different body returns 409."
 // @Param request body CreateInvoiceRequest true "Create invoice payload"
 // @Success 201 {object} response.Envelope{data=handlers.InvoiceResponse}
-// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload} "validation_error or idempotency_key_required"
 // @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
 // @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 409 {object} response.Envelope{error=response.ErrorPayload} "idempotency_key_conflict or idempotency_in_progress"
 // @Router /merchant/invoices [post]
 func (h *InvoiceHandler) CreateInvoice(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
@@ -64,39 +66,35 @@ func (h *InvoiceHandler) CreateInvoice(c *gin.Context) {
 
 	invoice, err := h.service.CreateInvoice(userID, req.CustomerName, req.CustomerEmail, req.Amount, req.Description, req.DueDate)
 	if err != nil {
-		actorID, actorRole := journeylog.ActorFromContext(c)
-		journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-			RequestID:    journeylog.RequestIDFromContext(c),
-			ActorID:      actorID,
-			ActorRole:    actorRole,
-			Module:       "invoice",
-			EntityType:   "invoice",
-			Action:       "INVOICE_CREATE",
-			Result:       "FAILED",
-			ErrorCode:    "invoice_create_failed",
-			ErrorMessage: err.Error(),
+		actorID, actorType := audit.ActorFromContext(c)
+		audit.LogBestEffort(c, h.auditLogger, audit.Event{
+			RequestID: audit.RequestIDFromContext(c),
+			ActorID:   actorID,
+			ActorType: actorType,
+			EventType: "invoice.created",
 			Metadata: map[string]any{
-				"amount": req.Amount,
+				"amount":        req.Amount,
+				"result":        "FAILED",
+				"error_code":    "invoice_create_failed",
+				"error_message": err.Error(),
 			},
 		})
 		response.Fail(c, appErrors.BadRequest("invoice_create_failed", err.Error(), nil))
 		return
 	}
 
-	actorID, actorRole := journeylog.ActorFromContext(c)
-	journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-		RequestID:  journeylog.RequestIDFromContext(c),
-		JourneyID:  invoice.ID,
+	actorID, actorType := audit.ActorFromContext(c)
+	audit.LogBestEffort(c, h.auditLogger, audit.Event{
+		RequestID:  audit.RequestIDFromContext(c),
 		ActorID:    actorID,
-		ActorRole:  actorRole,
-		Module:     "invoice",
-		EntityType: "invoice",
-		EntityID:   invoice.ID,
-		Action:     "INVOICE_CREATE",
-		ToStatus:   string(invoice.Status),
-		Result:     "SUCCESS",
+		ActorType:  actorType,
+		EventType:  "invoice.created",
+		ResourceID: invoice.ID,
 		Metadata: map[string]any{
-			"amount": invoice.Amount,
+			"amount":     invoice.Amount,
+			"to_status":  string(invoice.Status),
+			"result":     "SUCCESS",
+			"journey_id": invoice.ID,
 		},
 	})
 	response.Created(c, invoice)

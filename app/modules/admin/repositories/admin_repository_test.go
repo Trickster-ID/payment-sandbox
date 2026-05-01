@@ -32,16 +32,16 @@ func TestAdminRepository_DashboardStats(t *testing.T) {
 		mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*)")).
 			WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 		
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT COALESCE(SUM(inv.amount::double precision), 0)")).
-			WillReturnRows(sqlmock.NewRows([]string{"sum"}).AddRow(5000.0))
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT COALESCE(SUM(inv.amount), 0)")).
+			WillReturnRows(sqlmock.NewRows([]string{"sum"}).AddRow(int64(5000)))
 		
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT COALESCE(SUM(inv.amount::double precision), 0)")).
-			WillReturnRows(sqlmock.NewRows([]string{"sum"}).AddRow(100.0))
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT COALESCE(SUM(inv.amount), 0)")).
+			WillReturnRows(sqlmock.NewRows([]string{"sum"}).AddRow(int64(100)))
 
 		stats := repo.DashboardStats(adminEntity.StatsFilter{})
 		assert.Equal(t, 10, stats.TotalInvoiceCreated)
-		assert.Equal(t, 5000.0, stats.TotalPaymentNominal)
-		assert.Equal(t, 100.0, stats.TotalRefundNominal)
+		assert.Equal(t, int64(5000), stats.TotalPaymentNominal)
+		assert.Equal(t, int64(100), stats.TotalRefundNominal)
 		assert.Equal(t, 5, stats.TotalByStatus["PAID"])
 	})
 
@@ -56,7 +56,7 @@ func TestAdminRepository_DashboardStats(t *testing.T) {
 		mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM invoices i WHERE i.deleted_at IS NULL AND i.status='PAID' AND i.merchant_id::text = $1")).WithArgs("m-1").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 		mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*) FROM invoices i WHERE i.deleted_at IS NULL AND i.status='EXPIRED' AND i.merchant_id::text = $1")).WithArgs("m-1").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
 		mock.ExpectQuery(regexp.QuoteMeta("SELECT COUNT(*)")).WithArgs("m-1").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT COALESCE")).WithArgs("m-1").WillReturnRows(sqlmock.NewRows([]string{"sum"}).AddRow(100.0))
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT COALESCE")).WithArgs("m-1").WillReturnRows(sqlmock.NewRows([]string{"sum"}).AddRow(int64(100)))
 		mock.ExpectQuery(regexp.QuoteMeta("SELECT COALESCE")).WithArgs("m-1").WillReturnRows(sqlmock.NewRows([]string{"sum"}).AddRow(0))
 
 		stats := repo.DashboardStats(adminEntity.StatsFilter{MerchantID: "m-1"})

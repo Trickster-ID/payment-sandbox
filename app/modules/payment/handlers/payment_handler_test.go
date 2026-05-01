@@ -12,8 +12,8 @@ import (
 	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
 	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
 	serviceMocks "payment-sandbox/app/modules/payment/services/mocks"
-	journeylog "payment-sandbox/app/shared/journeylog"
-	journeyMocks "payment-sandbox/app/shared/journeylog/mocks"
+	"payment-sandbox/app/shared/audit"
+	auditMocks "payment-sandbox/app/shared/audit/mocks"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +27,7 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		setupMocks func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger)
+		setupMocks func(service *serviceMocks.MockIPaymentService, logger *auditMocks.MockIAuditLogger)
 		wantStatus int
 		wantCode   string
 		wantDataID string
@@ -35,7 +35,7 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 		{
 			name: "validation error",
 			body: `{}`,
-			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *auditMocks.MockIAuditLogger) {
 				service.AssertNotCalled(t, "CreatePaymentIntent")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -45,7 +45,7 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 		{
 			name: "malformed json",
 			body: `{invalid-json}`,
-			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *auditMocks.MockIAuditLogger) {
 				service.AssertNotCalled(t, "CreatePaymentIntent")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -55,7 +55,7 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 		{
 			name: "service error and logger failure still returns business error",
 			body: `{"method":"WALLET"}`,
-			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *auditMocks.MockIAuditLogger) {
 				service.EXPECT().
 					CreatePaymentIntent("token-1", "WALLET").
 					Return(paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, errors.New("invoice already paid"))
@@ -63,10 +63,10 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 				logger.EXPECT().
 					Log(
 						mock.Anything,
-						mock.MatchedBy(func(event journeylog.Event) bool {
-							return event.Module == "payment" &&
-								event.Action == "PAYMENT_INTENT_CREATE" &&
-								event.Result == "FAILED" &&
+						mock.MatchedBy(func(event audit.Event) bool {
+							result, _ := event.Metadata["result"].(string)
+							return event.EventType == "payment.intent_created" &&
+								result == "FAILED" &&
 								event.RequestID == "req-1"
 						}),
 					).
@@ -78,7 +78,7 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 		{
 			name: "success and logger failure still returns created",
 			body: `{"method":"VA_DUMMY"}`,
-			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *auditMocks.MockIAuditLogger) {
 				service.EXPECT().
 					CreatePaymentIntent("token-1", "VA_DUMMY").
 					Return(
@@ -97,11 +97,11 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 				logger.EXPECT().
 					Log(
 						mock.Anything,
-						mock.MatchedBy(func(event journeylog.Event) bool {
-							return event.Module == "payment" &&
-								event.Action == "PAYMENT_INTENT_CREATE" &&
-								event.Result == "SUCCESS" &&
-								event.EntityID == "pi-1"
+						mock.MatchedBy(func(event audit.Event) bool {
+							result, _ := event.Metadata["result"].(string)
+							return event.EventType == "payment.intent_created" &&
+								result == "SUCCESS" &&
+								event.ResourceID == "pi-1"
 						}),
 					).
 					Return(errors.New("mongo write failed"))
@@ -114,7 +114,7 @@ func TestPaymentHandler_CreatePaymentIntent(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			service := serviceMocks.NewMockIPaymentService(t)
-			logger := journeyMocks.NewMockIJourneyLogger(t)
+			logger := auditMocks.NewMockIAuditLogger(t)
 			tc.setupMocks(service, logger)
 
 			handler := NewPaymentHandler(service, logger)

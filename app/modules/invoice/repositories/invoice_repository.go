@@ -15,7 +15,7 @@ import (
 
 type IInvoiceRepository interface {
 	MerchantIDByUserID(userID string) (string, error)
-	CreateInvoice(merchantID, customerName, customerEmail string, amount float64, description string, dueDate time.Time) (invoiceEntity.Invoice, error)
+	CreateInvoice(merchantID, customerName, customerEmail string, amount int64, description string, dueDate time.Time) (invoiceEntity.Invoice, error)
 	ListInvoices(merchantID string, status string, options invoiceEntity.ListOptions) ([]invoiceEntity.Invoice, int)
 	MerchantInvoiceByID(invoiceID, merchantID string) (invoiceEntity.Invoice, error)
 }
@@ -36,7 +36,7 @@ func (r *InvoiceRepository) MerchantIDByUserID(userID string) (string, error) {
 	return merchant.ID, nil
 }
 
-func (r *InvoiceRepository) CreateInvoice(merchantID, customerName, customerEmail string, amount float64, description string, dueDate time.Time) (invoiceEntity.Invoice, error) {
+func (r *InvoiceRepository) CreateInvoice(merchantID, customerName, customerEmail string, amount int64, description string, dueDate time.Time) (invoiceEntity.Invoice, error) {
 	var invoice invoiceEntity.Invoice
 	invoiceNumber := "INV-" + strings.ToUpper(uuid.NewString()[:8])
 	token := uuid.NewString()
@@ -48,7 +48,7 @@ func (r *InvoiceRepository) CreateInvoice(merchantID, customerName, customerEmai
 		)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 		RETURNING id::text, merchant_id::text, invoice_number, customer_name, customer_email,
-			amount::double precision, COALESCE(description, ''), due_date, status::text,
+			amount, COALESCE(description, ''), due_date, status::text,
 			payment_link_token, created_at, updated_at
 	`, merchantID, invoiceNumber, strings.TrimSpace(customerName), strings.TrimSpace(strings.ToLower(customerEmail)), amount, description, dueDate, token).
 		Scan(&invoice.ID, &invoice.MerchantID, &invoice.InvoiceNumber, &invoice.CustomerName, &invoice.CustomerEmail, &invoice.Amount, &invoice.Description, &invoice.DueDate, &invoice.Status, &invoice.PaymentLinkToken, &invoice.CreatedAt, &invoice.UpdatedAt)
@@ -79,7 +79,7 @@ func (r *InvoiceRepository) ListInvoices(merchantID string, status string, optio
 
 	listSQL := `
 		SELECT id::text, merchant_id::text, invoice_number, customer_name, customer_email,
-			amount::double precision, COALESCE(description, ''), due_date, status::text,
+			amount, COALESCE(description, ''), due_date, status::text,
 			payment_link_token, created_at, updated_at
 		FROM invoices
 		WHERE ` + where + `
@@ -109,7 +109,7 @@ func (r *InvoiceRepository) MerchantInvoiceByID(invoiceID, merchantID string) (i
 	var invoice invoiceEntity.Invoice
 	err := r.db.QueryRow(`
 		SELECT id::text, merchant_id::text, invoice_number, customer_name, customer_email,
-			amount::double precision, COALESCE(description, ''), due_date, status::text,
+			amount, COALESCE(description, ''), due_date, status::text,
 			payment_link_token, created_at, updated_at
 		FROM invoices
 		WHERE id=$1 AND merchant_id=$2 AND deleted_at IS NULL
@@ -135,7 +135,7 @@ func (r *InvoiceRepository) expireDueInvoices() {
 func (r *InvoiceRepository) getMerchantByUserID(userID string) (walletEntity.Merchant, bool) {
 	var merchant walletEntity.Merchant
 	err := r.db.QueryRow(`
-		SELECT id::text, user_id::text, balance::double precision, created_at, updated_at
+		SELECT id::text, user_id::text, balance, created_at, updated_at
 		FROM merchants
 		WHERE user_id = $1 AND deleted_at IS NULL
 		LIMIT 1

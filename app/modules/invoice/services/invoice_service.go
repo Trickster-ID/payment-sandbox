@@ -13,7 +13,7 @@ type InvoiceService struct {
 }
 
 type IInvoiceService interface {
-	CreateInvoice(userID, customerName, customerEmail string, amount float64, description, dueDate string) (invoiceEntity.Invoice, error)
+	CreateInvoice(userID, customerName, customerEmail string, amount int64, description, dueDate string) (invoiceEntity.Invoice, error)
 	ListInvoices(userID, status string, page, limit int) ([]invoiceEntity.Invoice, int, error)
 	InvoiceByID(userID, invoiceID string) (invoiceEntity.Invoice, error)
 }
@@ -22,7 +22,7 @@ func NewInvoiceService(repo repositories.IInvoiceRepository) *InvoiceService {
 	return &InvoiceService{repo: repo}
 }
 
-func (s *InvoiceService) CreateInvoice(userID, customerName, customerEmail string, amount float64, description, dueDate string) (invoiceEntity.Invoice, error) {
+func (s *InvoiceService) CreateInvoice(userID, customerName, customerEmail string, amount int64, description, dueDate string) (invoiceEntity.Invoice, error) {
 	merchantID, err := s.repo.MerchantIDByUserID(userID)
 	if err != nil {
 		return invoiceEntity.Invoice{}, err

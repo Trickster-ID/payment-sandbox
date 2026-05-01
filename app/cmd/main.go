@@ -34,6 +34,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	app.Orchestrator.StartRecoveryLoop(ctx)
+
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), app.Config.ShutdownTTL)

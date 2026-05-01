@@ -18,7 +18,7 @@ func TestAdminService_Stats(t *testing.T) {
 		startDate  string
 		endDate    string
 		setupMocks func(repo *repoMocks.MockIAdminRepository)
-		wantTotal  float64
+		wantTotal  int64
 		wantErr    string
 	}{
 		{

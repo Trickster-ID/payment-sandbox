@@ -1,37 +1,47 @@
 package repositories
 
 import (
-	refundEntity "payment-sandbox/app/modules/refund/models/entity"
 	"regexp"
 	"testing"
 	"time"
 
+	ledgerEntity "payment-sandbox/app/modules/ledger/models/entity"
+	ledgerMocks "payment-sandbox/app/modules/ledger/repositories/mocks"
+	refundEntity "payment-sandbox/app/modules/refund/models/entity"
+
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	testRefundMerchantUUID = uuid.MustParse("00000000-0000-0000-0000-000000000002")
+	testRefundAccountUUID  = uuid.MustParse("00000000-0000-0000-0000-000000000020")
+)
+
 func TestRefundRepository_RequestRefund(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	db, sqlMock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
 
-	repo := NewRefundRepository(db)
+	repo := NewRefundRepository(db, nil)
 	now := time.Now()
 
 	t.Run("success", func(t *testing.T) {
-		mock.ExpectBegin()
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT pi.id::text, pi.status::text, inv.merchant_id::text, inv.amount::double precision")).
+		sqlMock.ExpectBegin()
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT pi.id::text, pi.status::text, inv.merchant_id::text, inv.amount")).
 			WithArgs("inv-1").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "status", "merchant_id", "amount"}).
-				AddRow("pi-1", "SUCCESS", "m-1", 100.0))
+				AddRow("pi-1", "SUCCESS", "m-1", int64(100)))
 
-		mock.ExpectQuery(regexp.QuoteMeta("INSERT INTO refunds")).
-			WithArgs("pi-1", "reason").
-			WillReturnRows(sqlmock.NewRows([]string{"id", "payment_intent_id", "status", "created_at", "updated_at"}).
-				AddRow("ref-1", "pi-1", "REQUESTED", now, now))
+		sqlMock.ExpectQuery(regexp.QuoteMeta("INSERT INTO refunds")).
+			WithArgs("pi-1", "reason", int64(100)).
+			WillReturnRows(sqlmock.NewRows([]string{"id", "payment_intent_id", "amount", "status", "created_at", "updated_at"}).
+				AddRow("ref-1", "pi-1", int64(100), "REQUESTED", now, now))
 
-		mock.ExpectCommit()
+		sqlMock.ExpectCommit()
 
 		ref, err := repo.RequestRefund("m-1", "inv-1", "reason")
 		require.NoError(t, err)
@@ -39,12 +49,12 @@ func TestRefundRepository_RequestRefund(t *testing.T) {
 	})
 
 	t.Run("not successful payment", func(t *testing.T) {
-		mock.ExpectBegin()
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT pi.id::text, pi.status::text, inv.merchant_id::text, inv.amount::double precision")).
+		sqlMock.ExpectBegin()
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT pi.id::text, pi.status::text, inv.merchant_id::text, inv.amount")).
 			WithArgs("inv-1").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "status", "merchant_id", "amount"}).
-				AddRow("pi-1", "PENDING", "m-1", 100.0))
-		mock.ExpectRollback()
+				AddRow("pi-1", "PENDING", "m-1", int64(100)))
+		sqlMock.ExpectRollback()
 
 		_, err := repo.RequestRefund("m-1", "inv-1", "reason")
 		assert.Error(t, err)
@@ -53,22 +63,22 @@ func TestRefundRepository_RequestRefund(t *testing.T) {
 }
 
 func TestRefundRepository_ReviewRefund(t *testing.T) {
-	db, mock, err := sqlmock.New()
+	db, sqlMock, err := sqlmock.New()
 	require.NoError(t, err)
 	defer db.Close()
 
-	repo := NewRefundRepository(db)
+	repo := NewRefundRepository(db, nil)
 	now := time.Now()
 
 	t.Run("success APPROVED", func(t *testing.T) {
-		mock.ExpectExec(regexp.QuoteMeta("UPDATE refunds")).
+		sqlMock.ExpectExec(regexp.QuoteMeta("UPDATE refunds")).
 			WithArgs("APPROVED", "ref-1").
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT r.id::text, r.payment_intent_id::text, inv.merchant_id::text, r.reason, r.status::text, inv.amount::double precision, inv.invoice_number, r.created_at, r.updated_at, m.name::text FROM refunds")).
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT r.id::text, r.payment_intent_id::text, inv.merchant_id::text, r.reason, r.status::text, r.amount, inv.invoice_number, r.created_at, r.updated_at, u.name::text FROM refunds")).
 			WithArgs("ref-1").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "pi_id", "m_id", "reason", "status", "amount", "inv_num", "ca", "ua", "m_name"}).
-				AddRow("ref-1", "pi-1", "m-1", "r", "APPROVED", 100.0, "INV-001", now, now, "Test Merchant"))
+				AddRow("ref-1", "pi-1", "m-1", "r", "APPROVED", int64(100), "INV-001", now, now, "Test Merchant"))
 
 		ref, err := repo.ReviewRefund("ref-1", true)
 		require.NoError(t, err)
@@ -77,66 +87,84 @@ func TestRefundRepository_ReviewRefund(t *testing.T) {
 }
 
 func TestRefundRepository_ProcessRefund(t *testing.T) {
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-
-	repo := NewRefundRepository(db)
+	merchantIDStr := testRefundMerchantUUID.String()
 	now := time.Now()
 
 	t.Run("success", func(t *testing.T) {
-		mock.ExpectBegin()
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT r.id::text, r.payment_intent_id::text, inv.merchant_id::text, r.reason, r.status::text, inv.amount::double precision, inv.invoice_number, r.created_at, r.updated_at FROM refunds")).
+		db, sqlMock, err := sqlmock.New()
+		require.NoError(t, err)
+		defer db.Close()
+
+		ledgerMock := ledgerMocks.NewMockIRepository(t)
+		repo := NewRefundRepository(db, ledgerMock)
+
+		sqlMock.ExpectBegin()
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT r.id::text, r.payment_intent_id::text, inv.merchant_id::text, r.reason, r.status::text, r.amount, inv.invoice_number, r.created_at, r.updated_at FROM refunds")).
 			WithArgs("ref-1").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "pi_id", "m_id", "reason", "status", "amount", "inv_num", "ca", "ua"}).
-				AddRow("ref-1", "pi-1", "m-1", "r", "APPROVED", 100.0, "INV-001", now, now))
+				AddRow("ref-1", "pi-1", merchantIDStr, "r", "APPROVED", int64(100), "INV-001", now, now))
 
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT id::text, user_id::text, balance::double precision, created_at, updated_at FROM merchants")).
-			WithArgs("m-1").
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT id::text, user_id::text, balance, created_at, updated_at FROM merchants")).
+			WithArgs(merchantIDStr).
 			WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "balance", "ca", "ua"}).
-				AddRow("m-1", "u-1", 1000.0, now, now))
+				AddRow(merchantIDStr, "u-1", int64(1000), now, now))
 
-		mock.ExpectExec(regexp.QuoteMeta("UPDATE refunds SET status=$1 WHERE id=$2")).
+		sqlMock.ExpectExec(regexp.QuoteMeta("UPDATE refunds SET status=$1 WHERE id=$2")).
 			WithArgs("SUCCESS", "ref-1").
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
-		mock.ExpectExec(regexp.QuoteMeta("UPDATE merchants SET balance = balance - $1 WHERE id=$2")).
-			WithArgs(100.0, "m-1").
+		ledgerMock.EXPECT().
+			GetAccountByMerchantID(mock.Anything, testRefundMerchantUUID).
+			Return(ledgerEntity.Account{ID: testRefundAccountUUID}, nil)
+
+		ledgerMock.EXPECT().
+			Post(mock.Anything, mock.Anything, mock.Anything).
+			Return(uuid.New(), nil)
+
+		sqlMock.ExpectExec(regexp.QuoteMeta("UPDATE merchants SET balance = (SELECT balance FROM accounts WHERE id=$1) WHERE id=$2")).
+			WithArgs(testRefundAccountUUID, merchantIDStr).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
-		mock.ExpectCommit()
+		sqlMock.ExpectCommit()
 
-		// Final lookups (after commit)
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT r.id::text, r.payment_intent_id::text, inv.merchant_id::text, r.reason, r.status::text, inv.amount::double precision, inv.invoice_number, r.created_at, r.updated_at, m.name::text FROM refunds")).
+		// Final lookups after commit
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT r.id::text, r.payment_intent_id::text, inv.merchant_id::text, r.reason, r.status::text, r.amount, inv.invoice_number, r.created_at, r.updated_at, u.name::text FROM refunds")).
 			WithArgs("ref-1").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "pi_id", "m_id", "reason", "status", "amount", "inv_num", "ca", "ua", "m_name"}).
-				AddRow("ref-1", "pi-1", "m-1", "r", "SUCCESS", 100.0, "INV-001", now, now, "Test Merchant"))
+				AddRow("ref-1", "pi-1", merchantIDStr, "r", "SUCCESS", int64(100), "INV-001", now, now, "Test Merchant"))
 
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT id::text, user_id::text, balance::double precision, created_at, updated_at FROM merchants")).
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT id::text, user_id::text, balance, created_at, updated_at FROM merchants")).
 			WithArgs("u-1").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "balance", "ca", "ua"}).
-				AddRow("m-1", "u-1", 900.0, now, now))
+				AddRow(merchantIDStr, "u-1", int64(900), now, now))
 
 		ref, m, err := repo.ProcessRefund("ref-1", refundEntity.RefundSuccess)
 		require.NoError(t, err)
 		assert.Equal(t, refundEntity.RefundSuccess, ref.Status)
-		assert.Equal(t, 900.0, m.Balance)
+		assert.Equal(t, int64(900), m.Balance)
+		assert.NoError(t, sqlMock.ExpectationsWereMet())
 	})
 
 	t.Run("insufficient balance", func(t *testing.T) {
-		mock.ExpectBegin()
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT r.id::text, r.payment_intent_id::text, inv.merchant_id::text, r.reason, r.status::text, inv.amount::double precision, inv.invoice_number, r.created_at, r.updated_at FROM refunds")).
+		db, sqlMock, err := sqlmock.New()
+		require.NoError(t, err)
+		defer db.Close()
+
+		repo := NewRefundRepository(db, nil)
+
+		sqlMock.ExpectBegin()
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT r.id::text, r.payment_intent_id::text, inv.merchant_id::text, r.reason, r.status::text, r.amount, inv.invoice_number, r.created_at, r.updated_at FROM refunds")).
 			WithArgs("ref-1").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "pi_id", "m_id", "reason", "status", "amount", "inv_num", "ca", "ua"}).
-				AddRow("ref-1", "pi-1", "m-1", "r", "APPROVED", 1000.0, "INV-002", now, now))
+				AddRow("ref-1", "pi-1", merchantIDStr, "r", "APPROVED", int64(1000), "INV-002", now, now))
 
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT id::text, user_id::text, balance::double precision, created_at, updated_at FROM merchants")).
-			WithArgs("m-1").
+		sqlMock.ExpectQuery(regexp.QuoteMeta("SELECT id::text, user_id::text, balance, created_at, updated_at FROM merchants")).
+			WithArgs(merchantIDStr).
 			WillReturnRows(sqlmock.NewRows([]string{"id", "user_id", "balance", "ca", "ua"}).
-				AddRow("m-1", "u-1", 100.0, now, now))
-		mock.ExpectRollback()
+				AddRow(merchantIDStr, "u-1", int64(100), now, now))
+		sqlMock.ExpectRollback()
 
-		_, _, err := repo.ProcessRefund("ref-1", refundEntity.RefundSuccess)
+		_, _, err = repo.ProcessRefund("ref-1", refundEntity.RefundSuccess)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "insufficient merchant balance")
 	})

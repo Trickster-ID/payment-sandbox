@@ -16,6 +16,94 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/admin/ledger/accounts/{merchant_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin fetches the wallet account for a merchant",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ledger"
+                ],
+                "summary": "Get merchant ledger account",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Merchant UUID",
+                        "name": "merchant_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/admin/payment-intents": {
             "get": {
                 "security": [
@@ -58,7 +146,7 @@ const docTemplate = `{
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "$ref": "#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentIntent"
+                                                "$ref": "#/definitions/app_modules_payment_handlers.PaymentIntentWithAmount"
                                             }
                                         }
                                     }
@@ -1067,7 +1155,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Merchant creates a new invoice",
+                "description": "Merchant creates a new invoice. Requires Idempotency-Key header to safely retry on network failure.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1079,6 +1167,13 @@ const docTemplate = `{
                 ],
                 "summary": "Create invoice",
                 "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Unique key per logical request (UUID recommended). Replaying the same key returns the original response; reusing the key with a different body returns 409.",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
                     {
                         "description": "Create invoice payload",
                         "name": "request",
@@ -1109,7 +1204,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "validation_error or idempotency_key_required",
                         "schema": {
                             "allOf": [
                                 {
@@ -1146,6 +1241,24 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "409": {
+                        "description": "idempotency_key_conflict or idempotency_in_progress",
                         "schema": {
                             "allOf": [
                                 {
@@ -1266,37 +1379,38 @@ const docTemplate = `{
             }
         },
         "/merchant/refunds": {
-            "post": {
+            "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Merchant requests refund for successful payment intent",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Merchant lists their own refund requests",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "refund"
                 ],
-                "summary": "Request refund",
+                "summary": "List merchant refunds",
                 "parameters": [
                     {
-                        "description": "Refund request payload",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/app_modules_refund_handlers.CreateRefundRequest"
-                        }
+                        "enum": [
+                            "REQUESTED",
+                            "APPROVED",
+                            "REJECTED",
+                            "SUCCESS",
+                            "FAILED"
+                        ],
+                        "type": "string",
+                        "description": "Refund status",
+                        "name": "status",
+                        "in": "query"
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "allOf": [
                                 {
@@ -1306,25 +1420,10 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/app_modules_refund_handlers.RefundResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "error": {
-                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/payment-sandbox_app_modules_refund_models_entity.Refund"
+                                            }
                                         }
                                     }
                                 }
@@ -1368,16 +1467,14 @@ const docTemplate = `{
                         }
                     }
                 }
-            }
-        },
-        "/merchant/topups": {
+            },
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Merchant creates top-up request with pending status",
+                "description": "Merchant requests refund for successful payment intent. Requires Idempotency-Key header to safely retry on network failure.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1385,17 +1482,24 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "wallet"
+                    "refund"
                 ],
-                "summary": "Create top-up request",
+                "summary": "Request refund",
                 "parameters": [
                     {
-                        "description": "Create top-up payload",
+                        "type": "string",
+                        "description": "Unique key per logical request (UUID recommended). Replaying the same key returns the original response; reusing the key with a different body returns 409.",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Refund request payload",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/app_modules_wallet_handlers.CreateTopupRequest"
+                            "$ref": "#/definitions/app_modules_refund_handlers.CreateRefundRequest"
                         }
                     }
                 ],
@@ -1411,7 +1515,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/app_modules_wallet_handlers.TopupResponse"
+                                            "$ref": "#/definitions/app_modules_refund_handlers.RefundResponse"
                                         }
                                     }
                                 }
@@ -1419,7 +1523,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "validation_error or idempotency_key_required",
                         "schema": {
                             "allOf": [
                                 {
@@ -1456,6 +1560,154 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Forbidden",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "409": {
+                        "description": "idempotency_key_conflict or idempotency_in_progress",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/merchant/topups": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Merchant creates top-up request with pending status. Requires Idempotency-Key header to safely retry on network failure.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wallet"
+                ],
+                "summary": "Create top-up request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Unique key per logical request (UUID recommended). Replaying the same key returns the original response; reusing the key with a different body returns 409.",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Create top-up payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app_modules_wallet_handlers.CreateTopupRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/app_modules_wallet_handlers.TopupResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "validation_error or idempotency_key_required",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "409": {
+                        "description": "idempotency_key_conflict or idempotency_in_progress",
                         "schema": {
                             "allOf": [
                                 {
@@ -1846,9 +2098,7 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "type": "object",
-                                            "additionalProperties": {
-                                                "type": "string"
-                                            }
+                                            "additionalProperties": true
                                         }
                                     }
                                 }
@@ -2099,10 +2349,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "total_payment_nominal": {
-                    "type": "number"
+                    "type": "integer"
                 },
                 "total_refund_nominal": {
-                    "type": "number"
+                    "type": "integer"
                 }
             }
         },
@@ -2125,7 +2375,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "amount": {
-                    "type": "number",
+                    "type": "integer",
                     "example": 250000
                 },
                 "customer_email": {
@@ -2150,7 +2400,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "amount": {
-                    "type": "number"
+                    "type": "integer"
                 },
                 "created_at": {
                     "type": "string"
@@ -2226,11 +2476,37 @@ const docTemplate = `{
                 }
             }
         },
+        "app_modules_payment_handlers.PaymentIntentWithAmount": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "invoice_id": {
+                    "type": "string"
+                },
+                "method": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentMethod"
+                },
+                "status": {
+                    "$ref": "#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentStatus"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "app_modules_payment_handlers.PublicInvoiceResponse": {
             "type": "object",
             "properties": {
                 "amount": {
-                    "type": "number"
+                    "type": "integer"
                 },
                 "created_at": {
                     "type": "string"
@@ -2286,11 +2562,11 @@ const docTemplate = `{
         "app_modules_refund_handlers.CreateRefundRequest": {
             "type": "object",
             "required": [
-                "payment_intent_id",
+                "invoice_id",
                 "reason"
             ],
             "properties": {
-                "payment_intent_id": {
+                "invoice_id": {
                     "type": "string",
                     "example": "0196aee7-80b0-7d57-b38f-26b315d8f9bb"
                 },
@@ -2331,7 +2607,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "amount": {
-                    "type": "number"
+                    "type": "integer"
                 },
                 "created_at": {
                     "type": "string"
@@ -2339,7 +2615,13 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "invoice_number": {
+                    "type": "string"
+                },
                 "merchant_id": {
+                    "type": "string"
+                },
+                "merchant_name": {
                     "type": "string"
                 },
                 "payment_intent_id": {
@@ -2426,7 +2708,7 @@ const docTemplate = `{
             ],
             "properties": {
                 "amount": {
-                    "type": "number",
+                    "type": "integer",
                     "example": 500000
                 }
             }
@@ -2435,7 +2717,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "amount": {
-                    "type": "number"
+                    "type": "integer"
                 },
                 "created_at": {
                     "type": "string"
@@ -2474,7 +2756,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "balance": {
-                    "type": "number"
+                    "type": "integer"
                 },
                 "created_at": {
                     "type": "string"
@@ -2494,7 +2776,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "amount": {
-                    "type": "number"
+                    "type": "integer"
                 },
                 "created_at": {
                     "type": "string"
@@ -2706,7 +2988,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "amount": {
-                    "type": "number"
+                    "type": "integer"
                 },
                 "created_at": {
                     "type": "string"
@@ -2714,7 +2996,13 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
+                "invoice_number": {
+                    "type": "string"
+                },
                 "merchant_id": {
+                    "type": "string"
+                },
+                "merchant_name": {
                     "type": "string"
                 },
                 "payment_intent_id": {
@@ -2752,7 +3040,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "balance": {
-                    "type": "number"
+                    "type": "integer"
                 },
                 "created_at": {
                     "type": "string"
@@ -2772,7 +3060,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "amount": {
-                    "type": "number"
+                    "type": "integer"
                 },
                 "created_at": {
                     "type": "string"

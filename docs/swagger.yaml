@@ -9,9 +9,9 @@ definitions:
       total_invoice_created:
         type: integer
       total_payment_nominal:
-        type: number
+        type: integer
       total_refund_nominal:
-        type: number
+        type: integer
     type: object
   app_modules_admin_handlers.HealthResponse:
     properties:
@@ -23,7 +23,7 @@ definitions:
     properties:
       amount:
         example: 250000
-        type: number
+        type: integer
       customer_email:
         example: john.customer@example.com
         type: string
@@ -45,7 +45,7 @@ definitions:
   app_modules_invoice_handlers.InvoiceResponse:
     properties:
       amount:
-        type: number
+        type: integer
       created_at:
         type: string
       customer_email:
@@ -95,10 +95,27 @@ definitions:
       payment_intent:
         $ref: '#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentIntent'
     type: object
+  app_modules_payment_handlers.PaymentIntentWithAmount:
+    properties:
+      amount:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: string
+      invoice_id:
+        type: string
+      method:
+        $ref: '#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentMethod'
+      status:
+        $ref: '#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentStatus'
+      updated_at:
+        type: string
+    type: object
   app_modules_payment_handlers.PublicInvoiceResponse:
     properties:
       amount:
-        type: number
+        type: integer
       created_at:
         type: string
       customer_email:
@@ -135,14 +152,14 @@ definitions:
     type: object
   app_modules_refund_handlers.CreateRefundRequest:
     properties:
-      payment_intent_id:
+      invoice_id:
         example: 0196aee7-80b0-7d57-b38f-26b315d8f9bb
         type: string
       reason:
         example: Customer requested cancellation
         type: string
     required:
-    - payment_intent_id
+    - invoice_id
     - reason
     type: object
   app_modules_refund_handlers.ProcessRefundRequest:
@@ -166,12 +183,16 @@ definitions:
   app_modules_refund_handlers.RefundResponse:
     properties:
       amount:
-        type: number
+        type: integer
       created_at:
         type: string
       id:
         type: string
+      invoice_number:
+        type: string
       merchant_id:
+        type: string
+      merchant_name:
         type: string
       payment_intent_id:
         type: string
@@ -231,14 +252,14 @@ definitions:
     properties:
       amount:
         example: 500000
-        type: number
+        type: integer
     required:
     - amount
     type: object
   app_modules_wallet_handlers.TopupResponse:
     properties:
       amount:
-        type: number
+        type: integer
       created_at:
         type: string
       id:
@@ -264,7 +285,7 @@ definitions:
   app_modules_wallet_handlers.WalletResponse:
     properties:
       balance:
-        type: number
+        type: integer
       created_at:
         type: string
       id:
@@ -277,7 +298,7 @@ definitions:
   payment-sandbox_app_modules_invoice_models_entity.Invoice:
     properties:
       amount:
-        type: number
+        type: integer
       created_at:
         type: string
       customer_email:
@@ -421,12 +442,16 @@ definitions:
   payment-sandbox_app_modules_refund_models_entity.Refund:
     properties:
       amount:
-        type: number
+        type: integer
       created_at:
         type: string
       id:
         type: string
+      invoice_number:
+        type: string
       merchant_id:
+        type: string
+      merchant_name:
         type: string
       payment_intent_id:
         type: string
@@ -454,7 +479,7 @@ definitions:
   payment-sandbox_app_modules_wallet_models_entity.Merchant:
     properties:
       balance:
-        type: number
+        type: integer
       created_at:
         type: string
       id:
@@ -467,7 +492,7 @@ definitions:
   payment-sandbox_app_modules_wallet_models_entity.Topup:
     properties:
       amount:
-        type: number
+        type: integer
       created_at:
         type: string
       id:
@@ -512,6 +537,54 @@ info:
   title: Payment Sandbox API
   version: "1.0"
 paths:
+  /admin/ledger/accounts/{merchant_id}:
+    get:
+      description: Admin fetches the wallet account for a merchant
+      parameters:
+      - description: Merchant UUID
+        in: path
+        name: merchant_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Get merchant ledger account
+      tags:
+      - ledger
   /admin/payment-intents:
     get:
       description: Admin lists payment intents with optional status filter
@@ -535,7 +608,7 @@ paths:
             - properties:
                 data:
                   items:
-                    $ref: '#/definitions/payment-sandbox_app_modules_payment_models_entity.PaymentIntent'
+                    $ref: '#/definitions/app_modules_payment_handlers.PaymentIntentWithAmount'
                   type: array
               type: object
         "401":
@@ -1088,8 +1161,16 @@ paths:
     post:
       consumes:
       - application/json
-      description: Merchant creates a new invoice
+      description: Merchant creates a new invoice. Requires Idempotency-Key header
+        to safely retry on network failure.
       parameters:
+      - description: Unique key per logical request (UUID recommended). Replaying
+          the same key returns the original response; reusing the key with a different
+          body returns 409.
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
       - description: Create invoice payload
         in: body
         name: request
@@ -1109,7 +1190,7 @@ paths:
                   $ref: '#/definitions/app_modules_invoice_handlers.InvoiceResponse'
               type: object
         "400":
-          description: Bad Request
+          description: validation_error or idempotency_key_required
           schema:
             allOf:
             - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
@@ -1128,6 +1209,15 @@ paths:
               type: object
         "403":
           description: Forbidden
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "409":
+          description: idempotency_key_conflict or idempotency_in_progress
           schema:
             allOf:
             - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
@@ -1194,37 +1284,32 @@ paths:
       tags:
       - invoice
   /merchant/refunds:
-    post:
-      consumes:
-      - application/json
-      description: Merchant requests refund for successful payment intent
+    get:
+      description: Merchant lists their own refund requests
       parameters:
-      - description: Refund request payload
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/app_modules_refund_handlers.CreateRefundRequest'
+      - description: Refund status
+        enum:
+        - REQUESTED
+        - APPROVED
+        - REJECTED
+        - SUCCESS
+        - FAILED
+        in: query
+        name: status
+        type: string
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
+        "200":
+          description: OK
           schema:
             allOf:
             - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
             - properties:
                 data:
-                  $ref: '#/definitions/app_modules_refund_handlers.RefundResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            allOf:
-            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
-            - properties:
-                error:
-                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+                  items:
+                    $ref: '#/definitions/payment-sandbox_app_modules_refund_models_entity.Refund'
+                  type: array
               type: object
         "401":
           description: Unauthorized
@@ -1246,6 +1331,78 @@ paths:
               type: object
       security:
       - BearerAuth: []
+      summary: List merchant refunds
+      tags:
+      - refund
+    post:
+      consumes:
+      - application/json
+      description: Merchant requests refund for successful payment intent. Requires
+        Idempotency-Key header to safely retry on network failure.
+      parameters:
+      - description: Unique key per logical request (UUID recommended). Replaying
+          the same key returns the original response; reusing the key with a different
+          body returns 409.
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Refund request payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app_modules_refund_handlers.CreateRefundRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/app_modules_refund_handlers.RefundResponse'
+              type: object
+        "400":
+          description: validation_error or idempotency_key_required
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "409":
+          description: idempotency_key_conflict or idempotency_in_progress
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+      security:
+      - BearerAuth: []
       summary: Request refund
       tags:
       - refund
@@ -1253,8 +1410,16 @@ paths:
     post:
       consumes:
       - application/json
-      description: Merchant creates top-up request with pending status
+      description: Merchant creates top-up request with pending status. Requires Idempotency-Key
+        header to safely retry on network failure.
       parameters:
+      - description: Unique key per logical request (UUID recommended). Replaying
+          the same key returns the original response; reusing the key with a different
+          body returns 409.
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
       - description: Create top-up payload
         in: body
         name: request
@@ -1274,7 +1439,7 @@ paths:
                   $ref: '#/definitions/app_modules_wallet_handlers.TopupResponse'
               type: object
         "400":
-          description: Bad Request
+          description: validation_error or idempotency_key_required
           schema:
             allOf:
             - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
@@ -1293,6 +1458,15 @@ paths:
               type: object
         "403":
           description: Forbidden
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "409":
+          description: idempotency_key_conflict or idempotency_in_progress
           schema:
             allOf:
             - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
@@ -1525,8 +1699,7 @@ paths:
             - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
             - properties:
                 data:
-                  additionalProperties:
-                    type: string
+                  additionalProperties: true
                   type: object
               type: object
       security:

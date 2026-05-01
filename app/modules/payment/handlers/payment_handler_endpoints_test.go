@@ -12,8 +12,8 @@ import (
 	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
 	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
 	serviceMocks "payment-sandbox/app/modules/payment/services/mocks"
-	journeylog "payment-sandbox/app/shared/journeylog"
-	journeyMocks "payment-sandbox/app/shared/journeylog/mocks"
+	"payment-sandbox/app/shared/audit"
+	auditMocks "payment-sandbox/app/shared/audit/mocks"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +52,7 @@ func TestPaymentHandler_PublicInvoice(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			service := serviceMocks.NewMockIPaymentService(t)
-			logger := journeyMocks.NewMockIJourneyLogger(t)
+			logger := auditMocks.NewMockIAuditLogger(t)
 			tc.setupMocks(service)
 
 			handler := NewPaymentHandler(service, logger)
@@ -86,7 +86,7 @@ func TestPaymentHandler_ListPaymentIntents(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	service := serviceMocks.NewMockIPaymentService(t)
-	logger := journeyMocks.NewMockIJourneyLogger(t)
+	logger := auditMocks.NewMockIAuditLogger(t)
 
 	intent := paymentEntity.PaymentIntent{ID: "pi-1", InvoiceID: "inv-1"}
 	invoice := invoiceEntity.Invoice{ID: "inv-1", Amount: 50000.0}
@@ -117,7 +117,7 @@ func TestPaymentHandler_UpdatePaymentIntentStatus(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		setupMocks func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger)
+		setupMocks func(service *serviceMocks.MockIPaymentService, logger *auditMocks.MockIAuditLogger)
 		wantStatus int
 		wantCode   string
 		wantID     string
@@ -125,7 +125,7 @@ func TestPaymentHandler_UpdatePaymentIntentStatus(t *testing.T) {
 		{
 			name: "validation error",
 			body: `{"status":""}`,
-			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *auditMocks.MockIAuditLogger) {
 				service.AssertNotCalled(t, "UpdatePaymentIntentStatus")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -135,14 +135,15 @@ func TestPaymentHandler_UpdatePaymentIntentStatus(t *testing.T) {
 		{
 			name: "service error and logger failure",
 			body: `{"status":"FAILED"}`,
-			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *auditMocks.MockIAuditLogger) {
 				service.EXPECT().
 					UpdatePaymentIntentStatus("pi-1", "FAILED").
 					Return(paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, errors.New("invalid transition"))
 				logger.EXPECT().Log(
 					mock.Anything,
-					mock.MatchedBy(func(event journeylog.Event) bool {
-						return event.Module == "payment" && event.Action == "PAYMENT_INTENT_STATUS_UPDATE" && event.Result == "FAILED"
+					mock.MatchedBy(func(event audit.Event) bool {
+						result, _ := event.Metadata["result"].(string)
+						return event.EventType == "payment.status_updated" && result == "FAILED"
 					}),
 				).Return(errors.New("mongo write failed"))
 			},
@@ -152,14 +153,15 @@ func TestPaymentHandler_UpdatePaymentIntentStatus(t *testing.T) {
 		{
 			name: "success and logger failure",
 			body: `{"status":"FAILED"}`,
-			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *journeyMocks.MockIJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIPaymentService, logger *auditMocks.MockIAuditLogger) {
 				service.EXPECT().
 					UpdatePaymentIntentStatus("pi-1", "FAILED").
 					Return(paymentEntity.PaymentIntent{ID: "pi-1", Status: paymentEntity.PaymentFailed}, invoiceEntity.Invoice{ID: "inv-1"}, nil)
 				logger.EXPECT().Log(
 					mock.Anything,
-					mock.MatchedBy(func(event journeylog.Event) bool {
-						return event.Module == "payment" && event.Action == "PAYMENT_INTENT_STATUS_UPDATE" && event.Result == "SUCCESS"
+					mock.MatchedBy(func(event audit.Event) bool {
+						result, _ := event.Metadata["result"].(string)
+						return event.EventType == "payment.status_updated" && result == "SUCCESS"
 					}),
 				).Return(errors.New("mongo write failed"))
 			},
@@ -171,7 +173,7 @@ func TestPaymentHandler_UpdatePaymentIntentStatus(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			service := serviceMocks.NewMockIPaymentService(t)
-			logger := journeyMocks.NewMockIJourneyLogger(t)
+			logger := auditMocks.NewMockIAuditLogger(t)
 			tc.setupMocks(service, logger)
 
 			handler := NewPaymentHandler(service, logger)

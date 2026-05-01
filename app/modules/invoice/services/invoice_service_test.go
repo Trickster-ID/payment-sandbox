@@ -20,7 +20,7 @@ func TestInvoiceService_CreateInvoice(t *testing.T) {
 		name  string
 		input struct {
 			userID, customerName, customerEmail, description, dueDate string
-			amount                                                    float64
+			amount                                                    int64
 		}
 		setupMocks func(repo *repoMocks.MockIInvoiceRepository)
 		wantID     string
@@ -30,7 +30,7 @@ func TestInvoiceService_CreateInvoice(t *testing.T) {
 			name: "merchant lookup failed",
 			input: struct {
 				userID, customerName, customerEmail, description, dueDate string
-				amount                                                    float64
+				amount                                                    int64
 			}{
 				userID:        "user-1",
 				customerName:  "Alice",
@@ -48,7 +48,7 @@ func TestInvoiceService_CreateInvoice(t *testing.T) {
 			name: "invalid due date format",
 			input: struct {
 				userID, customerName, customerEmail, description, dueDate string
-				amount                                                    float64
+				amount                                                    int64
 			}{
 				userID:        "user-1",
 				customerName:  "Alice",
@@ -66,7 +66,7 @@ func TestInvoiceService_CreateInvoice(t *testing.T) {
 			name: "invalid customer email",
 			input: struct {
 				userID, customerName, customerEmail, description, dueDate string
-				amount                                                    float64
+				amount                                                    int64
 			}{
 				userID:        "user-1",
 				customerName:  "Alice",
@@ -84,7 +84,7 @@ func TestInvoiceService_CreateInvoice(t *testing.T) {
 			name: "success",
 			input: struct {
 				userID, customerName, customerEmail, description, dueDate string
-				amount                                                    float64
+				amount                                                    int64
 			}{
 				userID:        "user-1",
 				customerName:  "Alice",
@@ -96,7 +96,7 @@ func TestInvoiceService_CreateInvoice(t *testing.T) {
 			setupMocks: func(repo *repoMocks.MockIInvoiceRepository) {
 				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
 				repo.EXPECT().
-					CreateInvoice("merchant-1", "Alice", "alice@example.com", 10000.0, "invoice 1", dueDate).
+					CreateInvoice("merchant-1", "Alice", "alice@example.com", int64(10000), "invoice 1", dueDate).
 					Return(invoiceEntity.Invoice{ID: "inv-1"}, nil)
 			},
 			wantID: "inv-1",

@@ -16,7 +16,7 @@ type Invoice struct {
 	InvoiceNumber    string        `json:"invoice_number"`
 	CustomerName     string        `json:"customer_name"`
 	CustomerEmail    string        `json:"customer_email"`
-	Amount           float64       `json:"amount"`
+	Amount           int64         `json:"amount"`
 	Description      string        `json:"description"`
 	DueDate          time.Time     `json:"due_date"`
 	Status           InvoiceStatus `json:"status"`

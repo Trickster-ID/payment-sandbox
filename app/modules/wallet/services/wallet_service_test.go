@@ -56,7 +56,7 @@ func TestWalletService_CreateTopup(t *testing.T) {
 	tests := []struct {
 		name       string
 		userID     string
-		amount     float64
+		amount     int64
 		setupMocks func(repo *repoMocks.MockIWalletRepository)
 		wantID     string
 		wantErr    string
@@ -76,7 +76,7 @@ func TestWalletService_CreateTopup(t *testing.T) {
 			amount: 10000,
 			setupMocks: func(repo *repoMocks.MockIWalletRepository) {
 				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
-				repo.EXPECT().CreateTopup("merchant-1", 10000.0).Return(walletEntity.Topup{ID: "topup-1"}, nil)
+				repo.EXPECT().CreateTopup("merchant-1", int64(10000)).Return(walletEntity.Topup{ID: "topup-1"}, nil)
 			},
 			wantID: "topup-1",
 		},
@@ -86,7 +86,7 @@ func TestWalletService_CreateTopup(t *testing.T) {
 			amount: 10000,
 			setupMocks: func(repo *repoMocks.MockIWalletRepository) {
 				repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
-				repo.EXPECT().CreateTopup("merchant-1", 10000.0).Return(walletEntity.Topup{}, errors.New("db error"))
+				repo.EXPECT().CreateTopup("merchant-1", int64(10000)).Return(walletEntity.Topup{}, errors.New("db error"))
 			},
 			wantErr: "db error",
 		},

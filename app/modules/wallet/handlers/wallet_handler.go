@@ -4,24 +4,24 @@ import (
 	"payment-sandbox/app/middleware"
 	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
 	walletServices "payment-sandbox/app/modules/wallet/services"
+	"payment-sandbox/app/shared/audit"
 	appErrors "payment-sandbox/app/shared/errors"
-	"payment-sandbox/app/shared/journeylog"
 	"payment-sandbox/app/shared/response"
 
 	"github.com/gin-gonic/gin"
 )
 
 type WalletHandler struct {
-	service       walletServices.IWalletService
-	journeyLogger journeylog.IJourneyLogger
+	service      walletServices.IWalletService
+	auditLogger  audit.IAuditLogger
 }
 
-func NewWalletHandler(service walletServices.IWalletService, journeyLogger journeylog.IJourneyLogger) *WalletHandler {
-	return &WalletHandler{service: service, journeyLogger: journeyLogger}
+func NewWalletHandler(service walletServices.IWalletService, auditLogger audit.IAuditLogger) *WalletHandler {
+	return &WalletHandler{service: service, auditLogger: auditLogger}
 }
 
 type CreateTopupRequest struct {
-	Amount float64 `json:"amount" binding:"required,gt=0" example:"500000"`
+	Amount int64 `json:"amount" binding:"required,gt=0" example:"500000"`
 }
 
 type UpdateTopupStatusRequest struct {
@@ -61,16 +61,18 @@ func (h *WalletHandler) Wallet(c *gin.Context) {
 
 // CreateTopup godoc
 // @Summary Create top-up request
-// @Description Merchant creates top-up request with pending status
+// @Description Merchant creates top-up request with pending status. Requires Idempotency-Key header to safely retry on network failure.
 // @Tags wallet
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Param Idempotency-Key header string true "Unique key per logical request (UUID recommended). Replaying the same key returns the original response; reusing the key with a different body returns 409."
 // @Param request body CreateTopupRequest true "Create top-up payload"
 // @Success 201 {object} response.Envelope{data=handlers.TopupResponse}
-// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload} "validation_error or idempotency_key_required"
 // @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
 // @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 409 {object} response.Envelope{error=response.ErrorPayload} "idempotency_key_conflict or idempotency_in_progress"
 // @Router /merchant/topups [post]
 func (h *WalletHandler) CreateTopup(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
@@ -86,39 +88,35 @@ func (h *WalletHandler) CreateTopup(c *gin.Context) {
 
 	topup, err := h.service.CreateTopup(userID, req.Amount)
 	if err != nil {
-		actorID, actorRole := journeylog.ActorFromContext(c)
-		journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-			RequestID:    journeylog.RequestIDFromContext(c),
-			ActorID:      actorID,
-			ActorRole:    actorRole,
-			Module:       "wallet",
-			EntityType:   "topup",
-			Action:       "TOPUP_CREATE",
-			Result:       "FAILED",
-			ErrorCode:    "topup_create_failed",
-			ErrorMessage: err.Error(),
+		actorID, actorType := audit.ActorFromContext(c)
+		audit.LogBestEffort(c, h.auditLogger, audit.Event{
+			RequestID: audit.RequestIDFromContext(c),
+			ActorID:   actorID,
+			ActorType: actorType,
+			EventType: "topup.created",
 			Metadata: map[string]any{
-				"amount": req.Amount,
+				"amount":        req.Amount,
+				"result":        "FAILED",
+				"error_code":    "topup_create_failed",
+				"error_message": err.Error(),
 			},
 		})
 		response.Fail(c, appErrors.BadRequest("topup_create_failed", err.Error(), nil))
 		return
 	}
 
-	actorID, actorRole := journeylog.ActorFromContext(c)
-	journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-		RequestID:  journeylog.RequestIDFromContext(c),
-		JourneyID:  topup.ID,
+	actorID, actorType := audit.ActorFromContext(c)
+	audit.LogBestEffort(c, h.auditLogger, audit.Event{
+		RequestID:  audit.RequestIDFromContext(c),
 		ActorID:    actorID,
-		ActorRole:  actorRole,
-		Module:     "wallet",
-		EntityType: "topup",
-		EntityID:   topup.ID,
-		Action:     "TOPUP_CREATE",
-		ToStatus:   string(topup.Status),
-		Result:     "SUCCESS",
+		ActorType:  actorType,
+		EventType:  "topup.created",
+		ResourceID: topup.ID,
 		Metadata: map[string]any{
-			"amount": topup.Amount,
+			"amount":     topup.Amount,
+			"to_status":  string(topup.Status),
+			"result":     "SUCCESS",
+			"journey_id": topup.ID,
 		},
 	})
 	response.Created(c, topup)
@@ -160,37 +158,37 @@ func (h *WalletHandler) UpdateTopupStatus(c *gin.Context) {
 	}
 	topup, err := h.service.UpdateTopupStatus(c.Param("id"), req.Status)
 	if err != nil {
-		actorID, actorRole := journeylog.ActorFromContext(c)
-		journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-			RequestID:    journeylog.RequestIDFromContext(c),
-			JourneyID:    c.Param("id"),
-			ActorID:      actorID,
-			ActorRole:    actorRole,
-			Module:       "wallet",
-			EntityType:   "topup",
-			EntityID:     c.Param("id"),
-			Action:       "TOPUP_STATUS_UPDATE",
-			ToStatus:     req.Status,
-			Result:       "FAILED",
-			ErrorCode:    "topup_update_failed",
-			ErrorMessage: err.Error(),
+		actorID, actorType := audit.ActorFromContext(c)
+		audit.LogBestEffort(c, h.auditLogger, audit.Event{
+			RequestID:  audit.RequestIDFromContext(c),
+			ActorID:    actorID,
+			ActorType:  actorType,
+			EventType:  "topup.status_updated",
+			ResourceID: c.Param("id"),
+			Metadata: map[string]any{
+				"to_status":     req.Status,
+				"result":        "FAILED",
+				"error_code":    "topup_update_failed",
+				"error_message": err.Error(),
+				"journey_id":    c.Param("id"),
+			},
 		})
 		response.Fail(c, appErrors.BadRequest("topup_update_failed", err.Error(), nil))
 		return
 	}
 
-	actorID, actorRole := journeylog.ActorFromContext(c)
-	journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-		RequestID:  journeylog.RequestIDFromContext(c),
-		JourneyID:  topup.ID,
+	actorID, actorType := audit.ActorFromContext(c)
+	audit.LogBestEffort(c, h.auditLogger, audit.Event{
+		RequestID:  audit.RequestIDFromContext(c),
 		ActorID:    actorID,
-		ActorRole:  actorRole,
-		Module:     "wallet",
-		EntityType: "topup",
-		EntityID:   topup.ID,
-		Action:     "TOPUP_STATUS_UPDATE",
-		ToStatus:   string(topup.Status),
-		Result:     "SUCCESS",
+		ActorType:  actorType,
+		EventType:  "topup.status_updated",
+		ResourceID: topup.ID,
+		Metadata: map[string]any{
+			"to_status":  string(topup.Status),
+			"result":     "SUCCESS",
+			"journey_id": topup.ID,
+		},
 	})
 	response.OK(c, topup)
 }

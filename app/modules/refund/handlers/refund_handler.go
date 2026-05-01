@@ -5,20 +5,20 @@ import (
 	refundEntity "payment-sandbox/app/modules/refund/models/entity"
 	"payment-sandbox/app/modules/refund/services"
 	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
+	"payment-sandbox/app/shared/audit"
 	appErrors "payment-sandbox/app/shared/errors"
-	"payment-sandbox/app/shared/journeylog"
 	"payment-sandbox/app/shared/response"
 
 	"github.com/gin-gonic/gin"
 )
 
 type RefundHandler struct {
-	service       services.IRefundService
-	journeyLogger journeylog.IJourneyLogger
+	service     services.IRefundService
+	auditLogger audit.IAuditLogger
 }
 
-func NewRefundHandler(service services.IRefundService, journeyLogger journeylog.IJourneyLogger) *RefundHandler {
-	return &RefundHandler{service: service, journeyLogger: journeyLogger}
+func NewRefundHandler(service services.IRefundService, auditLogger audit.IAuditLogger) *RefundHandler {
+	return &RefundHandler{service: service, auditLogger: auditLogger}
 }
 
 type CreateRefundRequest struct {
@@ -45,16 +45,18 @@ type RefundListResponse []refundEntity.Refund
 
 // RequestRefund godoc
 // @Summary Request refund
-// @Description Merchant requests refund for successful payment intent
+// @Description Merchant requests refund for successful payment intent. Requires Idempotency-Key header to safely retry on network failure.
 // @Tags refund
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Param Idempotency-Key header string true "Unique key per logical request (UUID recommended). Replaying the same key returns the original response; reusing the key with a different body returns 409."
 // @Param request body CreateRefundRequest true "Refund request payload"
 // @Success 201 {object} response.Envelope{data=handlers.RefundResponse}
-// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload} "validation_error or idempotency_key_required"
 // @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
 // @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 409 {object} response.Envelope{error=response.ErrorPayload} "idempotency_key_conflict or idempotency_in_progress"
 // @Router /merchant/refunds [post]
 func (h *RefundHandler) RequestRefund(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
@@ -70,36 +72,34 @@ func (h *RefundHandler) RequestRefund(c *gin.Context) {
 
 	refund, err := h.service.RequestRefund(userID, req.InvoiceID, req.Reason)
 	if err != nil {
-		actorID, actorRole := journeylog.ActorFromContext(c)
-		journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-			RequestID:    journeylog.RequestIDFromContext(c),
-			ActorID:      actorID,
-			ActorRole:    actorRole,
-			Module:       "refund",
-			EntityType:   "refund",
-			Action:       "REFUND_REQUEST",
-			Result:       "FAILED",
-			ErrorCode:    "refund_request_failed",
-			ErrorMessage: err.Error(),
+		actorID, actorType := audit.ActorFromContext(c)
+		audit.LogBestEffort(c, h.auditLogger, audit.Event{
+			RequestID: audit.RequestIDFromContext(c),
+			ActorID:   actorID,
+			ActorType: actorType,
+			EventType: "refund.requested",
+			Metadata: map[string]any{
+				"result":        "FAILED",
+				"error_code":    "refund_request_failed",
+				"error_message": err.Error(),
+			},
 		})
 		response.Fail(c, appErrors.BadRequest("refund_request_failed", err.Error(), nil))
 		return
 	}
 
-	actorID, actorRole := journeylog.ActorFromContext(c)
-	journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-		RequestID:  journeylog.RequestIDFromContext(c),
-		JourneyID:  refund.ID,
+	actorID, actorType := audit.ActorFromContext(c)
+	audit.LogBestEffort(c, h.auditLogger, audit.Event{
+		RequestID:  audit.RequestIDFromContext(c),
 		ActorID:    actorID,
-		ActorRole:  actorRole,
-		Module:     "refund",
-		EntityType: "refund",
-		EntityID:   refund.ID,
-		Action:     "REFUND_REQUEST",
-		ToStatus:   string(refund.Status),
-		Result:     "SUCCESS",
+		ActorType:  actorType,
+		EventType:  "refund.requested",
+		ResourceID: refund.ID,
 		Metadata: map[string]any{
 			"payment_intent_id": refund.PaymentIntentID,
+			"to_status":         string(refund.Status),
+			"result":            "SUCCESS",
+			"journey_id":        refund.ID,
 		},
 	})
 	response.Created(c, refund)
@@ -161,37 +161,37 @@ func (h *RefundHandler) ReviewRefund(c *gin.Context) {
 	}
 	refund, err := h.service.ReviewRefund(c.Param("id"), req.Decision)
 	if err != nil {
-		actorID, actorRole := journeylog.ActorFromContext(c)
-		journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-			RequestID:    journeylog.RequestIDFromContext(c),
-			JourneyID:    c.Param("id"),
-			ActorID:      actorID,
-			ActorRole:    actorRole,
-			Module:       "refund",
-			EntityType:   "refund",
-			EntityID:     c.Param("id"),
-			Action:       "REFUND_REVIEW",
-			ToStatus:     req.Decision,
-			Result:       "FAILED",
-			ErrorCode:    "refund_review_failed",
-			ErrorMessage: err.Error(),
+		actorID, actorType := audit.ActorFromContext(c)
+		audit.LogBestEffort(c, h.auditLogger, audit.Event{
+			RequestID:  audit.RequestIDFromContext(c),
+			ActorID:    actorID,
+			ActorType:  actorType,
+			EventType:  "refund.reviewed",
+			ResourceID: c.Param("id"),
+			Metadata: map[string]any{
+				"decision":      req.Decision,
+				"result":        "FAILED",
+				"error_code":    "refund_review_failed",
+				"error_message": err.Error(),
+				"journey_id":    c.Param("id"),
+			},
 		})
 		response.Fail(c, appErrors.BadRequest("refund_review_failed", err.Error(), nil))
 		return
 	}
 
-	actorID, actorRole := journeylog.ActorFromContext(c)
-	journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-		RequestID:  journeylog.RequestIDFromContext(c),
-		JourneyID:  refund.ID,
+	actorID, actorType := audit.ActorFromContext(c)
+	audit.LogBestEffort(c, h.auditLogger, audit.Event{
+		RequestID:  audit.RequestIDFromContext(c),
 		ActorID:    actorID,
-		ActorRole:  actorRole,
-		Module:     "refund",
-		EntityType: "refund",
-		EntityID:   refund.ID,
-		Action:     "REFUND_REVIEW",
-		ToStatus:   string(refund.Status),
-		Result:     "SUCCESS",
+		ActorType:  actorType,
+		EventType:  "refund.reviewed",
+		ResourceID: refund.ID,
+		Metadata: map[string]any{
+			"to_status":  string(refund.Status),
+			"result":     "SUCCESS",
+			"journey_id": refund.ID,
+		},
 	})
 	response.OK(c, refund)
 }
@@ -218,39 +218,37 @@ func (h *RefundHandler) ProcessRefund(c *gin.Context) {
 	}
 	refund, merchant, err := h.service.ProcessRefund(c.Param("id"), req.Status)
 	if err != nil {
-		actorID, actorRole := journeylog.ActorFromContext(c)
-		journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-			RequestID:    journeylog.RequestIDFromContext(c),
-			JourneyID:    c.Param("id"),
-			ActorID:      actorID,
-			ActorRole:    actorRole,
-			Module:       "refund",
-			EntityType:   "refund",
-			EntityID:     c.Param("id"),
-			Action:       "REFUND_PROCESS",
-			ToStatus:     req.Status,
-			Result:       "FAILED",
-			ErrorCode:    "refund_process_failed",
-			ErrorMessage: err.Error(),
+		actorID, actorType := audit.ActorFromContext(c)
+		audit.LogBestEffort(c, h.auditLogger, audit.Event{
+			RequestID:  audit.RequestIDFromContext(c),
+			ActorID:    actorID,
+			ActorType:  actorType,
+			EventType:  "refund.processed",
+			ResourceID: c.Param("id"),
+			Metadata: map[string]any{
+				"to_status":     req.Status,
+				"result":        "FAILED",
+				"error_code":    "refund_process_failed",
+				"error_message": err.Error(),
+				"journey_id":    c.Param("id"),
+			},
 		})
 		response.Fail(c, appErrors.BadRequest("refund_process_failed", err.Error(), nil))
 		return
 	}
 
-	actorID, actorRole := journeylog.ActorFromContext(c)
-	journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-		RequestID:  journeylog.RequestIDFromContext(c),
-		JourneyID:  refund.ID,
+	actorID, actorType := audit.ActorFromContext(c)
+	audit.LogBestEffort(c, h.auditLogger, audit.Event{
+		RequestID:  audit.RequestIDFromContext(c),
 		ActorID:    actorID,
-		ActorRole:  actorRole,
-		Module:     "refund",
-		EntityType: "refund",
-		EntityID:   refund.ID,
-		Action:     "REFUND_PROCESS",
-		ToStatus:   string(refund.Status),
-		Result:     "SUCCESS",
+		ActorType:  actorType,
+		EventType:  "refund.processed",
+		ResourceID: refund.ID,
 		Metadata: map[string]any{
 			"merchant_id": merchant.ID,
+			"to_status":   string(refund.Status),
+			"result":      "SUCCESS",
+			"journey_id":  refund.ID,
 		},
 	})
 	response.OK(c, gin.H{"refund": refund, "merchant": merchant})

@@ -22,7 +22,7 @@ func (_m *MockIWalletService) EXPECT() *MockIWalletService_Expecter {
 }
 
 // CreateTopup provides a mock function with given fields: userID, amount
-func (_m *MockIWalletService) CreateTopup(userID string, amount float64) (entity.Topup, error) {
+func (_m *MockIWalletService) CreateTopup(userID string, amount int64) (entity.Topup, error) {
 	ret := _m.Called(userID, amount)
 
 	if len(ret) == 0 {
@@ -31,16 +31,16 @@ func (_m *MockIWalletService) CreateTopup(userID string, amount float64) (entity
 
 	var r0 entity.Topup
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, float64) (entity.Topup, error)); ok {
+	if rf, ok := ret.Get(0).(func(string, int64) (entity.Topup, error)); ok {
 		return rf(userID, amount)
 	}
-	if rf, ok := ret.Get(0).(func(string, float64) entity.Topup); ok {
+	if rf, ok := ret.Get(0).(func(string, int64) entity.Topup); ok {
 		r0 = rf(userID, amount)
 	} else {
 		r0 = ret.Get(0).(entity.Topup)
 	}
 
-	if rf, ok := ret.Get(1).(func(string, float64) error); ok {
+	if rf, ok := ret.Get(1).(func(string, int64) error); ok {
 		r1 = rf(userID, amount)
 	} else {
 		r1 = ret.Error(1)
@@ -56,14 +56,14 @@ type MockIWalletService_CreateTopup_Call struct {
 
 // CreateTopup is a helper method to define mock.On call
 //   - userID string
-//   - amount float64
+//   - amount int64
 func (_e *MockIWalletService_Expecter) CreateTopup(userID interface{}, amount interface{}) *MockIWalletService_CreateTopup_Call {
 	return &MockIWalletService_CreateTopup_Call{Call: _e.mock.On("CreateTopup", userID, amount)}
 }
 
-func (_c *MockIWalletService_CreateTopup_Call) Run(run func(userID string, amount float64)) *MockIWalletService_CreateTopup_Call {
+func (_c *MockIWalletService_CreateTopup_Call) Run(run func(userID string, amount int64)) *MockIWalletService_CreateTopup_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(float64))
+		run(args[0].(string), args[1].(int64))
 	})
 	return _c
 }
@@ -73,7 +73,7 @@ func (_c *MockIWalletService_CreateTopup_Call) Return(_a0 entity.Topup, _a1 erro
 	return _c
 }
 
-func (_c *MockIWalletService_CreateTopup_Call) RunAndReturn(run func(string, float64) (entity.Topup, error)) *MockIWalletService_CreateTopup_Call {
+func (_c *MockIWalletService_CreateTopup_Call) RunAndReturn(run func(string, int64) (entity.Topup, error)) *MockIWalletService_CreateTopup_Call {
 	_c.Call.Return(run)
 	return _c
 }

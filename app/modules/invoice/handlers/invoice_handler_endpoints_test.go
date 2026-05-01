@@ -10,7 +10,7 @@ import (
 	"payment-sandbox/app/middleware"
 	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
 	serviceMocks "payment-sandbox/app/modules/invoice/services/mocks"
-	journeyMocks "payment-sandbox/app/shared/journeylog/mocks"
+	auditMocks "payment-sandbox/app/shared/audit/mocks"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -62,7 +62,7 @@ func TestInvoiceHandler_ListInvoices(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			service := serviceMocks.NewMockIInvoiceService(t)
-			logger := journeyMocks.NewMockIJourneyLogger(t)
+			logger := auditMocks.NewMockIAuditLogger(t)
 			tc.setupMocks(service)
 
 			handler := NewInvoiceHandler(service, logger)
@@ -138,7 +138,7 @@ func TestInvoiceHandler_GetInvoice(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			service := serviceMocks.NewMockIInvoiceService(t)
-			logger := journeyMocks.NewMockIJourneyLogger(t)
+			logger := auditMocks.NewMockIAuditLogger(t)
 			tc.setupMocks(service)
 
 			handler := NewInvoiceHandler(service, logger)

@@ -22,7 +22,7 @@ func (_m *MockIInvoiceService) EXPECT() *MockIInvoiceService_Expecter {
 }
 
 // CreateInvoice provides a mock function with given fields: userID, customerName, customerEmail, amount, description, dueDate
-func (_m *MockIInvoiceService) CreateInvoice(userID string, customerName string, customerEmail string, amount float64, description string, dueDate string) (entity.Invoice, error) {
+func (_m *MockIInvoiceService) CreateInvoice(userID string, customerName string, customerEmail string, amount int64, description string, dueDate string) (entity.Invoice, error) {
 	ret := _m.Called(userID, customerName, customerEmail, amount, description, dueDate)
 
 	if len(ret) == 0 {
@@ -31,16 +31,16 @@ func (_m *MockIInvoiceService) CreateInvoice(userID string, customerName string,
 
 	var r0 entity.Invoice
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, string, string, float64, string, string) (entity.Invoice, error)); ok {
+	if rf, ok := ret.Get(0).(func(string, string, string, int64, string, string) (entity.Invoice, error)); ok {
 		return rf(userID, customerName, customerEmail, amount, description, dueDate)
 	}
-	if rf, ok := ret.Get(0).(func(string, string, string, float64, string, string) entity.Invoice); ok {
+	if rf, ok := ret.Get(0).(func(string, string, string, int64, string, string) entity.Invoice); ok {
 		r0 = rf(userID, customerName, customerEmail, amount, description, dueDate)
 	} else {
 		r0 = ret.Get(0).(entity.Invoice)
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string, string, float64, string, string) error); ok {
+	if rf, ok := ret.Get(1).(func(string, string, string, int64, string, string) error); ok {
 		r1 = rf(userID, customerName, customerEmail, amount, description, dueDate)
 	} else {
 		r1 = ret.Error(1)
@@ -58,16 +58,16 @@ type MockIInvoiceService_CreateInvoice_Call struct {
 //   - userID string
 //   - customerName string
 //   - customerEmail string
-//   - amount float64
+//   - amount int64
 //   - description string
 //   - dueDate string
 func (_e *MockIInvoiceService_Expecter) CreateInvoice(userID interface{}, customerName interface{}, customerEmail interface{}, amount interface{}, description interface{}, dueDate interface{}) *MockIInvoiceService_CreateInvoice_Call {
 	return &MockIInvoiceService_CreateInvoice_Call{Call: _e.mock.On("CreateInvoice", userID, customerName, customerEmail, amount, description, dueDate)}
 }
 
-func (_c *MockIInvoiceService_CreateInvoice_Call) Run(run func(userID string, customerName string, customerEmail string, amount float64, description string, dueDate string)) *MockIInvoiceService_CreateInvoice_Call {
+func (_c *MockIInvoiceService_CreateInvoice_Call) Run(run func(userID string, customerName string, customerEmail string, amount int64, description string, dueDate string)) *MockIInvoiceService_CreateInvoice_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string), args[2].(string), args[3].(float64), args[4].(string), args[5].(string))
+		run(args[0].(string), args[1].(string), args[2].(string), args[3].(int64), args[4].(string), args[5].(string))
 	})
 	return _c
 }
@@ -77,7 +77,7 @@ func (_c *MockIInvoiceService_CreateInvoice_Call) Return(_a0 entity.Invoice, _a1
 	return _c
 }
 
-func (_c *MockIInvoiceService_CreateInvoice_Call) RunAndReturn(run func(string, string, string, float64, string, string) (entity.Invoice, error)) *MockIInvoiceService_CreateInvoice_Call {
+func (_c *MockIInvoiceService_CreateInvoice_Call) RunAndReturn(run func(string, string, string, int64, string, string) (entity.Invoice, error)) *MockIInvoiceService_CreateInvoice_Call {
 	_c.Call.Return(run)
 	return _c
 }

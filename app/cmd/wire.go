@@ -14,7 +14,10 @@ import (
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
 	invoiceRepo "payment-sandbox/app/modules/invoice/repositories"
 	invoiceSvc "payment-sandbox/app/modules/invoice/services"
+	ledgerHandlers "payment-sandbox/app/modules/ledger/handlers"
+	ledgerRepo "payment-sandbox/app/modules/ledger/repositories"
 	oauth2Handlers "payment-sandbox/app/modules/oauth2/handlers"
+	sagaSvc "payment-sandbox/app/modules/saga/services"
 	oauth2Repo "payment-sandbox/app/modules/oauth2/repositories"
 	oauth2Svc "payment-sandbox/app/modules/oauth2/services"
 	paymentHandlers "payment-sandbox/app/modules/payment/handlers"
@@ -35,15 +38,21 @@ func initApp() (*App, error) {
 	wire.Build(
 		config.Load,
 		database.New,
+		database.NewMongoDB,
+		database.NewRedis,
+		provideAuditLogger,
+		provideIdempotencyMiddleware,
 		provideUserRepository,
-		provideJourneyLogger,
 		wire.Bind(new(usersRepo.IUserRepository), new(*usersRepo.UserRepository)),
 		adminRepo.NewAdminRepository,
 		wire.Bind(new(adminRepo.IAdminRepository), new(*adminRepo.AdminRepository)),
+		ledgerRepo.NewRepository,
+		wire.Bind(new(ledgerRepo.IRepository), new(*ledgerRepo.Repository)),
 		walletRepo.NewWalletRepository,
 		wire.Bind(new(walletRepo.IWalletRepository), new(*walletRepo.WalletRepository)),
 		invoiceRepo.NewInvoiceRepository,
 		wire.Bind(new(invoiceRepo.IInvoiceRepository), new(*invoiceRepo.InvoiceRepository)),
+		sagaSvc.NewOrchestrator,
 		paymentRepo.NewPaymentRepository,
 		wire.Bind(new(paymentRepo.IPaymentRepository), new(*paymentRepo.PaymentRepository)),
 		refundRepo.NewRefundRepository,
@@ -71,6 +80,7 @@ func initApp() (*App, error) {
 		oauth2Svc.NewOAuth2Service,
 		wire.Bind(new(oauth2Svc.IOAuth2Service), new(*oauth2Svc.OAuth2Service)),
 		oauth2Handlers.NewOAuth2Handler,
+		ledgerHandlers.NewLedgerHandler,
 		newRouter,
 		newApp,
 	)

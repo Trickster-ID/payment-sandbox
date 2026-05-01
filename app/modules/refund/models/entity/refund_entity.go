@@ -22,7 +22,7 @@ type Refund struct {
 	MerchantID      string       `json:"merchant_id"`
 	Reason          string       `json:"reason"`
 	Status          RefundStatus `json:"status"`
-	Amount          float64      `json:"amount"`
+	Amount          int64        `json:"amount"`
 	CreatedAt       time.Time    `json:"created_at"`
 	UpdatedAt       time.Time    `json:"updated_at"`
 	InvoiceNumber   *string      `json:"invoice_number,omitempty"`

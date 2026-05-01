@@ -11,6 +11,6 @@ type StatsFilter struct {
 type DashboardStats struct {
 	TotalInvoiceCreated int            `json:"total_invoice_created"`
 	TotalByStatus       map[string]int `json:"total_by_status"`
-	TotalPaymentNominal float64        `json:"total_payment_nominal"`
-	TotalRefundNominal  float64        `json:"total_refund_nominal"`
+	TotalPaymentNominal int64          `json:"total_payment_nominal"`
+	TotalRefundNominal  int64          `json:"total_refund_nominal"`
 }

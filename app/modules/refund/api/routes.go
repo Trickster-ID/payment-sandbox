@@ -2,12 +2,13 @@ package api
 
 import (
 	refundHandlers "payment-sandbox/app/modules/refund/handlers"
+	"payment-sandbox/app/shared/idempotency"
 
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterMerchantRoutes(merchant *gin.RouterGroup, handler *refundHandlers.RefundHandler) {
-	merchant.POST("/refunds", handler.RequestRefund)
+func RegisterMerchantRoutes(merchant *gin.RouterGroup, handler *refundHandlers.RefundHandler, idem *idempotency.Middleware) {
+	merchant.POST("/refunds", idem.Handle(), handler.RequestRefund)
 	merchant.GET("/refunds", handler.MerchantListRefunds)
 }
 

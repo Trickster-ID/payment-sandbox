@@ -1,11 +1,17 @@
 package repositories
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
+	ledgerEntity "payment-sandbox/app/modules/ledger/models/entity"
+	ledgerRepo "payment-sandbox/app/modules/ledger/repositories"
+	ledgerSvc "payment-sandbox/app/modules/ledger/services"
 	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
 	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
+
+	"github.com/google/uuid"
 )
 
 type IPaymentRepository interface {
@@ -17,11 +23,12 @@ type IPaymentRepository interface {
 }
 
 type PaymentRepository struct {
-	db *sql.DB
+	db         *sql.DB
+	ledgerRepo ledgerRepo.IRepository
 }
 
-func NewPaymentRepository(db *sql.DB) *PaymentRepository {
-	return &PaymentRepository{db: db}
+func NewPaymentRepository(db *sql.DB, ledger ledgerRepo.IRepository) *PaymentRepository {
+	return &PaymentRepository{db: db, ledgerRepo: ledger}
 }
 
 func (r *PaymentRepository) GetInvoiceByToken(token string) (invoiceEntity.Invoice, bool) {
@@ -29,7 +36,7 @@ func (r *PaymentRepository) GetInvoiceByToken(token string) (invoiceEntity.Invoi
 	var invoice invoiceEntity.Invoice
 	err := r.db.QueryRow(`
 		SELECT id::text, merchant_id::text, invoice_number, customer_name, customer_email,
-			amount::double precision, COALESCE(description, ''), due_date, status::text,
+			amount, COALESCE(description, ''), due_date, status::text,
 			payment_link_token, created_at, updated_at
 		FROM invoices
 		WHERE payment_link_token=$1 AND deleted_at IS NULL
@@ -51,7 +58,7 @@ func (r *PaymentRepository) CreatePaymentIntent(invoiceToken string, method paym
 	var invoice invoiceEntity.Invoice
 	if err := tx.QueryRow(`
 		SELECT id::text, merchant_id::text, invoice_number, customer_name, customer_email,
-			amount::double precision, COALESCE(description, ''), due_date, status::text,
+			amount, COALESCE(description, ''), due_date, status::text,
 			payment_link_token, created_at, updated_at
 		FROM invoices
 		WHERE payment_link_token=$1 AND deleted_at IS NULL
@@ -133,7 +140,7 @@ func (r *PaymentRepository) UpdatePaymentStatus(paymentID string, nextStatus pay
 	var invoice invoiceEntity.Invoice
 	if err := tx.QueryRow(`
 		SELECT id::text, merchant_id::text, invoice_number, customer_name, customer_email,
-			amount::double precision, COALESCE(description, ''), due_date, status::text,
+			amount, COALESCE(description, ''), due_date, status::text,
 			payment_link_token, created_at, updated_at
 		FROM invoices
 		WHERE id=$1 AND deleted_at IS NULL
@@ -155,6 +162,36 @@ func (r *PaymentRepository) UpdatePaymentStatus(paymentID string, nextStatus pay
 			return paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, err
 		}
 		invoice.Status = invoiceEntity.InvoicePaid
+
+		if r.ledgerRepo != nil {
+			merchantUUID, err := uuid.Parse(invoice.MerchantID)
+			if err != nil {
+				return paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, errors.New("invalid merchant id")
+			}
+			walletAcct, err := r.ledgerRepo.GetAccountByMerchantID(context.Background(), merchantUUID)
+			if err != nil {
+				return paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, errors.New("merchant ledger account not found")
+			}
+			posting := ledgerEntity.Posting{
+				Reference:   "payment_" + paymentID,
+				Description: "Payment settlement",
+				Entries: []ledgerEntity.Entry{
+					{AccountID: walletAcct.ID, Direction: ledgerEntity.Debit, Amount: invoice.Amount, Currency: "IDR"},
+					{AccountID: ledgerEntity.PendingPaymentsAccountID, Direction: ledgerEntity.Credit, Amount: invoice.Amount, Currency: "IDR"},
+				},
+			}
+			if err := ledgerSvc.ValidatePosting(posting); err != nil {
+				return paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, err
+			}
+			if _, err := r.ledgerRepo.Post(context.Background(), tx, posting); err != nil {
+				return paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, err
+			}
+			if _, err := tx.Exec(
+				`UPDATE merchants SET balance = (SELECT balance FROM accounts WHERE id=$1) WHERE id=$2 AND deleted_at IS NULL`,
+				walletAcct.ID, invoice.MerchantID); err != nil {
+				return paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, err
+			}
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -179,7 +216,7 @@ func (r *PaymentRepository) GetInvoiceByID(id string) (invoiceEntity.Invoice, bo
 	var invoice invoiceEntity.Invoice
 	err := r.db.QueryRow(`
 		SELECT id::text, merchant_id::text, invoice_number, customer_name, customer_email,
-			amount::double precision, COALESCE(description, ''), due_date, status::text,
+			amount, COALESCE(description, ''), due_date, status::text,
 			payment_link_token, created_at, updated_at
 		FROM invoices
 		WHERE id=$1 AND deleted_at IS NULL

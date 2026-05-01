@@ -4,20 +4,20 @@ import (
 	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
 	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
 	paymentServices "payment-sandbox/app/modules/payment/services"
+	"payment-sandbox/app/shared/audit"
 	appErrors "payment-sandbox/app/shared/errors"
-	"payment-sandbox/app/shared/journeylog"
 	"payment-sandbox/app/shared/response"
 
 	"github.com/gin-gonic/gin"
 )
 
 type PaymentHandler struct {
-	service       paymentServices.IPaymentService
-	journeyLogger journeylog.IJourneyLogger
+	service     paymentServices.IPaymentService
+	auditLogger audit.IAuditLogger
 }
 
-func NewPaymentHandler(service paymentServices.IPaymentService, journeyLogger journeylog.IJourneyLogger) *PaymentHandler {
-	return &PaymentHandler{service: service, journeyLogger: journeyLogger}
+func NewPaymentHandler(service paymentServices.IPaymentService, auditLogger audit.IAuditLogger) *PaymentHandler {
+	return &PaymentHandler{service: service, auditLogger: auditLogger}
 }
 
 type CreatePaymentIntentRequest struct {
@@ -36,13 +36,13 @@ type PaymentIntentCreateResponse struct {
 type PublicInvoiceResponse = invoiceEntity.Invoice
 
 type PaymentIntentWithAmount struct {
-	ID        string                `json:"id"`
-	InvoiceID string                `json:"invoice_id"`
+	ID        string                      `json:"id"`
+	InvoiceID string                      `json:"invoice_id"`
 	Method    paymentEntity.PaymentMethod `json:"method"`
 	Status    paymentEntity.PaymentStatus `json:"status"`
-	Amount    float64               `json:"amount"`
-	CreatedAt string                `json:"created_at"`
-	UpdatedAt string                `json:"updated_at"`
+	Amount    int64                       `json:"amount"`
+	CreatedAt string                      `json:"created_at"`
+	UpdatedAt string                      `json:"updated_at"`
 }
 
 type PaymentIntentListResponse []PaymentIntentWithAmount
@@ -90,38 +90,36 @@ func (h *PaymentHandler) CreatePaymentIntent(c *gin.Context) {
 
 	intent, invoice, err := h.service.CreatePaymentIntent(c.Param("token"), req.Method)
 	if err != nil {
-		actorID, actorRole := journeylog.ActorFromContext(c)
-		journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-			RequestID:    journeylog.RequestIDFromContext(c),
-			ActorID:      actorID,
-			ActorRole:    actorRole,
-			Module:       "payment",
-			EntityType:   "payment_intent",
-			Action:       "PAYMENT_INTENT_CREATE",
-			ToStatus:     req.Method,
-			Result:       "FAILED",
-			ErrorCode:    "payment_intent_create_failed",
-			ErrorMessage: err.Error(),
+		actorID, actorType := audit.ActorFromContext(c)
+		audit.LogBestEffort(c, h.auditLogger, audit.Event{
+			RequestID: audit.RequestIDFromContext(c),
+			ActorID:   actorID,
+			ActorType: actorType,
+			EventType: "payment.intent_created",
+			Metadata: map[string]any{
+				"method":        req.Method,
+				"result":        "FAILED",
+				"error_code":    "payment_intent_create_failed",
+				"error_message": err.Error(),
+			},
 		})
 		response.Fail(c, appErrors.BadRequest("payment_intent_create_failed", err.Error(), nil))
 		return
 	}
 
-	actorID, actorRole := journeylog.ActorFromContext(c)
-	journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-		RequestID:  journeylog.RequestIDFromContext(c),
-		JourneyID:  invoice.ID,
+	actorID, actorType := audit.ActorFromContext(c)
+	audit.LogBestEffort(c, h.auditLogger, audit.Event{
+		RequestID:  audit.RequestIDFromContext(c),
 		ActorID:    actorID,
-		ActorRole:  actorRole,
-		Module:     "payment",
-		EntityType: "payment_intent",
-		EntityID:   intent.ID,
-		Action:     "PAYMENT_INTENT_CREATE",
-		ToStatus:   string(intent.Status),
-		Result:     "SUCCESS",
+		ActorType:  actorType,
+		EventType:  "payment.intent_created",
+		ResourceID: intent.ID,
 		Metadata: map[string]any{
 			"invoice_id": invoice.ID,
-			"method":     intent.Method,
+			"method":     string(intent.Method),
+			"to_status":  string(intent.Status),
+			"result":     "SUCCESS",
+			"journey_id": invoice.ID,
 		},
 	})
 	response.Created(c, gin.H{"payment_intent": intent, "invoice": invoice})
@@ -145,7 +143,7 @@ func (h *PaymentHandler) ListPaymentIntents(c *gin.Context) {
 	result := make(PaymentIntentListResponse, len(intents))
 	for i, intent := range intents {
 		invoice, err := h.service.GetInvoiceByID(intent.InvoiceID)
-		amount := 0.0
+		var amount int64
 		if err == nil {
 			amount = invoice.Amount
 		}
@@ -187,39 +185,37 @@ func (h *PaymentHandler) UpdatePaymentIntentStatus(c *gin.Context) {
 
 	intent, invoice, err := h.service.UpdatePaymentIntentStatus(c.Param("id"), req.Status)
 	if err != nil {
-		actorID, actorRole := journeylog.ActorFromContext(c)
-		journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-			RequestID:    journeylog.RequestIDFromContext(c),
-			JourneyID:    c.Param("id"),
-			ActorID:      actorID,
-			ActorRole:    actorRole,
-			Module:       "payment",
-			EntityType:   "payment_intent",
-			EntityID:     c.Param("id"),
-			Action:       "PAYMENT_INTENT_STATUS_UPDATE",
-			ToStatus:     req.Status,
-			Result:       "FAILED",
-			ErrorCode:    "payment_intent_update_failed",
-			ErrorMessage: err.Error(),
+		actorID, actorType := audit.ActorFromContext(c)
+		audit.LogBestEffort(c, h.auditLogger, audit.Event{
+			RequestID:  audit.RequestIDFromContext(c),
+			ActorID:    actorID,
+			ActorType:  actorType,
+			EventType:  "payment.status_updated",
+			ResourceID: c.Param("id"),
+			Metadata: map[string]any{
+				"to_status":     req.Status,
+				"result":        "FAILED",
+				"error_code":    "payment_intent_update_failed",
+				"error_message": err.Error(),
+				"journey_id":    c.Param("id"),
+			},
 		})
 		response.Fail(c, appErrors.BadRequest("payment_intent_update_failed", err.Error(), nil))
 		return
 	}
 
-	actorID, actorRole := journeylog.ActorFromContext(c)
-	journeylog.LogBestEffort(c, h.journeyLogger, journeylog.Event{
-		RequestID:  journeylog.RequestIDFromContext(c),
-		JourneyID:  invoice.ID,
+	actorID, actorType := audit.ActorFromContext(c)
+	audit.LogBestEffort(c, h.auditLogger, audit.Event{
+		RequestID:  audit.RequestIDFromContext(c),
 		ActorID:    actorID,
-		ActorRole:  actorRole,
-		Module:     "payment",
-		EntityType: "payment_intent",
-		EntityID:   intent.ID,
-		Action:     "PAYMENT_INTENT_STATUS_UPDATE",
-		ToStatus:   string(intent.Status),
-		Result:     "SUCCESS",
+		ActorType:  actorType,
+		EventType:  "payment.status_updated",
+		ResourceID: intent.ID,
 		Metadata: map[string]any{
 			"invoice_id": invoice.ID,
+			"to_status":  string(intent.Status),
+			"result":     "SUCCESS",
+			"journey_id": invoice.ID,
 		},
 	})
 	response.OK(c, gin.H{"payment_intent": intent, "invoice": invoice})

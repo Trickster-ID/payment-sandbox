@@ -23,6 +23,8 @@ import (
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
 	invoiceRepo "payment-sandbox/app/modules/invoice/repositories"
 	invoiceSvc "payment-sandbox/app/modules/invoice/services"
+	ledgerHandlers "payment-sandbox/app/modules/ledger/handlers"
+	ledgerRepo "payment-sandbox/app/modules/ledger/repositories"
 	paymentHandlers "payment-sandbox/app/modules/payment/handlers"
 	paymentRepo "payment-sandbox/app/modules/payment/repositories"
 	paymentSvc "payment-sandbox/app/modules/payment/services"
@@ -36,9 +38,11 @@ import (
 	oauth2Repo "payment-sandbox/app/modules/oauth2/repositories"
 	oauth2Svc "payment-sandbox/app/modules/oauth2/services"
 	"payment-sandbox/app/shared/database"
-	"payment-sandbox/app/shared/journeylog"
+	"payment-sandbox/app/shared/audit"
+	"payment-sandbox/app/shared/idempotency"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -131,12 +135,14 @@ func TestIntegration_AdminPaymentAndRefundFlows(t *testing.T) {
 
 	assertPaymentAndInvoiceStatus(t, suite.db, paymentIntentID, "SUCCESS", "PAID")
 
-	refundID := requestRefund(t, suite.router, merchantToken, paymentIntentID)
+	_ = paymentIntentID
+	refundID := requestRefund(t, suite.router, merchantToken, invoiceID)
 	reviewRefund(t, suite.router, adminToken, refundID, "APPROVE", http.StatusOK, "")
 	processRefund(t, suite.router, adminToken, refundID, "SUCCESS", http.StatusOK, "")
 	processRefund(t, suite.router, adminToken, refundID, "FAILED", http.StatusBadRequest, "refund_process_failed")
 
-	assertRefundAndBalance(t, suite.db, refundID, "SUCCESS", 800)
+	// Balance flow: +1000 topup → +200 payment received → -200 refund issued = 1000
+	assertRefundAndBalance(t, suite.db, refundID, "SUCCESS", 1000)
 }
 
 func TestIntegration_InvalidPayloadAndTransitionNegatives(t *testing.T) {
@@ -153,11 +159,11 @@ func TestIntegration_InvalidPayloadAndTransitionNegatives(t *testing.T) {
 	updateTopupStatus(t, suite.router, adminToken, topupID, "SUCCESS", http.StatusOK)
 
 	dueDate := time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339)
-	_, invoiceToken := createInvoice(t, suite.router, merchantToken, 200, dueDate)
+	invoiceID, invoiceToken := createInvoice(t, suite.router, merchantToken, 200, dueDate)
 	paymentIntentID := createPaymentIntent(t, suite.router, invoiceToken, "WALLET")
 	updatePaymentIntentStatus(t, suite.router, adminToken, paymentIntentID, "SUCCESS", http.StatusOK, "")
 
-	refundID := requestRefund(t, suite.router, merchantToken, paymentIntentID)
+	refundID := requestRefund(t, suite.router, merchantToken, invoiceID)
 
 	tests := []struct {
 		name        string
@@ -262,22 +268,26 @@ func setupIntegrationSuite(t *testing.T) *integrationSuite {
 	usersRepository := usersRepo.NewUserRepository(db)
 	usersService := usersSvc.NewUserService(usersRepository)
 	adminService := adminSvc.NewAdminService(adminRepo.NewAdminRepository(db))
-	walletService := walletSvc.NewWalletService(walletRepo.NewWalletRepository(db))
+	ledgerRepository := ledgerRepo.NewRepository(db)
+	walletService := walletSvc.NewWalletService(walletRepo.NewWalletRepository(db, ledgerRepository))
 	invoiceService := invoiceSvc.NewInvoiceService(invoiceRepo.NewInvoiceRepository(db))
-	paymentService := paymentSvc.NewPaymentService(paymentRepo.NewPaymentRepository(db))
-	refundService := refundSvc.NewRefundService(refundRepo.NewRefundRepository(db))
+	paymentService := paymentSvc.NewPaymentService(paymentRepo.NewPaymentRepository(db, ledgerRepository))
+	refundService := refundSvc.NewRefundService(refundRepo.NewRefundRepository(db, ledgerRepository))
 	oauth2Service := oauth2Svc.NewOAuth2Service(oauth2Repo.NewOAuth2Repository(db), cfg)
 
-	journeyLogger := journeylog.NewNoopJourneyLogger()
+	auditLogger := audit.NewNoopLogger()
+	idemMW := &idempotency.Middleware{Store: &idempotency.Store{TTL: 24 * time.Hour}, Cache: &idempotency.Cache{TTL: 24 * time.Hour}}
 	router := newRouter(
 		cfg,
+		idemMW,
 		usersHandlers.NewUserHandler(usersService),
 		adminHandlers.NewAdminHandler(adminService),
-		walletHandlers.NewWalletHandler(walletService, journeyLogger),
-		invoiceHandlers.NewInvoiceHandler(invoiceService, journeyLogger),
-		paymentHandlers.NewPaymentHandler(paymentService, journeyLogger),
-		refundHandlers.NewRefundHandler(refundService, journeyLogger),
-		oauth2Handlers.NewOAuth2Handler(oauth2Service),
+		walletHandlers.NewWalletHandler(walletService, auditLogger),
+		invoiceHandlers.NewInvoiceHandler(invoiceService, auditLogger),
+		paymentHandlers.NewPaymentHandler(paymentService, auditLogger),
+		refundHandlers.NewRefundHandler(refundService, auditLogger),
+		oauth2Handlers.NewOAuth2Handler(oauth2Service, cfg),
+		ledgerHandlers.NewLedgerHandler(ledgerRepository),
 	)
 
 	return &integrationSuite{
@@ -309,18 +319,48 @@ func ensureRequiredSchema(db *sql.DB) error {
 }
 
 func cleanupIntegrationData(db *sql.DB) error {
-	_, err := db.Exec(`
-		DELETE FROM refunds;
-		DELETE FROM payment_intents;
-		DELETE FROM invoices;
-		DELETE FROM topups;
-		DELETE FROM merchants
-		WHERE user_id IN (
+	// Delete in FK-safe order. The ledger immutability trigger blocks DELETE on
+	// ledger_entries — for integration tests we disable it for the cleanup session.
+	stmts := []string{
+		`SET session_replication_role = 'replica'`,
+		`DELETE FROM refunds`,
+		`DELETE FROM payment_intents`,
+		`DELETE FROM invoices`,
+		`DELETE FROM topups`,
+		// Delete entire transactions (both sides) that touched a test merchant's
+		// wallet account — otherwise the system-account side becomes orphaned.
+		`DELETE FROM ledger_entries WHERE transaction_id IN (
+			SELECT DISTINCT le.transaction_id FROM ledger_entries le
+			JOIN accounts a ON a.id = le.account_id
+			JOIN merchants m ON m.id = a.merchant_id
+			JOIN users u ON u.id = m.user_id
+			WHERE u.email LIKE 'it_%@example.com'
+		)`,
+		`DELETE FROM ledger_transactions WHERE id NOT IN (SELECT transaction_id FROM ledger_entries)`,
+		`DELETE FROM accounts WHERE merchant_id IN (
+			SELECT m.id FROM merchants m
+			JOIN users u ON u.id = m.user_id
+			WHERE u.email LIKE 'it_%@example.com'
+		)`,
+		`DELETE FROM merchants WHERE user_id IN (
 			SELECT id FROM users WHERE email LIKE 'it_%@example.com'
-		);
-		DELETE FROM users WHERE email LIKE 'it_%@example.com';
-	`)
-	return err
+		)`,
+		`DELETE FROM users WHERE email LIKE 'it_%@example.com'`,
+		// After deleting test ledger entries, recompute system-account balances so the
+		// reconciliation invariant (balance == sum of remaining entries) still holds.
+		`UPDATE accounts a SET balance = COALESCE((
+			SELECT SUM(CASE WHEN le.direction='D' THEN le.amount ELSE -le.amount END)
+			FROM ledger_entries le WHERE le.account_id = a.id
+		), 0) * CASE WHEN a.type IN ('liability','revenue','equity') THEN -1 ELSE 1 END
+		WHERE a.merchant_id IS NULL`,
+		`SET session_replication_role = 'origin'`,
+	}
+	for _, q := range stmts {
+		if _, err := db.Exec(q); err != nil {
+			return fmt.Errorf("cleanup %q: %w", q, err)
+		}
+	}
+	return nil
 }
 
 func registerMerchant(t *testing.T, router *gin.Engine, email, password string) {
@@ -337,22 +377,25 @@ func registerMerchant(t *testing.T, router *gin.Engine, email, password string) 
 func loginAndGetToken(t *testing.T, router *gin.Engine, email, password string) string {
 	t.Helper()
 	cfg := config.Load()
+	cfg.JWTSecret = "batch10-integration-secret"
 	jwtService := middleware.NewJWTService(cfg)
 
-	var role usersEntity.Role
-	if email == "admin@sandbox.local" {
-		role = usersEntity.RoleAdmin
-	} else {
-		role = usersEntity.RoleMerchant
-	}
+	db, err := database.New(cfg)
+	require.NoError(t, err)
+	defer db.Close()
 
-	token, err := jwtService.GenerateToken("user-id", role)
+	var userID, roleStr string
+	err = db.QueryRow(`SELECT id::text, role::text FROM users WHERE email=$1 AND deleted_at IS NULL`, email).Scan(&userID, &roleStr)
+	require.NoError(t, err, "user not found for email %s", email)
+
+	role := usersEntity.Role(roleStr)
+	token, err := jwtService.GenerateToken(userID, role)
 	require.NoError(t, err)
 	require.NotEmpty(t, token)
 	return token
 }
 
-func createTopup(t *testing.T, router *gin.Engine, merchantToken string, amount float64) string {
+func createTopup(t *testing.T, router *gin.Engine, merchantToken string, amount int64) string {
 	t.Helper()
 	status, resp := doJSONRequest(t, router, http.MethodPost, "/api/v1/merchant/topups", merchantToken, map[string]any{
 		"amount": amount,
@@ -372,6 +415,9 @@ func updateTopupStatus(t *testing.T, router *gin.Engine, adminToken, topupID, st
 	status, resp := doJSONRequest(t, router, http.MethodPatch, "/api/v1/admin/topups/"+topupID+"/status", adminToken, map[string]any{
 		"status": statusValue,
 	})
+	if status != expectedStatus {
+		t.Logf("updateTopupStatus got %d, error: %+v", status, resp.Error)
+	}
 	require.Equal(t, expectedStatus, status)
 	if expectedStatus >= 400 {
 		require.NotNil(t, resp.Error)
@@ -380,7 +426,7 @@ func updateTopupStatus(t *testing.T, router *gin.Engine, adminToken, topupID, st
 	require.Nil(t, resp.Error)
 }
 
-func createInvoice(t *testing.T, router *gin.Engine, merchantToken string, amount float64, dueDate string) (string, string) {
+func createInvoice(t *testing.T, router *gin.Engine, merchantToken string, amount int64, dueDate string) (string, string) {
 	t.Helper()
 	status, resp := doJSONRequest(t, router, http.MethodPost, "/api/v1/merchant/invoices", merchantToken, map[string]any{
 		"customer_name":  "Integration Customer",
@@ -434,12 +480,15 @@ func updatePaymentIntentStatus(t *testing.T, router *gin.Engine, adminToken, pay
 	require.Nil(t, resp.Error)
 }
 
-func requestRefund(t *testing.T, router *gin.Engine, merchantToken, paymentIntentID string) string {
+func requestRefund(t *testing.T, router *gin.Engine, merchantToken, invoiceID string) string {
 	t.Helper()
 	status, resp := doJSONRequest(t, router, http.MethodPost, "/api/v1/merchant/refunds", merchantToken, map[string]any{
-		"payment_intent_id": paymentIntentID,
-		"reason":            "integration refund request",
+		"invoice_id": invoiceID,
+		"reason":     "integration refund request",
 	})
+	if status != http.StatusCreated {
+		t.Logf("requestRefund got %d, error: %+v", status, resp.Error)
+	}
 	require.Equal(t, http.StatusCreated, status)
 	require.Nil(t, resp.Error)
 	data := mustMap(t, resp.Data)
@@ -454,6 +503,9 @@ func reviewRefund(t *testing.T, router *gin.Engine, adminToken, refundID, decisi
 	status, resp := doJSONRequest(t, router, http.MethodPatch, "/api/v1/admin/refunds/"+refundID+"/review", adminToken, map[string]any{
 		"decision": decision,
 	})
+	if status != expectedHTTP {
+		t.Logf("reviewRefund got %d, error: %+v", status, resp.Error)
+	}
 	require.Equal(t, expectedHTTP, status)
 	if expectedHTTP >= 400 {
 		require.NotNil(t, resp.Error)
@@ -496,12 +548,12 @@ func assertPaymentAndInvoiceStatus(t *testing.T, db *sql.DB, paymentIntentID, ex
 	assert.Equal(t, expectedInvoice, invoiceStatus)
 }
 
-func assertRefundAndBalance(t *testing.T, db *sql.DB, refundID, expectedRefundStatus string, expectedBalance float64) {
+func assertRefundAndBalance(t *testing.T, db *sql.DB, refundID, expectedRefundStatus string, expectedBalance int64) {
 	t.Helper()
 	var refundStatus string
-	var merchantBalance float64
+	var merchantBalance int64
 	err := db.QueryRow(`
-		SELECT r.status::text, m.balance::double precision
+		SELECT r.status::text, m.balance
 		FROM refunds r
 		JOIN payment_intents pi ON pi.id = r.payment_intent_id AND pi.deleted_at IS NULL
 		JOIN invoices inv ON inv.id = pi.invoice_id AND inv.deleted_at IS NULL
@@ -529,6 +581,13 @@ func doJSONRequest(t *testing.T, router *gin.Engine, method, path, token string,
 	}
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	// Money-mutating POSTs require an Idempotency-Key header (Phase 1 contract).
+	if method == http.MethodPost {
+		switch path {
+		case "/api/v1/merchant/topups", "/api/v1/merchant/invoices", "/api/v1/merchant/refunds":
+			req.Header.Set("Idempotency-Key", uuid.NewString())
+		}
 	}
 
 	rec := httptest.NewRecorder()

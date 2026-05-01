@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"payment-sandbox/app/config"
 	"payment-sandbox/app/middleware"
 	userEntity "payment-sandbox/app/modules/users/models/entity"
 	"payment-sandbox/app/modules/oauth2/models/entity"
@@ -27,7 +28,7 @@ func TestOAuth2Handler_ClientManagement(t *testing.T) {
 
 	t.Run("RegisterClient binding error", func(t *testing.T) {
 		s := serviceMocks.NewMockIOAuth2Service(t)
-		h := NewOAuth2Handler(s)
+		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
 		r := gin.New()
 		r.POST("/clients", h.RegisterClient)
 
@@ -44,7 +45,7 @@ func TestOAuth2Handler_ClientManagement(t *testing.T) {
 		s := serviceMocks.NewMockIOAuth2Service(t)
 		s.EXPECT().DeleteClient("c1", "user-1").Return(fmt.Errorf("db error"))
 
-		h := NewOAuth2Handler(s)
+		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
 		r := gin.New()
 		r.DELETE("/clients/:id", func(c *gin.Context) {
 			c.Set(middleware.ContextUserID, "user-1")
@@ -100,7 +101,7 @@ func TestOAuth2Handler_Authorize(t *testing.T) {
 			s := serviceMocks.NewMockIOAuth2Service(t)
 			tc.setupMocks(s)
 
-			h := NewOAuth2Handler(s)
+			h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
 			r := gin.New()
 			r.GET("/oauth2/authorize", func(c *gin.Context) {
 				c.Set(middleware.ContextUserID, "user-1")
@@ -126,7 +127,7 @@ func TestOAuth2Handler_ApproveAuthorize(t *testing.T) {
 		s := serviceMocks.NewMockIOAuth2Service(t)
 		s.EXPECT().IssueAuthCode("c1", "user-1", "http://cb", "read").Return("code123", nil)
 
-		h := NewOAuth2Handler(s)
+		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
 		r := gin.New()
 		r.POST("/oauth2/authorize", func(c *gin.Context) {
 			c.Set(middleware.ContextUserID, "user-1")
@@ -259,7 +260,7 @@ func TestOAuth2Handler_Token(t *testing.T) {
 			s := serviceMocks.NewMockIOAuth2Service(t)
 			tc.setupMocks(s)
 
-			h := NewOAuth2Handler(s)
+			h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
 			r := gin.New()
 			r.POST("/oauth2/token", h.Token)
 
@@ -295,7 +296,7 @@ func TestOAuth2Handler_Introspect(t *testing.T) {
 			},
 		}, nil)
 
-		h := NewOAuth2Handler(s)
+		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
 		r := gin.New()
 		r.POST("/oauth2/introspect", h.Introspect)
 
@@ -317,7 +318,7 @@ func TestOAuth2Handler_Introspect(t *testing.T) {
 		s := serviceMocks.NewMockIOAuth2Service(t)
 		s.EXPECT().ValidateToken("invalid-token").Return(nil, fmt.Errorf("invalid"))
 
-		h := NewOAuth2Handler(s)
+		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
 		r := gin.New()
 		r.POST("/oauth2/introspect", h.Introspect)
 
@@ -344,7 +345,7 @@ func TestOAuth2Handler_Revoke(t *testing.T) {
 		s.EXPECT().ValidateClient("c1", "secret").Return(entity.OAuthClient{ID: "c1"}, nil)
 		s.EXPECT().RevokeRefreshToken("rt123", "c1").Return(nil)
 
-		h := NewOAuth2Handler(s)
+		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
 		r := gin.New()
 		r.POST("/oauth2/revoke", h.Revoke)
 
@@ -374,7 +375,7 @@ func TestOAuth2Handler_UserInfo(t *testing.T) {
 			Email: "test@example.com",
 			Role:  userEntity.RoleAdmin,
 		}, nil)
-		h := NewOAuth2Handler(s)
+		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
 		r := gin.New()
 		r.GET("/oauth2/userinfo", func(c *gin.Context) {
 			c.Set(middleware.ContextUserID, "user-1")
@@ -397,7 +398,7 @@ func TestOAuth2Handler_UserInfo(t *testing.T) {
 
 	t.Run("unauthorized", func(t *testing.T) {
 		s := serviceMocks.NewMockIOAuth2Service(t)
-		h := NewOAuth2Handler(s)
+		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
 		r := gin.New()
 		r.GET("/oauth2/userinfo", h.UserInfo)
 

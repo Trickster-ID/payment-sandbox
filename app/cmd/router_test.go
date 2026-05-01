@@ -5,13 +5,15 @@ import (
 	"time"
 
 	adminHandlers "payment-sandbox/app/modules/admin/handlers"
+	ledgerHandlers "payment-sandbox/app/modules/ledger/handlers"
 	usersHandlers "payment-sandbox/app/modules/users/handlers"
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
 	oauth2Handlers "payment-sandbox/app/modules/oauth2/handlers"
 	paymentHandlers "payment-sandbox/app/modules/payment/handlers"
 	refundHandlers "payment-sandbox/app/modules/refund/handlers"
 	walletHandlers "payment-sandbox/app/modules/wallet/handlers"
-	"payment-sandbox/app/shared/journeylog"
+	"payment-sandbox/app/shared/audit"
+	"payment-sandbox/app/shared/idempotency"
 
 	"payment-sandbox/app/config"
 
@@ -30,14 +32,19 @@ func TestNewRouter_RegistersExpectedRoutes(t *testing.T) {
 
 	usersHandler := &usersHandlers.UserHandler{}
 	adminHandler := &adminHandlers.AdminHandler{}
-	journeyLogger := journeylog.NewNoopJourneyLogger()
-	walletHandler := walletHandlers.NewWalletHandler(nil, journeyLogger)
-	invoiceHandler := invoiceHandlers.NewInvoiceHandler(nil, journeyLogger)
-	paymentHandler := paymentHandlers.NewPaymentHandler(nil, journeyLogger)
-	refundHandler := refundHandlers.NewRefundHandler(nil, journeyLogger)
-	oauth2Handler := oauth2Handlers.NewOAuth2Handler(nil)
+	auditLogger := audit.NewNoopLogger()
+	idemMW := &idempotency.Middleware{
+		Store: &idempotency.Store{TTL: time.Hour},
+		Cache: &idempotency.Cache{TTL: time.Hour},
+	}
+	walletHandler := walletHandlers.NewWalletHandler(nil, auditLogger)
+	invoiceHandler := invoiceHandlers.NewInvoiceHandler(nil, auditLogger)
+	paymentHandler := paymentHandlers.NewPaymentHandler(nil, auditLogger)
+	refundHandler := refundHandlers.NewRefundHandler(nil, auditLogger)
+	oauth2Handler := oauth2Handlers.NewOAuth2Handler(nil, cfg)
+	ledgerHandler := ledgerHandlers.NewLedgerHandler(nil)
 
-	router := newRouter(cfg, usersHandler, adminHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler, oauth2Handler)
+	router := newRouter(cfg, idemMW, usersHandler, adminHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler, oauth2Handler, ledgerHandler)
 	registered := routeMap(router.Routes())
 
 	tests := []struct {

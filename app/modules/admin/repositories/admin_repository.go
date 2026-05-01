@@ -47,12 +47,12 @@ func (r *AdminRepository) DashboardStats(filter adminEntity.StatsFilter) adminEn
 		JOIN invoices inv ON inv.id = pi.invoice_id AND inv.deleted_at IS NULL
 		WHERE pi.deleted_at IS NULL AND pi.status='FAILED'`+paymentWhere, paymentArgs...).Scan(&failedCount)
 	_ = r.db.QueryRow(`
-		SELECT COALESCE(SUM(inv.amount::double precision), 0)
+		SELECT COALESCE(SUM(inv.amount), 0)
 		FROM payment_intents pi
 		JOIN invoices inv ON inv.id = pi.invoice_id AND inv.deleted_at IS NULL
 		WHERE pi.deleted_at IS NULL AND pi.status='SUCCESS'`+paymentWhere, paymentArgs...).Scan(&stats.TotalPaymentNominal)
 	_ = r.db.QueryRow(`
-		SELECT COALESCE(SUM(inv.amount::double precision), 0)
+		SELECT COALESCE(SUM(inv.amount), 0)
 		FROM refunds r
 		JOIN payment_intents pi ON pi.id = r.payment_intent_id AND pi.deleted_at IS NULL
 		JOIN invoices inv ON inv.id = pi.invoice_id AND inv.deleted_at IS NULL

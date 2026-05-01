@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"net/url"
+	"payment-sandbox/app/config"
 	"payment-sandbox/app/middleware"
 	"payment-sandbox/app/modules/oauth2/models/dto"
 	"payment-sandbox/app/modules/oauth2/services"
@@ -15,10 +16,15 @@ import (
 
 type OAuth2Handler struct {
 	service services.IOAuth2Service
+	cfg     config.Config
 }
 
-func NewOAuth2Handler(service services.IOAuth2Service) *OAuth2Handler {
-	return &OAuth2Handler{service: service}
+func NewOAuth2Handler(service services.IOAuth2Service, cfg config.Config) *OAuth2Handler {
+	return &OAuth2Handler{service: service, cfg: cfg}
+}
+
+func (h *OAuth2Handler) accessTokenExpiresIn() int {
+	return int(h.cfg.OAuth2AccessTokenDuration.Seconds())
 }
 
 // Client Management
@@ -253,7 +259,7 @@ func (h *OAuth2Handler) handlePasswordGrant(c *gin.Context, req dto.TokenRequest
 	response.OK(c, dto.TokenResponse{
 		AccessToken:  accessToken,
 		TokenType:    "Bearer",
-		ExpiresIn:    3600,
+		ExpiresIn:    h.accessTokenExpiresIn(),
 		RefreshToken: refreshToken,
 		Scope:        scope,
 	})
@@ -288,7 +294,7 @@ func (h *OAuth2Handler) handleAuthCodeGrant(c *gin.Context, req dto.TokenRequest
 	response.OK(c, dto.TokenResponse{
 		AccessToken:  accessToken,
 		TokenType:    "Bearer",
-		ExpiresIn:    3600,
+		ExpiresIn:    h.accessTokenExpiresIn(),
 		RefreshToken: refreshToken,
 		Scope:        authCode.Scope,
 	})
@@ -312,7 +318,7 @@ func (h *OAuth2Handler) handleClientCredentialsGrant(c *gin.Context, req dto.Tok
 	response.OK(c, dto.TokenResponse{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
-		ExpiresIn:   3600,
+		ExpiresIn:   h.accessTokenExpiresIn(),
 		Scope:       scope,
 	})
 }
@@ -342,7 +348,7 @@ func (h *OAuth2Handler) handleRefreshTokenGrant(c *gin.Context, req dto.TokenReq
 	response.OK(c, dto.TokenResponse{
 		AccessToken:  accessToken,
 		TokenType:    "Bearer",
-		ExpiresIn:    3600,
+		ExpiresIn:    h.accessTokenExpiresIn(),
 		RefreshToken: refreshToken,
 		Scope:        oldToken.Scope,
 	})

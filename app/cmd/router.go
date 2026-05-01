@@ -12,6 +12,8 @@ import (
 	"payment-sandbox/app/modules/users/models/entity"
 	invoiceAPI "payment-sandbox/app/modules/invoice/api"
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
+	ledgerAPI "payment-sandbox/app/modules/ledger/api"
+	ledgerHandlers "payment-sandbox/app/modules/ledger/handlers"
 	oauth2API "payment-sandbox/app/modules/oauth2/api"
 	oauth2Handlers "payment-sandbox/app/modules/oauth2/handlers"
 	paymentAPI "payment-sandbox/app/modules/payment/api"
@@ -20,6 +22,7 @@ import (
 	refundHandlers "payment-sandbox/app/modules/refund/handlers"
 	walletAPI "payment-sandbox/app/modules/wallet/api"
 	walletHandlers "payment-sandbox/app/modules/wallet/handlers"
+	"payment-sandbox/app/shared/idempotency"
 	"payment-sandbox/docs"
 
 	"github.com/gin-gonic/gin"
@@ -29,6 +32,7 @@ import (
 
 func newRouter(
 	cfg config.Config,
+	idemMW *idempotency.Middleware,
 	usersHandler *usersHandlers.UserHandler,
 	adminHandler *adminHandlers.AdminHandler,
 	walletHandler *walletHandlers.WalletHandler,
@@ -36,6 +40,7 @@ func newRouter(
 	paymentHandler *paymentHandlers.PaymentHandler,
 	refundHandler *refundHandlers.RefundHandler,
 	oauth2Handler *oauth2Handlers.OAuth2Handler,
+	ledgerHandler *ledgerHandlers.LedgerHandler,
 ) *gin.Engine {
 	docs.SwaggerInfo.Host = "localhost:" + cfg.AppPort
 	docs.SwaggerInfo.BasePath = "/api/v1"
@@ -66,9 +71,9 @@ func newRouter(
 		merchant := secured.Group("/merchant")
 		merchant.Use(middleware.RequireRoles(entity.RoleMerchant))
 		{
-			walletAPI.RegisterMerchantRoutes(merchant, walletHandler)
-			invoiceAPI.RegisterMerchantRoutes(merchant, invoiceHandler)
-			refundAPI.RegisterMerchantRoutes(merchant, refundHandler)
+			walletAPI.RegisterMerchantRoutes(merchant, walletHandler, idemMW)
+			invoiceAPI.RegisterMerchantRoutes(merchant, invoiceHandler, idemMW)
+			refundAPI.RegisterMerchantRoutes(merchant, refundHandler, idemMW)
 			oauth2API.RegisterMerchantRoutes(merchant, oauth2Handler)
 		}
 
@@ -79,6 +84,7 @@ func newRouter(
 			paymentAPI.RegisterAdminRoutes(admin, paymentHandler)
 			refundAPI.RegisterAdminRoutes(admin, refundHandler)
 			adminAPI.RegisterAdminRoutes(admin, adminHandler)
+			ledgerAPI.RegisterAdminRoutes(admin, ledgerHandler)
 		}
 	}
 

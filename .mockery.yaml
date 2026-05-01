@@ -29,9 +29,9 @@ packages:
   payment-sandbox/app/modules/oauth2/repositories:
     interfaces:
       IOAuth2Repository:
-  payment-sandbox/app/shared/journeylog:
+  payment-sandbox/app/modules/ledger/repositories:
     interfaces:
-      IJourneyLogger:
+      IRepository:
   payment-sandbox/app/modules/users/services:
     interfaces:
       IUserService:

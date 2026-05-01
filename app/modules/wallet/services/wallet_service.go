@@ -12,7 +12,7 @@ type WalletService struct {
 
 type IWalletService interface {
 	WalletByUserID(userID string) (walletEntity.Merchant, error)
-	CreateTopup(userID string, amount float64) (walletEntity.Topup, error)
+	CreateTopup(userID string, amount int64) (walletEntity.Topup, error)
 	ListTopups() []walletEntity.Topup
 	UpdateTopupStatus(topupID, status string) (walletEntity.Topup, error)
 }
@@ -25,7 +25,7 @@ func (s *WalletService) WalletByUserID(userID string) (walletEntity.Merchant, er
 	return s.repo.GetMerchantWallet(userID)
 }
 
-func (s *WalletService) CreateTopup(userID string, amount float64) (walletEntity.Topup, error) {
+func (s *WalletService) CreateTopup(userID string, amount int64) (walletEntity.Topup, error) {
 	merchantID, err := s.repo.MerchantIDByUserID(userID)
 	if err != nil {
 		return walletEntity.Topup{}, err

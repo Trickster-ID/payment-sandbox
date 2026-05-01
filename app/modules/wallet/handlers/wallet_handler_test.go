@@ -11,8 +11,8 @@ import (
 	"payment-sandbox/app/middleware"
 	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
 	serviceMocks "payment-sandbox/app/modules/wallet/services/mocks"
-	journeylog "payment-sandbox/app/shared/journeylog"
-	journeyMocks "payment-sandbox/app/shared/journeylog/mocks"
+	"payment-sandbox/app/shared/audit"
+	auditMocks "payment-sandbox/app/shared/audit/mocks"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +26,7 @@ func TestWalletHandler_CreateTopup(t *testing.T) {
 	tests := []struct {
 		name       string
 		body       string
-		setupMocks func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger)
+		setupMocks func(service *serviceMocks.MockIWalletService, logger *auditMocks.MockIAuditLogger)
 		wantStatus int
 		wantCode   string
 		wantDataID string
@@ -34,7 +34,7 @@ func TestWalletHandler_CreateTopup(t *testing.T) {
 		{
 			name: "validation error",
 			body: `{"amount":0}`,
-			setupMocks: func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIWalletService, logger *auditMocks.MockIAuditLogger) {
 				service.AssertNotCalled(t, "CreateTopup")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -44,7 +44,7 @@ func TestWalletHandler_CreateTopup(t *testing.T) {
 		{
 			name: "malformed json",
 			body: `{invalid-json}`,
-			setupMocks: func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIWalletService, logger *auditMocks.MockIAuditLogger) {
 				service.AssertNotCalled(t, "CreateTopup")
 				logger.AssertNotCalled(t, "Log")
 			},
@@ -54,18 +54,18 @@ func TestWalletHandler_CreateTopup(t *testing.T) {
 		{
 			name: "service error and logger failure still returns business error",
 			body: `{"amount":15000}`,
-			setupMocks: func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIWalletService, logger *auditMocks.MockIAuditLogger) {
 				service.EXPECT().
-					CreateTopup("user-1", 15000.0).
+					CreateTopup("user-1", int64(15000)).
 					Return(walletEntity.Topup{}, errors.New("invalid topup state"))
 
 				logger.EXPECT().
 					Log(
 						mock.Anything,
-						mock.MatchedBy(func(event journeylog.Event) bool {
-							return event.Module == "wallet" &&
-								event.Action == "TOPUP_CREATE" &&
-								event.Result == "FAILED" &&
+						mock.MatchedBy(func(event audit.Event) bool {
+							result, _ := event.Metadata["result"].(string)
+							return event.EventType == "topup.created" &&
+								result == "FAILED" &&
 								event.RequestID == "req-1"
 						}),
 					).
@@ -77,9 +77,9 @@ func TestWalletHandler_CreateTopup(t *testing.T) {
 		{
 			name: "success and logger failure still returns created",
 			body: `{"amount":25000}`,
-			setupMocks: func(service *serviceMocks.MockIWalletService, logger *journeyMocks.MockIJourneyLogger) {
+			setupMocks: func(service *serviceMocks.MockIWalletService, logger *auditMocks.MockIAuditLogger) {
 				service.EXPECT().
-					CreateTopup("user-1", 25000.0).
+					CreateTopup("user-1", int64(25000)).
 					Return(walletEntity.Topup{
 						ID:     "topup-1",
 						Amount: 25000,
@@ -89,11 +89,11 @@ func TestWalletHandler_CreateTopup(t *testing.T) {
 				logger.EXPECT().
 					Log(
 						mock.Anything,
-						mock.MatchedBy(func(event journeylog.Event) bool {
-							return event.Module == "wallet" &&
-								event.Action == "TOPUP_CREATE" &&
-								event.Result == "SUCCESS" &&
-								event.EntityID == "topup-1"
+						mock.MatchedBy(func(event audit.Event) bool {
+							result, _ := event.Metadata["result"].(string)
+							return event.EventType == "topup.created" &&
+								result == "SUCCESS" &&
+								event.ResourceID == "topup-1"
 						}),
 					).
 					Return(errors.New("mongo write failed"))
@@ -106,7 +106,7 @@ func TestWalletHandler_CreateTopup(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			service := serviceMocks.NewMockIWalletService(t)
-			logger := journeyMocks.NewMockIJourneyLogger(t)
+			logger := auditMocks.NewMockIAuditLogger(t)
 			tc.setupMocks(service, logger)
 
 			handler := NewWalletHandler(service, logger)
