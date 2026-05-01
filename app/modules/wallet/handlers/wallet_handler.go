@@ -6,6 +6,7 @@ import (
 	walletServices "payment-sandbox/app/modules/wallet/services"
 	"payment-sandbox/app/shared/audit"
 	appErrors "payment-sandbox/app/shared/errors"
+	"payment-sandbox/app/shared/pagination"
 	"payment-sandbox/app/shared/response"
 
 	"github.com/gin-gonic/gin"
@@ -120,6 +121,38 @@ func (h *WalletHandler) CreateTopup(c *gin.Context) {
 		},
 	})
 	response.Created(c, topup)
+}
+
+// ListMerchantTopups godoc
+// @Summary List merchant top-ups
+// @Description Merchant lists own top-up requests with pagination
+// @Tags wallet
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Page size" default(10)
+// @Success 200 {object} response.Envelope{data=handlers.TopupListResponse,meta=response.PaginationMeta}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
+// @Router /merchant/topups [get]
+func (h *WalletHandler) ListMerchantTopups(c *gin.Context) {
+	userID, ok := middleware.MustUserID(c)
+	if !ok {
+		return
+	}
+
+	params := pagination.Parse(c.DefaultQuery("page", "1"), c.DefaultQuery("limit", "10"))
+	topups, total, err := h.service.ListMerchantTopups(userID, params.Page, params.Limit)
+	if err != nil {
+		response.Fail(c, appErrors.BadRequest("topup_list_failed", err.Error(), nil))
+		return
+	}
+
+	response.OKWithMeta(c, topups, gin.H{
+		"page":  params.Page,
+		"limit": params.Limit,
+		"total": total,
+	})
 }
 
 // ListTopups godoc

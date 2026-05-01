@@ -14,6 +14,7 @@ type IWalletService interface {
 	WalletByUserID(userID string) (walletEntity.Merchant, error)
 	CreateTopup(userID string, amount int64) (walletEntity.Topup, error)
 	ListTopups() []walletEntity.Topup
+	ListMerchantTopups(userID string, page, limit int) ([]walletEntity.Topup, int, error)
 	UpdateTopupStatus(topupID, status string) (walletEntity.Topup, error)
 }
 
@@ -35,6 +36,15 @@ func (s *WalletService) CreateTopup(userID string, amount int64) (walletEntity.T
 
 func (s *WalletService) ListTopups() []walletEntity.Topup {
 	return s.repo.ListTopups()
+}
+
+func (s *WalletService) ListMerchantTopups(userID string, page, limit int) ([]walletEntity.Topup, int, error) {
+	merchantID, err := s.repo.MerchantIDByUserID(userID)
+	if err != nil {
+		return nil, 0, err
+	}
+	topups, total := s.repo.ListMerchantTopups(merchantID, page, limit)
+	return topups, total, nil
 }
 
 func (s *WalletService) UpdateTopupStatus(topupID, status string) (walletEntity.Topup, error) {

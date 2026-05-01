@@ -136,6 +136,66 @@ func (_c *MockIWalletRepository_GetMerchantWallet_Call) RunAndReturn(run func(st
 	return _c
 }
 
+// ListMerchantTopups provides a mock function with given fields: merchantID, page, limit
+func (_m *MockIWalletRepository) ListMerchantTopups(merchantID string, page int, limit int) ([]entity.Topup, int) {
+	ret := _m.Called(merchantID, page, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListMerchantTopups")
+	}
+
+	var r0 []entity.Topup
+	var r1 int
+	if rf, ok := ret.Get(0).(func(string, int, int) ([]entity.Topup, int)); ok {
+		return rf(merchantID, page, limit)
+	}
+	if rf, ok := ret.Get(0).(func(string, int, int) []entity.Topup); ok {
+		r0 = rf(merchantID, page, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]entity.Topup)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, int, int) int); ok {
+		r1 = rf(merchantID, page, limit)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+
+	return r0, r1
+}
+
+// MockIWalletRepository_ListMerchantTopups_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListMerchantTopups'
+type MockIWalletRepository_ListMerchantTopups_Call struct {
+	*mock.Call
+}
+
+// ListMerchantTopups is a helper method to define mock.On call
+//   - merchantID string
+//   - page int
+//   - limit int
+func (_e *MockIWalletRepository_Expecter) ListMerchantTopups(merchantID interface{}, page interface{}, limit interface{}) *MockIWalletRepository_ListMerchantTopups_Call {
+	return &MockIWalletRepository_ListMerchantTopups_Call{Call: _e.mock.On("ListMerchantTopups", merchantID, page, limit)}
+}
+
+func (_c *MockIWalletRepository_ListMerchantTopups_Call) Run(run func(merchantID string, page int, limit int)) *MockIWalletRepository_ListMerchantTopups_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(int), args[2].(int))
+	})
+	return _c
+}
+
+func (_c *MockIWalletRepository_ListMerchantTopups_Call) Return(_a0 []entity.Topup, _a1 int) *MockIWalletRepository_ListMerchantTopups_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockIWalletRepository_ListMerchantTopups_Call) RunAndReturn(run func(string, int, int) ([]entity.Topup, int)) *MockIWalletRepository_ListMerchantTopups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListTopups provides a mock function with no fields
 func (_m *MockIWalletRepository) ListTopups() []entity.Topup {
 	ret := _m.Called()

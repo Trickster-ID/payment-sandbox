@@ -19,6 +19,7 @@ type IWalletRepository interface {
 	MerchantIDByUserID(userID string) (string, error)
 	CreateTopup(merchantID string, amount int64) (walletEntity.Topup, error)
 	ListTopups() []walletEntity.Topup
+	ListMerchantTopups(merchantID string, page, limit int) ([]walletEntity.Topup, int)
 	UpdateTopupStatus(topupID string, nextStatus paymentEntity.PaymentStatus) (walletEntity.Topup, error)
 }
 
@@ -83,6 +84,36 @@ func (r *WalletRepository) ListTopups() []walletEntity.Topup {
 		}
 	}
 	return items
+}
+
+func (r *WalletRepository) ListMerchantTopups(merchantID string, page, limit int) ([]walletEntity.Topup, int) {
+	var total int
+	if err := r.db.QueryRow(`SELECT COUNT(*) FROM topups WHERE merchant_id=$1 AND deleted_at IS NULL`, merchantID).Scan(&total); err != nil {
+		return []walletEntity.Topup{}, 0
+	}
+
+	offset := (page - 1) * limit
+	rows, err := r.db.Query(`
+		SELECT id::text, merchant_id::text, amount, status::text, created_at, updated_at
+		FROM topups
+		WHERE merchant_id=$1 AND deleted_at IS NULL
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`, merchantID, limit, offset)
+	if err != nil {
+		return []walletEntity.Topup{}, total
+	}
+	defer rows.Close()
+
+	items := make([]walletEntity.Topup, 0)
+	for rows.Next() {
+		var item walletEntity.Topup
+		if err := rows.Scan(&item.ID, &item.MerchantID, &item.Amount, &item.Status, &item.CreatedAt, &item.UpdatedAt); err == nil {
+			normalizeTopupTimes(&item)
+			items = append(items, item)
+		}
+	}
+	return items, total
 }
 
 func (r *WalletRepository) UpdateTopupStatus(topupID string, nextStatus paymentEntity.PaymentStatus) (walletEntity.Topup, error) {

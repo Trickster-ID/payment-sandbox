@@ -9,6 +9,7 @@ import (
 
 func RegisterMerchantRoutes(merchant *gin.RouterGroup, handler *walletHandlers.WalletHandler, idem *idempotency.Middleware) {
 	merchant.GET("/wallet", handler.Wallet)
+	merchant.GET("/topups", handler.ListMerchantTopups)
 	merchant.POST("/topups", idem.Handle(), handler.CreateTopup)
 }
 

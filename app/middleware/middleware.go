@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -58,7 +57,6 @@ func (j JWTService) GenerateToken(userID string, role entity.Role) (string, erro
 func AuthMiddleware(secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		header := c.GetHeader("Authorization")
-		fmt.Println("author:", header)
 		tokenString := strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
 		if tokenString == "" || tokenString == header {
 			response.Fail(c, appErrors.Unauthorized("auth_missing_bearer_token", "missing bearer token", nil))
