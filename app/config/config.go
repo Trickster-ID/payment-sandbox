@@ -11,22 +11,21 @@ import (
 )
 
 type Config struct {
-	AppEnv             string
-	AppPort            string
-	JWTSecret          string
-	JWTDuration        time.Duration
-	ShutdownTTL        time.Duration
-	DBHost             string
-	DBPort             string
-	DBUser             string
-	DBPassword         string
-	DBName             string
-	DBSSLMode          string
-	MongoURI           string
-	MongoDBName        string
-	MongoCollection    string
-	MongoJourneyEnable bool
-	RedisURL           string
+	AppEnv                     string
+	AppPort                    string
+	JWTSecret                  string
+	JWTDuration                time.Duration
+	ShutdownTTL                time.Duration
+	DBHost                     string
+	DBPort                     string
+	DBUser                     string
+	DBPassword                 string
+	DBName                     string
+	DBSSLMode                  string
+	MongoURI                   string
+	MongoDBName                string
+	MongoJourneyEnable         bool
+	RedisURL                   string
 	OAuth2AccessTokenDuration  time.Duration
 	OAuth2RefreshTokenDuration time.Duration
 	OAuth2AuthCodeDuration     time.Duration
@@ -43,22 +42,21 @@ func Load() Config {
 	_ = godotenv.Load()
 
 	return Config{
-		AppEnv:             normalizeAppEnv(getEnv("APP_ENV", AppEnvLocal)),
-		AppPort:            getEnv("APP_PORT", "8080"),
-		JWTSecret:          getEnv("JWT_SECRET", "change-me-in-env"),
-		JWTDuration:        getEnvDuration("JWT_DURATION_MINUTES", 60),
-		ShutdownTTL:        time.Duration(getEnvInt("SHUTDOWN_TIMEOUT_SECONDS", 10)) * time.Second,
-		DBHost:             getEnv("DB_HOST", "127.0.0.1"),
-		DBPort:             getEnv("DB_PORT", "5432"),
-		DBUser:             getEnv("DB_USER", "postgres"),
-		DBPassword:         getEnv("DB_PASSWORD", ""),
-		DBName:             getEnv("DB_NAME", "payment_sandbox"),
-		DBSSLMode:          getEnv("DB_SSLMODE", "disable"),
-		MongoURI:           getEnv("MONGO_URI", "mongodb://mongo_user:mongo_password@127.0.0.1:27017/?authSource=admin"),
-		MongoDBName:        getEnv("MONGO_DB_NAME", "payment_sandbox"),
-		MongoCollection:    getEnv("MONGO_COLLECTION", "journey_logs"),
-		MongoJourneyEnable: getEnvBool("MONGO_JOURNEY_ENABLE", true),
-		RedisURL:           getEnv("REDIS_URL", "redis://localhost:6379/0"),
+		AppEnv:                     normalizeAppEnv(getEnv("APP_ENV", AppEnvLocal)),
+		AppPort:                    getEnv("APP_PORT", "8080"),
+		JWTSecret:                  getEnv("JWT_SECRET", "change-me-in-env"),
+		JWTDuration:                getEnvDuration("JWT_DURATION_MINUTES", 60),
+		ShutdownTTL:                time.Duration(getEnvInt("SHUTDOWN_TIMEOUT_SECONDS", 10)) * time.Second,
+		DBHost:                     getEnv("DB_HOST", "127.0.0.1"),
+		DBPort:                     getEnv("DB_PORT", "5432"),
+		DBUser:                     getEnv("DB_USER", "postgres"),
+		DBPassword:                 getEnv("DB_PASSWORD", ""),
+		DBName:                     getEnv("DB_NAME", "payment_sandbox"),
+		DBSSLMode:                  getEnv("DB_SSLMODE", "disable"),
+		MongoURI:                   getEnv("MONGO_URI", "mongodb://mongo_user:mongo_password@127.0.0.1:27017/?authSource=admin"),
+		MongoDBName:                getEnv("MONGO_DB_NAME", "payment_sandbox"),
+		MongoJourneyEnable:         getEnvBool("MONGO_JOURNEY_ENABLE", true),
+		RedisURL:                   getEnv("REDIS_URL", "redis://localhost:6379/0"),
 		OAuth2AccessTokenDuration:  getEnvDuration("OAUTH2_ACCESS_TOKEN_DURATION_MINUTES", 15),
 		OAuth2RefreshTokenDuration: time.Duration(getEnvInt("OAUTH2_REFRESH_TOKEN_DURATION_DAYS", 30)) * 24 * time.Hour,
 		OAuth2AuthCodeDuration:     getEnvDuration("OAUTH2_AUTH_CODE_DURATION_MINUTES", 10),
