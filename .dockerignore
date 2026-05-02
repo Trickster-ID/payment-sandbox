@@ -1,0 +1,11 @@
+.git
+dist
+tmp
+*.log
+Dockerfile
+docker-compose.yml
+README.md
+.env
+docs/iso/
+docs/k6/
+docs/security/

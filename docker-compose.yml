@@ -56,20 +56,23 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-#  backend-app:
-#    build: .
-#    ports:
-#      - "8080:8080"
-#    environment:
-#      - DB_HOST=db
-#      - DB_PORT=5432
-#      - DB_USER=root
-#      - DB_PASSWORD=secretpassword
-#      - DB_NAME=payment_sandbox
-#      - JWT_SECRET=supersecretkey
-#    depends_on:
-#      sql-db:
-#        condition: service_healthy # Ini memastikan backend jalan SETELAH db benar-benar siap
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_ENV: docker
+    container_name: payment-sandbox-app
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   mongo-data:
