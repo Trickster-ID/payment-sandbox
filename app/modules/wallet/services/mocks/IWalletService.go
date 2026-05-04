@@ -3,6 +3,7 @@
 package mocks
 
 import (
+	ledgerentity "payment-sandbox/app/modules/ledger/models/entity"
 	entity "payment-sandbox/app/modules/wallet/models/entity"
 
 	mock "github.com/stretchr/testify/mock"
@@ -301,6 +302,142 @@ func (_c *MockIWalletService_WalletByUserID_Call) Return(_a0 entity.Merchant, _a
 }
 
 func (_c *MockIWalletService_WalletByUserID_Call) RunAndReturn(run func(string) (entity.Merchant, error)) *MockIWalletService_WalletByUserID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListWalletTransactions provides a mock function with given fields: userID, filter, page, limit
+func (_m *MockIWalletService) ListWalletTransactions(userID string, filter ledgerentity.EntryFilter, page int, limit int) ([]ledgerentity.EntryWithTxn, int, error) {
+	ret := _m.Called(userID, filter, page, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListWalletTransactions")
+	}
+
+	var r0 []ledgerentity.EntryWithTxn
+	var r1 int
+	var r2 error
+	if rf, ok := ret.Get(0).(func(string, ledgerentity.EntryFilter, int, int) ([]ledgerentity.EntryWithTxn, int, error)); ok {
+		return rf(userID, filter, page, limit)
+	}
+	if rf, ok := ret.Get(0).(func(string, ledgerentity.EntryFilter, int, int) []ledgerentity.EntryWithTxn); ok {
+		r0 = rf(userID, filter, page, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]ledgerentity.EntryWithTxn)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, ledgerentity.EntryFilter, int, int) int); ok {
+		r1 = rf(userID, filter, page, limit)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+
+	if rf, ok := ret.Get(2).(func(string, ledgerentity.EntryFilter, int, int) error); ok {
+		r2 = rf(userID, filter, page, limit)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockIWalletService_ListWalletTransactions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListWalletTransactions'
+type MockIWalletService_ListWalletTransactions_Call struct {
+	*mock.Call
+}
+
+// ListWalletTransactions is a helper method to define mock.On call
+//   - userID string
+//   - filter ledgerentity.EntryFilter
+//   - page int
+//   - limit int
+func (_e *MockIWalletService_Expecter) ListWalletTransactions(userID interface{}, filter interface{}, page interface{}, limit interface{}) *MockIWalletService_ListWalletTransactions_Call {
+	return &MockIWalletService_ListWalletTransactions_Call{Call: _e.mock.On("ListWalletTransactions", userID, filter, page, limit)}
+}
+
+func (_c *MockIWalletService_ListWalletTransactions_Call) Run(run func(userID string, filter ledgerentity.EntryFilter, page int, limit int)) *MockIWalletService_ListWalletTransactions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(ledgerentity.EntryFilter), args[2].(int), args[3].(int))
+	})
+	return _c
+}
+
+func (_c *MockIWalletService_ListWalletTransactions_Call) Return(_a0 []ledgerentity.EntryWithTxn, _a1 int, _a2 error) *MockIWalletService_ListWalletTransactions_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockIWalletService_ListWalletTransactions_Call) RunAndReturn(run func(string, ledgerentity.EntryFilter, int, int) ([]ledgerentity.EntryWithTxn, int, error)) *MockIWalletService_ListWalletTransactions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListWalletTransactionsByMerchant provides a mock function with given fields: merchantID, filter, page, limit
+func (_m *MockIWalletService) ListWalletTransactionsByMerchant(merchantID string, filter ledgerentity.EntryFilter, page int, limit int) ([]ledgerentity.EntryWithTxn, int, error) {
+	ret := _m.Called(merchantID, filter, page, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListWalletTransactionsByMerchant")
+	}
+
+	var r0 []ledgerentity.EntryWithTxn
+	var r1 int
+	var r2 error
+	if rf, ok := ret.Get(0).(func(string, ledgerentity.EntryFilter, int, int) ([]ledgerentity.EntryWithTxn, int, error)); ok {
+		return rf(merchantID, filter, page, limit)
+	}
+	if rf, ok := ret.Get(0).(func(string, ledgerentity.EntryFilter, int, int) []ledgerentity.EntryWithTxn); ok {
+		r0 = rf(merchantID, filter, page, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]ledgerentity.EntryWithTxn)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, ledgerentity.EntryFilter, int, int) int); ok {
+		r1 = rf(merchantID, filter, page, limit)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+
+	if rf, ok := ret.Get(2).(func(string, ledgerentity.EntryFilter, int, int) error); ok {
+		r2 = rf(merchantID, filter, page, limit)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockIWalletService_ListWalletTransactionsByMerchant_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListWalletTransactionsByMerchant'
+type MockIWalletService_ListWalletTransactionsByMerchant_Call struct {
+	*mock.Call
+}
+
+// ListWalletTransactionsByMerchant is a helper method to define mock.On call
+//   - merchantID string
+//   - filter ledgerentity.EntryFilter
+//   - page int
+//   - limit int
+func (_e *MockIWalletService_Expecter) ListWalletTransactionsByMerchant(merchantID interface{}, filter interface{}, page interface{}, limit interface{}) *MockIWalletService_ListWalletTransactionsByMerchant_Call {
+	return &MockIWalletService_ListWalletTransactionsByMerchant_Call{Call: _e.mock.On("ListWalletTransactionsByMerchant", merchantID, filter, page, limit)}
+}
+
+func (_c *MockIWalletService_ListWalletTransactionsByMerchant_Call) Run(run func(merchantID string, filter ledgerentity.EntryFilter, page int, limit int)) *MockIWalletService_ListWalletTransactionsByMerchant_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(ledgerentity.EntryFilter), args[2].(int), args[3].(int))
+	})
+	return _c
+}
+
+func (_c *MockIWalletService_ListWalletTransactionsByMerchant_Call) Return(_a0 []ledgerentity.EntryWithTxn, _a1 int, _a2 error) *MockIWalletService_ListWalletTransactionsByMerchant_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockIWalletService_ListWalletTransactionsByMerchant_Call) RunAndReturn(run func(string, ledgerentity.EntryFilter, int, int) ([]ledgerentity.EntryWithTxn, int, error)) *MockIWalletService_ListWalletTransactionsByMerchant_Call {
 	_c.Call.Return(run)
 	return _c
 }

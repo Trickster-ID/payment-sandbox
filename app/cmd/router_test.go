@@ -6,6 +6,7 @@ import (
 
 	adminHandlers "payment-sandbox/app/modules/admin/handlers"
 	ledgerHandlers "payment-sandbox/app/modules/ledger/handlers"
+	merchantHandlers "payment-sandbox/app/modules/merchants/handlers"
 	usersHandlers "payment-sandbox/app/modules/users/handlers"
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
 	oauth2Handlers "payment-sandbox/app/modules/oauth2/handlers"
@@ -43,8 +44,9 @@ func TestNewRouter_RegistersExpectedRoutes(t *testing.T) {
 	refundHandler := refundHandlers.NewRefundHandler(nil, auditLogger)
 	oauth2Handler := oauth2Handlers.NewOAuth2Handler(nil, cfg)
 	ledgerHandler := ledgerHandlers.NewLedgerHandler(nil)
+	merchantHandler := merchantHandlers.NewMerchantsHandler(nil)
 
-	router := newRouter(cfg, idemMW, usersHandler, adminHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler, oauth2Handler, ledgerHandler)
+	router := newRouter(cfg, idemMW, usersHandler, adminHandler, merchantHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler, oauth2Handler, ledgerHandler)
 	registered := routeMap(router.Routes())
 
 	tests := []struct {
@@ -71,6 +73,7 @@ func TestNewRouter_RegistersExpectedRoutes(t *testing.T) {
 		{name: "admin refund review", method: "PATCH", path: "/api/v1/admin/refunds/:id/review"},
 		{name: "admin refund process", method: "PATCH", path: "/api/v1/admin/refunds/:id/process"},
 		{name: "admin stats", method: "GET", path: "/api/v1/admin/stats"},
+		{name: "admin merchants list", method: "GET", path: "/api/v1/admin/merchants"},
 	}
 
 	for _, tc := range tests {

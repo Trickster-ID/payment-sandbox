@@ -1,7 +1,11 @@
 package handlers
 
 import (
+	"time"
+
 	"payment-sandbox/app/middleware"
+	ledgerEntity "payment-sandbox/app/modules/ledger/models/entity"
+	"payment-sandbox/app/modules/users/models/entity"
 	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
 	walletServices "payment-sandbox/app/modules/wallet/services"
 	"payment-sandbox/app/shared/audit"
@@ -34,6 +38,36 @@ type WalletResponse = walletEntity.Merchant
 type TopupResponse = walletEntity.Topup
 
 type TopupListResponse []walletEntity.Topup
+
+type TransactionResponse struct {
+	ID           int64                  `json:"id"`
+	TxnID        string                 `json:"transaction_id"`
+	Direction    string                 `json:"direction"`
+	Amount       int64                  `json:"amount"`
+	Currency     string                 `json:"currency"`
+	BalanceAfter int64                  `json:"balance_after"`
+	Reference    string                 `json:"reference"`
+	Description  string                 `json:"description"`
+	Metadata     map[string]any         `json:"metadata,omitempty"`
+	CreatedAt    time.Time              `json:"created_at"`
+}
+
+type TransactionListResponse []TransactionResponse
+
+func toTransactionResponse(e ledgerEntity.EntryWithTxn) TransactionResponse {
+	return TransactionResponse{
+		ID:           e.ID,
+		TxnID:        e.TxnID.String(),
+		Direction:    string(e.Direction),
+		Amount:       e.Amount,
+		Currency:     e.Currency,
+		BalanceAfter: e.BalanceAfter,
+		Reference:    e.Reference,
+		Description:  e.Description,
+		Metadata:     e.Metadata,
+		CreatedAt:    e.CreatedAt,
+	}
+}
 
 // Wallet godoc
 // @Summary Get merchant wallet
@@ -167,6 +201,94 @@ func (h *WalletHandler) ListMerchantTopups(c *gin.Context) {
 // @Router /admin/topups [get]
 func (h *WalletHandler) ListTopups(c *gin.Context) {
 	response.OK(c, h.service.ListTopups())
+}
+
+// ListWalletTransactions godoc
+// @Summary List wallet transactions
+// @Description Merchant lists own wallet debit/credit history. Admin can list any merchant's history by passing merchant_id query param.
+// @Tags wallet
+// @Produce json
+// @Security BearerAuth
+// @Param merchant_id query string false "Merchant UUID (admin only)"
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Page size" default(10)
+// @Param from query string false "Filter from date (RFC3339)"
+// @Param to query string false "Filter to date (RFC3339)"
+// @Param direction query string false "Filter direction: D (debit) or C (credit)" enums(D,C)
+// @Param reference_prefix query string false "Filter by transaction reference prefix (e.g. topup:, refund:, payment:)"
+// @Success 200 {object} response.Envelope{data=handlers.TransactionListResponse,meta=response.PaginationMeta}
+// @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
+// @Router /merchant/wallet/transactions [get]
+func (h *WalletHandler) ListWalletTransactions(c *gin.Context) {
+	userID, ok := middleware.MustUserID(c)
+	if !ok {
+		return
+	}
+
+	role := c.GetString(middleware.ContextRole)
+	targetMerchantID := c.Query("merchant_id")
+
+	if targetMerchantID != "" && role != string(entity.RoleAdmin) {
+		response.Fail(c, appErrors.Forbidden("auth_forbidden", "only admins can query other merchants", nil))
+		return
+	}
+
+	filter := ledgerEntity.EntryFilter{}
+	if from := c.Query("from"); from != "" {
+		t, err := time.Parse(time.RFC3339, from)
+		if err != nil {
+			response.Fail(c, appErrors.BadRequest("validation_error", "invalid 'from' date, use RFC3339", nil))
+			return
+		}
+		filter.From = &t
+	}
+	if to := c.Query("to"); to != "" {
+		t, err := time.Parse(time.RFC3339, to)
+		if err != nil {
+			response.Fail(c, appErrors.BadRequest("validation_error", "invalid 'to' date, use RFC3339", nil))
+			return
+		}
+		filter.To = &t
+	}
+	if dir := c.Query("direction"); dir != "" {
+		if dir != "D" && dir != "C" {
+			response.Fail(c, appErrors.BadRequest("validation_error", "direction must be D or C", nil))
+			return
+		}
+		filter.Direction = &dir
+	}
+	if prefix := c.Query("reference_prefix"); prefix != "" {
+		filter.ReferencePrefix = &prefix
+	}
+
+	params := pagination.Parse(c.DefaultQuery("page", "1"), c.DefaultQuery("limit", "10"))
+
+	var entries []ledgerEntity.EntryWithTxn
+	var total int
+	var err error
+
+	if targetMerchantID != "" {
+		entries, total, err = h.service.ListWalletTransactionsByMerchant(targetMerchantID, filter, params.Page, params.Limit)
+	} else {
+		entries, total, err = h.service.ListWalletTransactions(userID, filter, params.Page, params.Limit)
+	}
+	if err != nil {
+		response.Fail(c, appErrors.BadRequest("transactions_list_failed", err.Error(), nil))
+		return
+	}
+
+	result := make(TransactionListResponse, len(entries))
+	for i, e := range entries {
+		result[i] = toTransactionResponse(e)
+	}
+
+	response.OKWithMeta(c, result, gin.H{
+		"page":  params.Page,
+		"limit": params.Limit,
+		"total": total,
+	})
 }
 
 // UpdateTopupStatus godoc

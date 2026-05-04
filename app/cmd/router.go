@@ -20,6 +20,8 @@ import (
 	paymentHandlers "payment-sandbox/app/modules/payment/handlers"
 	refundAPI "payment-sandbox/app/modules/refund/api"
 	refundHandlers "payment-sandbox/app/modules/refund/handlers"
+	merchantAPI "payment-sandbox/app/modules/merchants/api"
+	merchantHandlers "payment-sandbox/app/modules/merchants/handlers"
 	walletAPI "payment-sandbox/app/modules/wallet/api"
 	walletHandlers "payment-sandbox/app/modules/wallet/handlers"
 	"payment-sandbox/app/shared/idempotency"
@@ -35,6 +37,7 @@ func newRouter(
 	idemMW *idempotency.Middleware,
 	usersHandler *usersHandlers.UserHandler,
 	adminHandler *adminHandlers.AdminHandler,
+	merchantHandler *merchantHandlers.MerchantsHandler,
 	walletHandler *walletHandlers.WalletHandler,
 	invoiceHandler *invoiceHandlers.InvoiceHandler,
 	paymentHandler *paymentHandlers.PaymentHandler,
@@ -85,6 +88,7 @@ func newRouter(
 			refundAPI.RegisterAdminRoutes(admin, refundHandler)
 			adminAPI.RegisterAdminRoutes(admin, adminHandler)
 			ledgerAPI.RegisterAdminRoutes(admin, ledgerHandler)
+			merchantAPI.RegisterAdminRoutes(admin, merchantHandler)
 		}
 	}
 

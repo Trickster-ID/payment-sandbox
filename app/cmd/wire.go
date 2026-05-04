@@ -8,6 +8,9 @@ import (
 	adminHandlers "payment-sandbox/app/modules/admin/handlers"
 	adminRepo "payment-sandbox/app/modules/admin/repositories"
 	adminSvc "payment-sandbox/app/modules/admin/services"
+	merchantHandlers "payment-sandbox/app/modules/merchants/handlers"
+	merchantRepo "payment-sandbox/app/modules/merchants/repositories"
+	merchantSvc "payment-sandbox/app/modules/merchants/services"
 	usersHandlers "payment-sandbox/app/modules/users/handlers"
 	usersRepo "payment-sandbox/app/modules/users/repositories"
 	usersSvc "payment-sandbox/app/modules/users/services"
@@ -46,6 +49,8 @@ func initApp() (*App, error) {
 		wire.Bind(new(usersRepo.IUserRepository), new(*usersRepo.UserRepository)),
 		adminRepo.NewAdminRepository,
 		wire.Bind(new(adminRepo.IAdminRepository), new(*adminRepo.AdminRepository)),
+		merchantRepo.NewMerchantsRepository,
+		wire.Bind(new(merchantRepo.IMerchantsRepository), new(*merchantRepo.MerchantsRepository)),
 		ledgerRepo.NewRepository,
 		wire.Bind(new(ledgerRepo.IRepository), new(*ledgerRepo.Repository)),
 		walletRepo.NewWalletRepository,
@@ -65,6 +70,9 @@ func initApp() (*App, error) {
 		adminSvc.NewAdminService,
 		wire.Bind(new(adminSvc.IAdminService), new(*adminSvc.AdminService)),
 		adminHandlers.NewAdminHandler,
+		merchantSvc.NewMerchantsService,
+		wire.Bind(new(merchantSvc.IMerchantsService), new(*merchantSvc.MerchantsService)),
+		merchantHandlers.NewMerchantsHandler,
 		walletSvc.NewWalletService,
 		wire.Bind(new(walletSvc.IWalletService), new(*walletSvc.WalletService)),
 		walletHandlers.NewWalletHandler,

@@ -3,6 +3,7 @@
 package mocks
 
 import (
+	ledgerentity "payment-sandbox/app/modules/ledger/models/entity"
 	entity "payment-sandbox/app/modules/wallet/models/entity"
 
 	mock "github.com/stretchr/testify/mock"
@@ -352,6 +353,74 @@ func (_c *MockIWalletRepository_UpdateTopupStatus_Call) Return(_a0 entity.Topup,
 }
 
 func (_c *MockIWalletRepository_UpdateTopupStatus_Call) RunAndReturn(run func(string, modelsentity.PaymentStatus) (entity.Topup, error)) *MockIWalletRepository_UpdateTopupStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListTransactions provides a mock function with given fields: merchantID, filter, page, limit
+func (_m *MockIWalletRepository) ListTransactions(merchantID string, filter ledgerentity.EntryFilter, page int, limit int) ([]ledgerentity.EntryWithTxn, int, error) {
+	ret := _m.Called(merchantID, filter, page, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListTransactions")
+	}
+
+	var r0 []ledgerentity.EntryWithTxn
+	var r1 int
+	var r2 error
+	if rf, ok := ret.Get(0).(func(string, ledgerentity.EntryFilter, int, int) ([]ledgerentity.EntryWithTxn, int, error)); ok {
+		return rf(merchantID, filter, page, limit)
+	}
+	if rf, ok := ret.Get(0).(func(string, ledgerentity.EntryFilter, int, int) []ledgerentity.EntryWithTxn); ok {
+		r0 = rf(merchantID, filter, page, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]ledgerentity.EntryWithTxn)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, ledgerentity.EntryFilter, int, int) int); ok {
+		r1 = rf(merchantID, filter, page, limit)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+
+	if rf, ok := ret.Get(2).(func(string, ledgerentity.EntryFilter, int, int) error); ok {
+		r2 = rf(merchantID, filter, page, limit)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockIWalletRepository_ListTransactions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListTransactions'
+type MockIWalletRepository_ListTransactions_Call struct {
+	*mock.Call
+}
+
+// ListTransactions is a helper method to define mock.On call
+//   - merchantID string
+//   - filter ledgerentity.EntryFilter
+//   - page int
+//   - limit int
+func (_e *MockIWalletRepository_Expecter) ListTransactions(merchantID interface{}, filter interface{}, page interface{}, limit interface{}) *MockIWalletRepository_ListTransactions_Call {
+	return &MockIWalletRepository_ListTransactions_Call{Call: _e.mock.On("ListTransactions", merchantID, filter, page, limit)}
+}
+
+func (_c *MockIWalletRepository_ListTransactions_Call) Run(run func(merchantID string, filter ledgerentity.EntryFilter, page int, limit int)) *MockIWalletRepository_ListTransactions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(ledgerentity.EntryFilter), args[2].(int), args[3].(int))
+	})
+	return _c
+}
+
+func (_c *MockIWalletRepository_ListTransactions_Call) Return(_a0 []ledgerentity.EntryWithTxn, _a1 int, _a2 error) *MockIWalletRepository_ListTransactions_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockIWalletRepository_ListTransactions_Call) RunAndReturn(run func(string, ledgerentity.EntryFilter, int, int) ([]ledgerentity.EntryWithTxn, int, error)) *MockIWalletRepository_ListTransactions_Call {
 	_c.Call.Return(run)
 	return _c
 }

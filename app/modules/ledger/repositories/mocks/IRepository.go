@@ -83,6 +83,75 @@ func (_c *MockIRepository_GetAccountByMerchantID_Call) RunAndReturn(run func(con
 	return _c
 }
 
+// ListEntriesByAccount provides a mock function with given fields: ctx, accountID, filter, page, limit
+func (_m *MockIRepository) ListEntriesByAccount(ctx context.Context, accountID uuid.UUID, filter entity.EntryFilter, page int, limit int) ([]entity.EntryWithTxn, int, error) {
+	ret := _m.Called(ctx, accountID, filter, page, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListEntriesByAccount")
+	}
+
+	var r0 []entity.EntryWithTxn
+	var r1 int
+	var r2 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, entity.EntryFilter, int, int) ([]entity.EntryWithTxn, int, error)); ok {
+		return rf(ctx, accountID, filter, page, limit)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, entity.EntryFilter, int, int) []entity.EntryWithTxn); ok {
+		r0 = rf(ctx, accountID, filter, page, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]entity.EntryWithTxn)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID, entity.EntryFilter, int, int) int); ok {
+		r1 = rf(ctx, accountID, filter, page, limit)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+
+	if rf, ok := ret.Get(2).(func(context.Context, uuid.UUID, entity.EntryFilter, int, int) error); ok {
+		r2 = rf(ctx, accountID, filter, page, limit)
+	} else {
+		r2 = ret.Error(2)
+	}
+
+	return r0, r1, r2
+}
+
+// MockIRepository_ListEntriesByAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListEntriesByAccount'
+type MockIRepository_ListEntriesByAccount_Call struct {
+	*mock.Call
+}
+
+// ListEntriesByAccount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accountID uuid.UUID
+//   - filter entity.EntryFilter
+//   - page int
+//   - limit int
+func (_e *MockIRepository_Expecter) ListEntriesByAccount(ctx interface{}, accountID interface{}, filter interface{}, page interface{}, limit interface{}) *MockIRepository_ListEntriesByAccount_Call {
+	return &MockIRepository_ListEntriesByAccount_Call{Call: _e.mock.On("ListEntriesByAccount", ctx, accountID, filter, page, limit)}
+}
+
+func (_c *MockIRepository_ListEntriesByAccount_Call) Run(run func(ctx context.Context, accountID uuid.UUID, filter entity.EntryFilter, page int, limit int)) *MockIRepository_ListEntriesByAccount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(uuid.UUID), args[2].(entity.EntryFilter), args[3].(int), args[4].(int))
+	})
+	return _c
+}
+
+func (_c *MockIRepository_ListEntriesByAccount_Call) Return(_a0 []entity.EntryWithTxn, _a1 int, _a2 error) *MockIRepository_ListEntriesByAccount_Call {
+	_c.Call.Return(_a0, _a1, _a2)
+	return _c
+}
+
+func (_c *MockIRepository_ListEntriesByAccount_Call) RunAndReturn(run func(context.Context, uuid.UUID, entity.EntryFilter, int, int) ([]entity.EntryWithTxn, int, error)) *MockIRepository_ListEntriesByAccount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Post provides a mock function with given fields: ctx, tx, p
 func (_m *MockIRepository) Post(ctx context.Context, tx *sql.Tx, p entity.Posting) (uuid.UUID, error) {
 	ret := _m.Called(ctx, tx, p)

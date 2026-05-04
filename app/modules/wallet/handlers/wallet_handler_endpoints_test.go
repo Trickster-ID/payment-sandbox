@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"payment-sandbox/app/middleware"
+	ledgerEntity "payment-sandbox/app/modules/ledger/models/entity"
 	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
 	serviceMocks "payment-sandbox/app/modules/wallet/services/mocks"
 	"payment-sandbox/app/shared/audit"
@@ -92,6 +93,145 @@ func TestWalletHandler_Wallet(t *testing.T) {
 			data, ok := payload["data"].(map[string]any)
 			require.True(t, ok)
 			assert.Equal(t, tc.wantID, data["id"])
+		})
+	}
+}
+
+func TestWalletHandler_ListWalletTransactions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	entry := ledgerEntity.EntryWithTxn{ID: 1, Reference: "topup:t1", Direction: ledgerEntity.Debit, Amount: 50000, Currency: "IDR"}
+
+	tests := []struct {
+		name       string
+		query      string
+		userID     string
+		role       string
+		setupMocks func(service *serviceMocks.MockIWalletService)
+		wantStatus int
+		wantCode   string
+		wantLen    int
+	}{
+		{
+			name:       "missing user context",
+			query:      "",
+			role:       "MERCHANT",
+			setupMocks: func(service *serviceMocks.MockIWalletService) {},
+			wantStatus: http.StatusUnauthorized,
+			wantCode:   "auth_unauthorized",
+		},
+		{
+			name:       "merchant forbidden to use merchant_id param",
+			query:      "?merchant_id=some-uuid",
+			userID:     "user-1",
+			role:       "MERCHANT",
+			setupMocks: func(service *serviceMocks.MockIWalletService) {},
+			wantStatus: http.StatusForbidden,
+			wantCode:   "auth_forbidden",
+		},
+		{
+			name:   "invalid direction param",
+			query:  "?direction=X",
+			userID: "user-1",
+			role:   "MERCHANT",
+			setupMocks: func(service *serviceMocks.MockIWalletService) {},
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "validation_error",
+		},
+		{
+			name:   "invalid from date",
+			query:  "?from=not-a-date",
+			userID: "user-1",
+			role:   "MERCHANT",
+			setupMocks: func(service *serviceMocks.MockIWalletService) {},
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "validation_error",
+		},
+		{
+			name:   "invalid to date",
+			query:  "?to=not-a-date",
+			userID: "user-1",
+			role:   "MERCHANT",
+			setupMocks: func(service *serviceMocks.MockIWalletService) {},
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "validation_error",
+		},
+		{
+			name:   "service error",
+			query:  "",
+			userID: "user-1",
+			role:   "MERCHANT",
+			setupMocks: func(service *serviceMocks.MockIWalletService) {
+				service.EXPECT().
+					ListWalletTransactions("user-1", ledgerEntity.EntryFilter{}, 1, 10).
+					Return(nil, 0, errors.New("db error"))
+			},
+			wantStatus: http.StatusBadRequest,
+			wantCode:   "transactions_list_failed",
+		},
+		{
+			name:   "merchant success",
+			query:  "",
+			userID: "user-1",
+			role:   "MERCHANT",
+			setupMocks: func(service *serviceMocks.MockIWalletService) {
+				service.EXPECT().
+					ListWalletTransactions("user-1", ledgerEntity.EntryFilter{}, 1, 10).
+					Return([]ledgerEntity.EntryWithTxn{entry}, 1, nil)
+			},
+			wantStatus: http.StatusOK,
+			wantLen:    1,
+		},
+		{
+			name:   "admin success with merchant_id",
+			query:  "?merchant_id=merchant-99",
+			userID: "admin-1",
+			role:   "ADMIN",
+			setupMocks: func(service *serviceMocks.MockIWalletService) {
+				service.EXPECT().
+					ListWalletTransactionsByMerchant("merchant-99", ledgerEntity.EntryFilter{}, 1, 10).
+					Return([]ledgerEntity.EntryWithTxn{entry}, 1, nil)
+			},
+			wantStatus: http.StatusOK,
+			wantLen:    1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			service := serviceMocks.NewMockIWalletService(t)
+			logger := auditMocks.NewMockIAuditLogger(t)
+			tc.setupMocks(service)
+
+			handler := NewWalletHandler(service, logger)
+			router := gin.New()
+			router.GET("/merchant/wallet/transactions", func(c *gin.Context) {
+				if tc.userID != "" {
+					c.Set(middleware.ContextUserID, tc.userID)
+				}
+				c.Set(middleware.ContextRole, tc.role)
+				handler.ListWalletTransactions(c)
+			})
+
+			req := httptest.NewRequest(http.MethodGet, "/merchant/wallet/transactions"+tc.query, nil)
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+
+			assert.Equal(t, tc.wantStatus, rec.Code)
+			var payload map[string]any
+			err := json.Unmarshal(rec.Body.Bytes(), &payload)
+			require.NoError(t, err)
+
+			if tc.wantCode != "" {
+				errData, ok := payload["error"].(map[string]any)
+				require.True(t, ok)
+				assert.Equal(t, tc.wantCode, errData["code"])
+				return
+			}
+
+			data, ok := payload["data"].([]any)
+			require.True(t, ok)
+			assert.Len(t, data, tc.wantLen)
 		})
 	}
 }

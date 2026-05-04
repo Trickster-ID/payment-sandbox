@@ -61,3 +61,24 @@ type LedgerEntry struct {
 	BalanceAfter  int64
 	CreatedAt     time.Time
 }
+
+type EntryFilter struct {
+	From            *time.Time
+	To              *time.Time
+	Direction       *string
+	ReferencePrefix *string
+}
+
+type EntryWithTxn struct {
+	ID          int64
+	TxnID       uuid.UUID
+	AccountID   uuid.UUID
+	Direction   Direction
+	Amount      int64
+	Currency    string
+	BalanceAfter int64
+	CreatedAt   time.Time
+	Reference   string
+	Description string
+	Metadata    map[string]any
+}

@@ -25,6 +25,9 @@ import (
 	invoiceSvc "payment-sandbox/app/modules/invoice/services"
 	ledgerHandlers "payment-sandbox/app/modules/ledger/handlers"
 	ledgerRepo "payment-sandbox/app/modules/ledger/repositories"
+	merchantHandlers "payment-sandbox/app/modules/merchants/handlers"
+	merchantRepo "payment-sandbox/app/modules/merchants/repositories"
+	merchantSvc "payment-sandbox/app/modules/merchants/services"
 	paymentHandlers "payment-sandbox/app/modules/payment/handlers"
 	paymentRepo "payment-sandbox/app/modules/payment/repositories"
 	paymentSvc "payment-sandbox/app/modules/payment/services"
@@ -277,11 +280,15 @@ func setupIntegrationSuite(t *testing.T) *integrationSuite {
 
 	auditLogger := audit.NewNoopLogger()
 	idemMW := &idempotency.Middleware{Store: &idempotency.Store{TTL: 24 * time.Hour}, Cache: &idempotency.Cache{TTL: 24 * time.Hour}}
+	merchantsRepo := merchantRepo.NewMerchantsRepository(db)
+	merchantsService := merchantSvc.NewMerchantsService(merchantsRepo)
+	merchantsHandler := merchantHandlers.NewMerchantsHandler(merchantsService)
 	router := newRouter(
 		cfg,
 		idemMW,
 		usersHandlers.NewUserHandler(usersService),
 		adminHandlers.NewAdminHandler(adminService),
+		merchantsHandler,
 		walletHandlers.NewWalletHandler(walletService, auditLogger),
 		invoiceHandlers.NewInvoiceHandler(invoiceService, auditLogger),
 		paymentHandlers.NewPaymentHandler(paymentService, auditLogger),

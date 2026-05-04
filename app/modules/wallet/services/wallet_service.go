@@ -1,6 +1,7 @@
 package services
 
 import (
+	ledgerEntity "payment-sandbox/app/modules/ledger/models/entity"
 	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
 	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
 	"payment-sandbox/app/modules/wallet/repositories"
@@ -16,6 +17,8 @@ type IWalletService interface {
 	ListTopups() []walletEntity.Topup
 	ListMerchantTopups(userID string, page, limit int) ([]walletEntity.Topup, int, error)
 	UpdateTopupStatus(topupID, status string) (walletEntity.Topup, error)
+	ListWalletTransactions(userID string, filter ledgerEntity.EntryFilter, page, limit int) ([]ledgerEntity.EntryWithTxn, int, error)
+	ListWalletTransactionsByMerchant(merchantID string, filter ledgerEntity.EntryFilter, page, limit int) ([]ledgerEntity.EntryWithTxn, int, error)
 }
 
 func NewWalletService(repo repositories.IWalletRepository) *WalletService {
@@ -53,4 +56,16 @@ func (s *WalletService) UpdateTopupStatus(topupID, status string) (walletEntity.
 		return walletEntity.Topup{}, err
 	}
 	return s.repo.UpdateTopupStatus(topupID, parsed)
+}
+
+func (s *WalletService) ListWalletTransactions(userID string, filter ledgerEntity.EntryFilter, page, limit int) ([]ledgerEntity.EntryWithTxn, int, error) {
+	merchantID, err := s.repo.MerchantIDByUserID(userID)
+	if err != nil {
+		return nil, 0, err
+	}
+	return s.repo.ListTransactions(merchantID, filter, page, limit)
+}
+
+func (s *WalletService) ListWalletTransactionsByMerchant(merchantID string, filter ledgerEntity.EntryFilter, page, limit int) ([]ledgerEntity.EntryWithTxn, int, error) {
+	return s.repo.ListTransactions(merchantID, filter, page, limit)
 }

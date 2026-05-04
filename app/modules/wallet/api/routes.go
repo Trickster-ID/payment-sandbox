@@ -9,6 +9,7 @@ import (
 
 func RegisterMerchantRoutes(merchant *gin.RouterGroup, handler *walletHandlers.WalletHandler, idem *idempotency.Middleware) {
 	merchant.GET("/wallet", handler.Wallet)
+	merchant.GET("/wallet/transactions", handler.ListWalletTransactions)
 	merchant.GET("/topups", handler.ListMerchantTopups)
 	merchant.POST("/topups", idem.Handle(), handler.CreateTopup)
 }
@@ -16,4 +17,5 @@ func RegisterMerchantRoutes(merchant *gin.RouterGroup, handler *walletHandlers.W
 func RegisterAdminRoutes(admin *gin.RouterGroup, handler *walletHandlers.WalletHandler) {
 	admin.GET("/topups", handler.ListTopups)
 	admin.PATCH("/topups/:id/status", handler.UpdateTopupStatus)
+	admin.GET("/wallet/transactions", handler.ListWalletTransactions)
 }

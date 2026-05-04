@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"database/sql"
+	"errors"
 	"regexp"
 	"testing"
 	"time"
@@ -68,6 +69,59 @@ func TestWalletRepository_CreateTopup(t *testing.T) {
 		topup, err := repo.CreateTopup(testMerchantUUID.String(), int64(50000))
 		require.NoError(t, err)
 		assert.Equal(t, "topup-1", topup.ID)
+	})
+}
+
+func TestWalletRepository_ListTransactions(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		db, _, err := sqlmock.New()
+		require.NoError(t, err)
+		defer db.Close()
+
+		ledgerMock := ledgerMocks.NewMockIRepository(t)
+		repo := NewWalletRepository(db, ledgerMock)
+
+		ledgerMock.EXPECT().
+			GetAccountByMerchantID(mock.Anything, testMerchantUUID).
+			Return(ledgerEntity.Account{ID: testAccountUUID}, nil)
+
+		expected := []ledgerEntity.EntryWithTxn{{ID: 1, Reference: "topup:t1"}}
+		ledgerMock.EXPECT().
+			ListEntriesByAccount(mock.Anything, testAccountUUID, ledgerEntity.EntryFilter{}, 1, 10).
+			Return(expected, 1, nil)
+
+		entries, total, err := repo.ListTransactions(testMerchantUUID.String(), ledgerEntity.EntryFilter{}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, 1, total)
+		assert.Equal(t, expected[0].Reference, entries[0].Reference)
+	})
+
+	t.Run("invalid merchant id", func(t *testing.T) {
+		db, _, err := sqlmock.New()
+		require.NoError(t, err)
+		defer db.Close()
+
+		repo := NewWalletRepository(db, nil)
+		_, _, err = repo.ListTransactions("not-a-uuid", ledgerEntity.EntryFilter{}, 1, 10)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid merchant id")
+	})
+
+	t.Run("account not found", func(t *testing.T) {
+		db, _, err := sqlmock.New()
+		require.NoError(t, err)
+		defer db.Close()
+
+		ledgerMock := ledgerMocks.NewMockIRepository(t)
+		repo := NewWalletRepository(db, ledgerMock)
+
+		ledgerMock.EXPECT().
+			GetAccountByMerchantID(mock.Anything, testMerchantUUID).
+			Return(ledgerEntity.Account{}, errors.New("not found"))
+
+		_, _, err = repo.ListTransactions(testMerchantUUID.String(), ledgerEntity.EntryFilter{}, 1, 10)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "merchant ledger account not found")
 	})
 }
 

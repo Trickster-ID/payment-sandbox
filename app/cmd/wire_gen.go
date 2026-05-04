@@ -11,6 +11,9 @@ import (
 	handlers2 "payment-sandbox/app/modules/admin/handlers"
 	"payment-sandbox/app/modules/admin/repositories"
 	services2 "payment-sandbox/app/modules/admin/services"
+	handlers9 "payment-sandbox/app/modules/merchants/handlers"
+	repositories8 "payment-sandbox/app/modules/merchants/repositories"
+	services9 "payment-sandbox/app/modules/merchants/services"
 	handlers4 "payment-sandbox/app/modules/invoice/handlers"
 	repositories4 "payment-sandbox/app/modules/invoice/repositories"
 	services4 "payment-sandbox/app/modules/invoice/services"
@@ -75,7 +78,10 @@ func initApp() (*App, error) {
 	oAuth2Service := services7.NewOAuth2Service(oAuth2Repository, configConfig)
 	oAuth2Handler := handlers7.NewOAuth2Handler(oAuth2Service, configConfig)
 	ledgerHandler := handlers8.NewLedgerHandler(repository)
-	engine := newRouter(configConfig, middleware, userHandler, adminHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler, oAuth2Handler, ledgerHandler)
+	merchantsRepository := repositories8.NewMerchantsRepository(db)
+	merchantsService := services9.NewMerchantsService(merchantsRepository)
+	merchantsHandler := handlers9.NewMerchantsHandler(merchantsService)
+	engine := newRouter(configConfig, middleware, userHandler, adminHandler, merchantsHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler, oAuth2Handler, ledgerHandler)
 	orchestrator := services8.NewOrchestrator(db)
 	app := newApp(configConfig, engine, orchestrator)
 	return app, nil

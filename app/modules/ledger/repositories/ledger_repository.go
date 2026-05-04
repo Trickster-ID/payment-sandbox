@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"payment-sandbox/app/modules/ledger/models/entity"
@@ -16,6 +17,7 @@ type IRepository interface {
 	Post(ctx context.Context, tx *sql.Tx, p entity.Posting) (uuid.UUID, error)
 	Reverse(ctx context.Context, tx *sql.Tx, originalRef, reason string, actor uuid.UUID) (uuid.UUID, error)
 	GetAccountByMerchantID(ctx context.Context, merchantID uuid.UUID) (entity.Account, error)
+	ListEntriesByAccount(ctx context.Context, accountID uuid.UUID, filter entity.EntryFilter, page, limit int) ([]entity.EntryWithTxn, int, error)
 }
 
 type Repository struct {
@@ -113,6 +115,74 @@ func (r *Repository) Reverse(ctx context.Context, tx *sql.Tx, originalRef, reaso
 		Metadata:    map[string]any{"reverses": originalRef},
 		CreatedBy:   actor,
 	})
+}
+
+func (r *Repository) ListEntriesByAccount(ctx context.Context, accountID uuid.UUID, filter entity.EntryFilter, page, limit int) ([]entity.EntryWithTxn, int, error) {
+	args := []any{accountID}
+	conds := []string{"e.account_id = $1"}
+
+	if filter.From != nil {
+		args = append(args, *filter.From)
+		conds = append(conds, fmt.Sprintf("e.created_at >= $%d", len(args)))
+	}
+	if filter.To != nil {
+		args = append(args, *filter.To)
+		conds = append(conds, fmt.Sprintf("e.created_at <= $%d", len(args)))
+	}
+	if filter.Direction != nil {
+		args = append(args, *filter.Direction)
+		conds = append(conds, fmt.Sprintf("e.direction = $%d", len(args)))
+	}
+	if filter.ReferencePrefix != nil {
+		args = append(args, *filter.ReferencePrefix+"%")
+		conds = append(conds, fmt.Sprintf("t.reference LIKE $%d", len(args)))
+	}
+
+	where := strings.Join(conds, " AND ")
+
+	var total int
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM ledger_entries e JOIN ledger_transactions t ON t.id = e.transaction_id WHERE %s`, where)
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count ledger entries: %w", err)
+	}
+
+	offset := (page - 1) * limit
+	args = append(args, limit, offset)
+	dataQuery := fmt.Sprintf(`
+		SELECT e.id, e.transaction_id, e.account_id, e.direction, e.amount, e.currency, e.balance_after, e.created_at,
+		       t.reference, t.description, t.metadata
+		FROM ledger_entries e
+		JOIN ledger_transactions t ON t.id = e.transaction_id
+		WHERE %s
+		ORDER BY e.created_at DESC, e.id DESC
+		LIMIT $%d OFFSET $%d
+	`, where, len(args)-1, len(args))
+
+	rows, err := r.db.QueryContext(ctx, dataQuery, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("query ledger entries: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]entity.EntryWithTxn, 0)
+	for rows.Next() {
+		var item entity.EntryWithTxn
+		var dir string
+		var metaBytes []byte
+		if err := rows.Scan(
+			&item.ID, &item.TxnID, &item.AccountID, &dir, &item.Amount, &item.Currency, &item.BalanceAfter, &item.CreatedAt,
+			&item.Reference, &item.Description, &metaBytes,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scan ledger entry: %w", err)
+		}
+		item.Direction = entity.Direction(dir)
+		item.CreatedAt = item.CreatedAt.UTC()
+		if len(metaBytes) > 0 {
+			_ = json.Unmarshal(metaBytes, &item.Metadata)
+		}
+		items = append(items, item)
+	}
+	return items, total, nil
 }
 
 func (r *Repository) GetAccountByMerchantID(ctx context.Context, merchantID uuid.UUID) (entity.Account, error) {

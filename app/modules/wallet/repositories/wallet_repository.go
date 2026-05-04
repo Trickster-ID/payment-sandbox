@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 )
 
+//go:generate mockery --name IWalletRepository --output mocks --outpkg mocks --case underscore
+
 type IWalletRepository interface {
 	GetMerchantWallet(userID string) (walletEntity.Merchant, error)
 	MerchantIDByUserID(userID string) (string, error)
@@ -21,6 +23,7 @@ type IWalletRepository interface {
 	ListTopups() []walletEntity.Topup
 	ListMerchantTopups(merchantID string, page, limit int) ([]walletEntity.Topup, int)
 	UpdateTopupStatus(topupID string, nextStatus paymentEntity.PaymentStatus) (walletEntity.Topup, error)
+	ListTransactions(merchantID string, filter ledgerEntity.EntryFilter, page, limit int) ([]ledgerEntity.EntryWithTxn, int, error)
 }
 
 type WalletRepository struct {
@@ -188,6 +191,19 @@ func (r *WalletRepository) UpdateTopupStatus(topupID string, nextStatus paymentE
 	}
 	normalizeTopupTimes(&topup)
 	return topup, nil
+}
+
+func (r *WalletRepository) ListTransactions(merchantID string, filter ledgerEntity.EntryFilter, page, limit int) ([]ledgerEntity.EntryWithTxn, int, error) {
+	ctx := context.Background()
+	merchantUUID, err := uuid.Parse(merchantID)
+	if err != nil {
+		return nil, 0, errors.New("invalid merchant id")
+	}
+	acct, err := r.ledgerRepo.GetAccountByMerchantID(ctx, merchantUUID)
+	if err != nil {
+		return nil, 0, errors.New("merchant ledger account not found")
+	}
+	return r.ledgerRepo.ListEntriesByAccount(ctx, acct.ID, filter, page, limit)
 }
 
 func (r *WalletRepository) getMerchantByUserID(userID string) (walletEntity.Merchant, bool) {

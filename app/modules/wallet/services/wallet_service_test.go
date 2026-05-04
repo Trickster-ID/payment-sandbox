@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	ledgerEntity "payment-sandbox/app/modules/ledger/models/entity"
 	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
 	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
 	repoMocks "payment-sandbox/app/modules/wallet/repositories/mocks"
@@ -185,6 +186,58 @@ func TestWalletService_UpdateTopupStatus(t *testing.T) {
 			assert.Equal(t, tc.wantStatus, result.Status)
 		})
 	}
+}
+
+func TestWalletService_ListWalletTransactions(t *testing.T) {
+	filter := ledgerEntity.EntryFilter{}
+	entry := ledgerEntity.EntryWithTxn{ID: 1, Reference: "topup:abc"}
+
+	t.Run("merchant lookup failed", func(t *testing.T) {
+		repo := repoMocks.NewMockIWalletRepository(t)
+		repo.EXPECT().MerchantIDByUserID("user-1").Return("", errors.New("not found"))
+		_, _, err := NewWalletService(repo).ListWalletTransactions("user-1", filter, 1, 10)
+		require.Error(t, err)
+	})
+
+	t.Run("success", func(t *testing.T) {
+		repo := repoMocks.NewMockIWalletRepository(t)
+		repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
+		repo.EXPECT().ListTransactions("merchant-1", filter, 1, 10).Return([]ledgerEntity.EntryWithTxn{entry}, 1, nil)
+		entries, total, err := NewWalletService(repo).ListWalletTransactions("user-1", filter, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, 1, total)
+		assert.Len(t, entries, 1)
+		assert.Equal(t, entry.Reference, entries[0].Reference)
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		repo := repoMocks.NewMockIWalletRepository(t)
+		repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil)
+		repo.EXPECT().ListTransactions("merchant-1", filter, 1, 10).Return(nil, 0, errors.New("db error"))
+		_, _, err := NewWalletService(repo).ListWalletTransactions("user-1", filter, 1, 10)
+		require.Error(t, err)
+	})
+}
+
+func TestWalletService_ListWalletTransactionsByMerchant(t *testing.T) {
+	filter := ledgerEntity.EntryFilter{}
+	entry := ledgerEntity.EntryWithTxn{ID: 2, Reference: "refund:xyz"}
+
+	t.Run("success", func(t *testing.T) {
+		repo := repoMocks.NewMockIWalletRepository(t)
+		repo.EXPECT().ListTransactions("merchant-1", filter, 1, 10).Return([]ledgerEntity.EntryWithTxn{entry}, 1, nil)
+		entries, total, err := NewWalletService(repo).ListWalletTransactionsByMerchant("merchant-1", filter, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, 1, total)
+		assert.Len(t, entries, 1)
+	})
+
+	t.Run("repo error", func(t *testing.T) {
+		repo := repoMocks.NewMockIWalletRepository(t)
+		repo.EXPECT().ListTransactions("merchant-1", filter, 1, 10).Return(nil, 0, errors.New("db error"))
+		_, _, err := NewWalletService(repo).ListWalletTransactionsByMerchant("merchant-1", filter, 1, 10)
+		require.Error(t, err)
+	})
 }
 
 func TestWalletService_ListTopups(t *testing.T) {
