@@ -162,6 +162,145 @@ func TestRefundHandler_RequestRefund(t *testing.T) {
 	}
 }
 
+func TestRefundHandler_MerchantListRefunds(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	type fields struct {
+		service *serviceMocks.MockIRefundService
+		logger  *auditMocks.MockIAuditLogger
+	}
+	type args struct {
+		withUserID bool
+		status     string
+	}
+	type mocks struct {
+		setup func(f fields, a args)
+	}
+	type wants struct {
+		status  int
+		errCode string
+		dataLen int
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
+	}{
+		{
+			name: "1. no user in context -> unauthorized",
+			fields: fields{
+				service: serviceMocks.NewMockIRefundService(t),
+				logger:  auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{withUserID: false, status: ""},
+			mocks: mocks{
+				setup: nil,
+			},
+			wants: wants{status: http.StatusUnauthorized, errCode: "auth_unauthorized"},
+		},
+		{
+			name: "2. valid user, no status param -> success returns list",
+			fields: fields{
+				service: serviceMocks.NewMockIRefundService(t),
+				logger:  auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{withUserID: true, status: ""},
+			mocks: mocks{
+				setup: func(f fields, a args) {
+					f.service.EXPECT().
+						MerchantListRefunds("user-1", "").
+						Return([]refundEntity.Refund{{ID: "refund-1"}}).
+						Once()
+				},
+			},
+			wants: wants{status: http.StatusOK, dataLen: 1},
+		},
+		{
+			name: "3. valid user, with status param -> success returns filtered list",
+			fields: fields{
+				service: serviceMocks.NewMockIRefundService(t),
+				logger:  auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{withUserID: true, status: "REQUESTED"},
+			mocks: mocks{
+				setup: func(f fields, a args) {
+					f.service.EXPECT().
+						MerchantListRefunds("user-1", "REQUESTED").
+						Return([]refundEntity.Refund{{ID: "refund-1"}, {ID: "refund-2"}}).
+						Once()
+				},
+			},
+			wants: wants{status: http.StatusOK, dataLen: 2},
+		},
+		{
+			name: "4. valid user, service returns empty -> success with empty list",
+			fields: fields{
+				service: serviceMocks.NewMockIRefundService(t),
+				logger:  auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{withUserID: true, status: "SUCCESS"},
+			mocks: mocks{
+				setup: func(f fields, a args) {
+					f.service.EXPECT().
+						MerchantListRefunds("user-1", "SUCCESS").
+						Return([]refundEntity.Refund{}).
+						Once()
+				},
+			},
+			wants: wants{status: http.StatusOK, dataLen: 0},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if tt.mocks.setup != nil {
+				tt.mocks.setup(tt.fields, tt.args)
+			}
+
+			handler := NewRefundHandler(tt.fields.service, tt.fields.logger)
+			router := gin.New()
+			router.GET("/merchant/refunds", func(c *gin.Context) {
+				if tt.args.withUserID {
+					c.Set(middleware.ContextUserID, "user-1")
+					c.Set(middleware.ContextRole, "MERCHANT")
+				}
+				handler.MerchantListRefunds(c)
+			})
+
+			url := "/merchant/refunds"
+			if tt.args.status != "" {
+				url += "?status=" + tt.args.status
+			}
+			req := httptest.NewRequest(http.MethodGet, url, nil)
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+
+			assert.Equal(t, tt.wants.status, rec.Code)
+
+			var payload map[string]any
+			err := json.Unmarshal(rec.Body.Bytes(), &payload)
+			require.NoError(t, err)
+
+			if tt.wants.errCode != "" {
+				errorData, ok := payload["error"].(map[string]any)
+				require.True(t, ok)
+				assert.Equal(t, tt.wants.errCode, errorData["code"])
+			} else {
+				data, ok := payload["data"].([]any)
+				require.True(t, ok)
+				assert.Len(t, data, tt.wants.dataLen)
+			}
+
+			tt.fields.service.AssertExpectations(t)
+		})
+	}
+}
+
 func TestRefundHandler_ProcessRefund(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

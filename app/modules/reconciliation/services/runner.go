@@ -7,6 +7,14 @@ import (
 	"time"
 )
 
+// IRunner is the interface for reconciliation checks.
+//
+//go:generate go run github.com/vektra/mockery/v2 --name=IRunner
+type IRunner interface {
+	CheckTransactionBalance(ctx context.Context) ([]string, error)
+	CheckLedgerIntegrity(ctx context.Context) ([]string, error)
+}
+
 type Runner struct{ DB *sql.DB }
 
 func NewRunner(db *sql.DB) *Runner { return &Runner{DB: db} }

@@ -104,6 +104,125 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/merchants": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Admin lists merchants with optional prefix search on name or email. Powers the admin merchant picker.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List merchants",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Prefix search on name or email (case-insensitive)",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/payment-sandbox_app_modules_merchants_models_entity.MerchantSummary"
+                                            }
+                                        },
+                                        "meta": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.PaginationMeta"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/admin/payment-intents": {
             "get": {
                 "security": [
@@ -1598,6 +1717,99 @@ const docTemplate = `{
             }
         },
         "/merchant/topups": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Merchant lists own top-up requests with pagination",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wallet"
+                ],
+                "summary": "List merchant top-ups",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/payment-sandbox_app_modules_wallet_models_entity.Topup"
+                                            }
+                                        },
+                                        "meta": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.PaginationMeta"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -1799,6 +2011,153 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/merchant/wallet/transactions": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Merchant lists own wallet debit/credit history. Admin can list any merchant's history by passing merchant_id query param.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "wallet"
+                ],
+                "summary": "List wallet transactions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Merchant UUID (admin only)",
+                        "name": "merchant_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Page size",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter from date (RFC3339)",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter to date (RFC3339)",
+                        "name": "to",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "D",
+                            "C"
+                        ],
+                        "type": "string",
+                        "description": "Filter direction: D (debit) or C (credit)",
+                        "name": "direction",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by transaction reference prefix (e.g. topup:, refund:, payment:)",
+                        "name": "reference_prefix",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/app_modules_wallet_handlers.TransactionResponse"
+                                            }
+                                        },
+                                        "meta": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.PaginationMeta"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/payment-sandbox_app_shared_response.Envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "error": {
+                                            "$ref": "#/definitions/payment-sandbox_app_shared_response.ErrorPayload"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "allOf": [
                                 {
@@ -2736,6 +3095,42 @@ const docTemplate = `{
                 }
             }
         },
+        "app_modules_wallet_handlers.TransactionResponse": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "integer"
+                },
+                "balance_after": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "direction": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "reference": {
+                    "type": "string"
+                },
+                "transaction_id": {
+                    "type": "string"
+                }
+            }
+        },
         "app_modules_wallet_handlers.UpdateTopupStatusRequest": {
             "type": "object",
             "required": [
@@ -2825,6 +3220,20 @@ const docTemplate = `{
                 "InvoicePaid",
                 "InvoiceExpired"
             ]
+        },
+        "payment-sandbox_app_modules_merchants_models_entity.MerchantSummary": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
         },
         "payment-sandbox_app_modules_oauth2_models_dto.ClientResponse": {
             "type": "object",

@@ -247,22 +247,146 @@ func TestRefundService_ProcessRefund(t *testing.T) {
 }
 
 func TestRefundService_ListRefunds(t *testing.T) {
-	t.Run("returns list", func(t *testing.T) {
-		repo := repoMocks.NewMockIRefundRepository(t)
-		expected := []refundEntity.Refund{{ID: "r1"}}
-		repo.EXPECT().ListRefunds("PENDING").Return(expected)
-		
-		service := NewRefundService(repo)
-		res := service.ListRefunds("PENDING")
-		assert.Equal(t, expected, res)
-	})
+	type fields struct {
+		repo *repoMocks.MockIRefundRepository
+	}
+	type args struct {
+		status string
+	}
+	type mocks struct {
+		setup func(f fields, a args)
+	}
+	type wants struct {
+		dataLen int
+	}
 
-	t.Run("empty list", func(t *testing.T) {
-		repo := repoMocks.NewMockIRefundRepository(t)
-		repo.EXPECT().ListRefunds("PENDING").Return([]refundEntity.Refund{})
-		
-		service := NewRefundService(repo)
-		res := service.ListRefunds("PENDING")
-		assert.Empty(t, res)
-	})
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
+	}{
+		{
+			name:   "1. with status filter -> returns filtered list",
+			fields: fields{repo: repoMocks.NewMockIRefundRepository(t)},
+			args:   args{status: "PENDING"},
+			mocks: mocks{
+				setup: func(f fields, a args) {
+					f.repo.EXPECT().ListRefunds("PENDING").Return([]refundEntity.Refund{{ID: "r1"}}).Once()
+				},
+			},
+			wants: wants{dataLen: 1},
+		},
+		{
+			name:   "2. empty status -> returns all refunds",
+			fields: fields{repo: repoMocks.NewMockIRefundRepository(t)},
+			args:   args{status: ""},
+			mocks: mocks{
+				setup: func(f fields, a args) {
+					f.repo.EXPECT().ListRefunds("").Return([]refundEntity.Refund{{ID: "r1"}, {ID: "r2"}}).Once()
+				},
+			},
+			wants: wants{dataLen: 2},
+		},
+		{
+			name:   "3. no matching records -> empty slice",
+			fields: fields{repo: repoMocks.NewMockIRefundRepository(t)},
+			args:   args{status: "PENDING"},
+			mocks: mocks{
+				setup: func(f fields, a args) {
+					f.repo.EXPECT().ListRefunds("PENDING").Return([]refundEntity.Refund{}).Once()
+				},
+			},
+			wants: wants{dataLen: 0},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tt.mocks.setup(tt.fields, tt.args)
+
+			service := NewRefundService(tt.fields.repo)
+			res := service.ListRefunds(tt.args.status)
+
+			assert.Len(t, res, tt.wants.dataLen)
+			tt.fields.repo.AssertExpectations(t)
+		})
+	}
+}
+
+func TestRefundService_MerchantListRefunds(t *testing.T) {
+	type fields struct {
+		repo *repoMocks.MockIRefundRepository
+	}
+	type args struct {
+		userID string
+		status string
+	}
+	type mocks struct {
+		setup func(f fields, a args)
+	}
+	type wants struct {
+		result []refundEntity.Refund
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
+	}{
+		{
+			name:   "1. merchant not found -> empty slice",
+			fields: fields{repo: repoMocks.NewMockIRefundRepository(t)},
+			args:   args{userID: "user-1", status: ""},
+			mocks: mocks{
+				setup: func(f fields, a args) {
+					f.repo.EXPECT().MerchantIDByUserID("user-1").Return("", errors.New("merchant not found")).Once()
+				},
+			},
+			wants: wants{result: []refundEntity.Refund{}},
+		},
+		{
+			name:   "2. valid user, empty status -> returns all refunds",
+			fields: fields{repo: repoMocks.NewMockIRefundRepository(t)},
+			args:   args{userID: "user-1", status: ""},
+			mocks: mocks{
+				setup: func(f fields, a args) {
+					f.repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil).Once()
+					f.repo.EXPECT().ListMerchantRefunds("merchant-1", "").Return([]refundEntity.Refund{{ID: "r-1"}, {ID: "r-2"}}).Once()
+				},
+			},
+			wants: wants{result: []refundEntity.Refund{{ID: "r-1"}, {ID: "r-2"}}},
+		},
+		{
+			name:   "3. status trimmed and uppercased -> normalized status forwarded",
+			fields: fields{repo: repoMocks.NewMockIRefundRepository(t)},
+			args:   args{userID: "user-1", status: " requested "},
+			mocks: mocks{
+				setup: func(f fields, a args) {
+					f.repo.EXPECT().MerchantIDByUserID("user-1").Return("merchant-1", nil).Once()
+					f.repo.EXPECT().ListMerchantRefunds("merchant-1", "REQUESTED").Return([]refundEntity.Refund{{ID: "r-3"}}).Once()
+				},
+			},
+			wants: wants{result: []refundEntity.Refund{{ID: "r-3"}}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tt.mocks.setup(tt.fields, tt.args)
+
+			service := NewRefundService(tt.fields.repo)
+			res := service.MerchantListRefunds(tt.args.userID, tt.args.status)
+
+			assert.Equal(t, tt.wants.result, res)
+			tt.fields.repo.AssertExpectations(t)
+		})
+	}
 }

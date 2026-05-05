@@ -1,411 +1,975 @@
 package handlers
 
+// Branch analysis for OAuth2Handler:
+// RegisterClient: bind error → 400; service error → 500; success → 201
+// ListClients: service error → 500; success empty → 200 {data:null}; success with clients → 200
+// DeleteClient: service error → 500; success → 200
+// Authorize: bind error → 400; GetClient error → 400; user not in ctx → early return (200 empty);
+//   IssueAuthCode error → 500; success without state → 302; success with state → 302
+// ApproveAuthorize: bind error → 400; IssueAuthCode error → 500; success → 200
+// Token: bind error → 400; each of 4 grant type paths with error and success branches
+// Introspect: bind error → 400; invalid token → 200 {active:false}; valid (ExpiresAt set) → 200 with exp;
+//   valid (ExpiresAt nil) → 200 without exp
+// Revoke: bind error → 400; ValidateClient error → 401; RevokeRefreshToken error → 500; success → 200
+// UserInfo: user not in ctx → 401; GetUserByID error → 500; success → 200
+
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"payment-sandbox/app/config"
-	"payment-sandbox/app/middleware"
-	userEntity "payment-sandbox/app/modules/users/models/entity"
-	"payment-sandbox/app/modules/oauth2/models/entity"
-	"payment-sandbox/app/modules/oauth2/services"
-	serviceMocks "payment-sandbox/app/modules/oauth2/services/mocks"
+	"strings"
 	"testing"
 	"time"
+
+	"payment-sandbox/app/config"
+	"payment-sandbox/app/middleware"
+	entity "payment-sandbox/app/modules/oauth2/models/entity"
+	"payment-sandbox/app/modules/oauth2/services"
+	serviceMocks "payment-sandbox/app/modules/oauth2/services/mocks"
+	userEntity "payment-sandbox/app/modules/users/models/entity"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
-func TestOAuth2Handler_ClientManagement(t *testing.T) {
+var handlerCfg = config.Config{OAuth2AccessTokenDuration: time.Hour}
+
+// serveOAuth2Router builds a minimal router; injects userID into context when non-empty.
+func serveOAuth2Router(h *OAuth2Handler, userID string) *gin.Engine {
+	r := gin.New()
+	if userID != "" {
+		r.Use(func(c *gin.Context) {
+			c.Set(middleware.ContextUserID, userID)
+			c.Next()
+		})
+	}
+	r.POST("/clients", h.RegisterClient)
+	r.GET("/clients", h.ListClients)
+	r.DELETE("/clients/:id", h.DeleteClient)
+	r.GET("/oauth2/authorize", h.Authorize)
+	r.POST("/oauth2/approve", h.ApproveAuthorize)
+	r.POST("/oauth2/token", h.Token)
+	r.POST("/oauth2/introspect", h.Introspect)
+	r.POST("/oauth2/revoke", h.Revoke)
+	r.GET("/oauth2/userinfo", h.UserInfo)
+	return r
+}
+
+func formBody(values url.Values) *strings.Reader {
+	return strings.NewReader(values.Encode())
+}
+
+// ─── RegisterClient ──────────────────────────────────────────────────────────
+
+func TestOAuth2Handler_RegisterClient(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	t.Run("RegisterClient binding error", func(t *testing.T) {
-		s := serviceMocks.NewMockIOAuth2Service(t)
-		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
-		r := gin.New()
-		r.POST("/clients", h.RegisterClient)
+	type fields struct{ service services.IOAuth2Service }
+	type args struct {
+		userID      string
+		body        string
+		contentType string
+	}
+	type mocks struct{ setup func(f fields, a args) }
+	type wants struct {
+		statusCode   int
+		body         string
+		bodyContains string
+	}
 
-		body := `{"name":"","redirect_uris":[]}`
-		req := httptest.NewRequest(http.MethodPost, "/clients", bytes.NewBufferString(body))
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
-		r.ServeHTTP(rec, req)
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
+	}{
+		{
+			name:   "1. invalid JSON body -> 400 validation_error",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1", body: `{}`, contentType: "application/json"},
+			mocks:  mocks{setup: func(f fields, a args) {}},
+			wants:  wants{statusCode: http.StatusBadRequest, bodyContains: `"code":"validation_error"`},
+		},
+		{
+			name:   "2. service returns error -> 500 registration_error",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1", body: `{"name":"App","redirect_uris":["https://example.com/cb"],"scopes":["read"]}`, contentType: "application/json"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					RegisterClient("u-1", "App", []string{"https://example.com/cb"}, []string{"read"}).
+					Return(services.ClientWithSecret{}, errors.New("db error")).Once()
+			}},
+			wants: wants{statusCode: http.StatusInternalServerError, body: `{"error":{"code":"registration_error","message":"db error"}}`},
+		},
+		{
+			name:   "3. success -> 201 with client and secret",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1", body: `{"name":"App","redirect_uris":["https://example.com/cb"],"scopes":["read"]}`, contentType: "application/json"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					RegisterClient("u-1", "App", []string{"https://example.com/cb"}, []string{"read"}).
+					Return(services.ClientWithSecret{
+						Client: entity.OAuthClient{
+							ID: "c-uuid", Name: "App",
+							RedirectURIs: []string{"https://example.com/cb"}, Scopes: []string{"read"},
+							IsFirstParty: false, IsConfidential: true,
+						},
+						ClientSecret: "my-secret",
+					}, nil).Once()
+			}},
+			wants: wants{
+				statusCode: http.StatusCreated,
+				body: `{"data":{"client":{"id":"c-uuid","name":"App","redirect_uris":["https://example.com/cb"],` +
+					`"scopes":["read"],"is_first_party":false,"is_confidential":true,"created_at":"0001-01-01T00:00:00Z"},` +
+					`"client_secret":"my-secret"}}`,
+			},
+		},
+	}
 
-		assert.Equal(t, http.StatusBadRequest, rec.Code)
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	t.Run("DeleteClient service error", func(t *testing.T) {
-		s := serviceMocks.NewMockIOAuth2Service(t)
-		s.EXPECT().DeleteClient("c1", "user-1").Return(fmt.Errorf("db error"))
+			tt.mocks.setup(tt.fields, tt.args)
 
-		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
-		r := gin.New()
-		r.DELETE("/clients/:id", func(c *gin.Context) {
-			c.Set(middleware.ContextUserID, "user-1")
-			h.DeleteClient(c)
+			handler := NewOAuth2Handler(tt.fields.service, handlerCfg)
+			req := httptest.NewRequest(http.MethodPost, "/clients", strings.NewReader(tt.args.body))
+			req.Header.Set("Content-Type", tt.args.contentType)
+			rec := httptest.NewRecorder()
+			serveOAuth2Router(handler, tt.args.userID).ServeHTTP(rec, req)
+
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
+			if tt.wants.body != "" {
+				assert.JSONEq(t, tt.wants.body, rec.Body.String(), "response body")
+			}
+			if tt.wants.bodyContains != "" {
+				assert.Contains(t, rec.Body.String(), tt.wants.bodyContains, "response body contains")
+			}
+
+			if m, ok := tt.fields.service.(*serviceMocks.MockIOAuth2Service); ok {
+				m.AssertExpectations(t)
+			}
 		})
-
-		req := httptest.NewRequest(http.MethodDelete, "/clients/c1", nil)
-		rec := httptest.NewRecorder()
-		r.ServeHTTP(rec, req)
-
-		assert.Equal(t, http.StatusInternalServerError, rec.Code)
-	})
+	}
 }
+
+// ─── ListClients ─────────────────────────────────────────────────────────────
+
+func TestOAuth2Handler_ListClients(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	type fields struct{ service services.IOAuth2Service }
+	type args struct{ userID string }
+	type mocks struct{ setup func(f fields, a args) }
+	type wants struct {
+		statusCode int
+		body       string
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
+	}{
+		{
+			name:   "1. service returns error -> 500 list_error",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ListClients("u-1").Return(nil, errors.New("db error")).Once()
+			}},
+			wants: wants{statusCode: http.StatusInternalServerError, body: `{"error":{"code":"list_error","message":"db error"}}`},
+		},
+		{
+			name:   "2. service returns nil list -> 200 with null data",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ListClients("u-1").Return(nil, nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, body: `{"data":null}`},
+		},
+		{
+			name:   "3. service returns clients -> 200 with client array",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ListClients("u-1").
+					Return([]entity.OAuthClient{{
+						ID: "c-1", Name: "My App",
+						RedirectURIs: []string{"https://example.com/cb"}, Scopes: []string{"read"},
+						IsFirstParty: false, IsConfidential: true,
+					}}, nil).Once()
+			}},
+			wants: wants{
+				statusCode: http.StatusOK,
+				body: `{"data":[{"id":"c-1","name":"My App","redirect_uris":["https://example.com/cb"],` +
+					`"scopes":["read"],"is_first_party":false,"is_confidential":true,"created_at":"0001-01-01T00:00:00Z"}]}`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tt.mocks.setup(tt.fields, tt.args)
+
+			handler := NewOAuth2Handler(tt.fields.service, handlerCfg)
+			req := httptest.NewRequest(http.MethodGet, "/clients", nil)
+			rec := httptest.NewRecorder()
+			serveOAuth2Router(handler, tt.args.userID).ServeHTTP(rec, req)
+
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
+			if tt.wants.body != "" {
+				assert.JSONEq(t, tt.wants.body, rec.Body.String(), "response body")
+			}
+
+			if m, ok := tt.fields.service.(*serviceMocks.MockIOAuth2Service); ok {
+				m.AssertExpectations(t)
+			}
+		})
+	}
+}
+
+// ─── DeleteClient ────────────────────────────────────────────────────────────
+
+func TestOAuth2Handler_DeleteClient(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	type fields struct{ service services.IOAuth2Service }
+	type args struct {
+		userID   string
+		clientID string
+	}
+	type mocks struct{ setup func(f fields, a args) }
+	type wants struct {
+		statusCode int
+		body       string
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
+	}{
+		{
+			name:   "1. service returns error -> 500 delete_error",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1", clientID: "c-1"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					DeleteClient("c-1", "u-1").Return(errors.New("db error")).Once()
+			}},
+			wants: wants{statusCode: http.StatusInternalServerError, body: `{"error":{"code":"delete_error","message":"db error"}}`},
+		},
+		{
+			name:   "2. success -> 200 status deleted",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1", clientID: "c-1"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					DeleteClient("c-1", "u-1").Return(nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, body: `{"data":{"status":"deleted"}}`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tt.mocks.setup(tt.fields, tt.args)
+
+			handler := NewOAuth2Handler(tt.fields.service, handlerCfg)
+			req := httptest.NewRequest(http.MethodDelete, "/clients/"+tt.args.clientID, nil)
+			rec := httptest.NewRecorder()
+			serveOAuth2Router(handler, tt.args.userID).ServeHTTP(rec, req)
+
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
+			if tt.wants.body != "" {
+				assert.JSONEq(t, tt.wants.body, rec.Body.String(), "response body")
+			}
+
+			if m, ok := tt.fields.service.(*serviceMocks.MockIOAuth2Service); ok {
+				m.AssertExpectations(t)
+			}
+		})
+	}
+}
+
+// ─── Authorize ───────────────────────────────────────────────────────────────
 
 func TestOAuth2Handler_Authorize(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	type fields struct{ service services.IOAuth2Service }
+	type args struct {
+		userID string
+		query  string
+	}
+	type mocks struct{ setup func(f fields, a args) }
+	type wants struct {
+		statusCode   int
+		body         string
+		bodyContains string
+		location     string
+	}
+
 	tests := []struct {
-		name        string
-		queryParams string
-		setupMocks  func(s *serviceMocks.MockIOAuth2Service)
-		wantStatus  int
-		wantLocation string
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
 	}{
 		{
-			name:        "success redirect",
-			queryParams: "response_type=code&client_id=c1&redirect_uri=http://localhost:3000/cb&state=xyz",
-			setupMocks: func(s *serviceMocks.MockIOAuth2Service) {
-				s.EXPECT().GetClient("c1").Return(entity.OAuthClient{ID: "c1"}, nil)
-				s.EXPECT().IssueAuthCode("c1", "user-1", "http://localhost:3000/cb", mock.Anything).Return("code123", nil)
-			},
-			wantStatus: http.StatusFound,
-			wantLocation: "http://localhost:3000/cb?code=code123&state=xyz",
+			name:   "1. missing required query param -> 400 invalid_request",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1", query: "client_id=c-1&redirect_uri=https://example.com/cb"},
+			mocks:  mocks{setup: func(f fields, a args) {}},
+			wants:  wants{statusCode: http.StatusBadRequest, bodyContains: `"code":"invalid_request"`},
 		},
 		{
-			name:        "invalid client",
-			queryParams: "response_type=code&client_id=invalid&redirect_uri=http://localhost:3000/cb",
-			setupMocks: func(s *serviceMocks.MockIOAuth2Service) {
-				s.EXPECT().GetClient("invalid").Return(entity.OAuthClient{}, fmt.Errorf("not found"))
-			},
-			wantStatus: http.StatusBadRequest,
+			name:   "2. GetClient returns error -> 400 invalid_client",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1", query: "response_type=code&client_id=unknown&redirect_uri=https://example.com/cb"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					GetClient("unknown").Return(entity.OAuthClient{}, errors.New("not found")).Once()
+			}},
+			wants: wants{statusCode: http.StatusBadRequest, body: `{"error":{"code":"invalid_client","message":"client not found"}}`},
 		},
 		{
-			name:        "binding error",
-			queryParams: "client_id=",
-			setupMocks:  func(s *serviceMocks.MockIOAuth2Service) {},
-			wantStatus:  http.StatusBadRequest,
+			name:   "3. user not in context -> 401 unauthorized from MustUserID",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "", query: "response_type=code&client_id=c-1&redirect_uri=https://example.com/cb"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					GetClient("c-1").Return(entity.OAuthClient{ID: "c-1"}, nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusUnauthorized, body: `{"error":{"code":"auth_unauthorized","message":"unauthorized"}}`},
+		},
+		{
+			name:   "4. IssueAuthCode error -> 500 auth_code_error",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1", query: "response_type=code&client_id=c-1&redirect_uri=https://example.com/cb"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					GetClient("c-1").Return(entity.OAuthClient{ID: "c-1"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					IssueAuthCode("c-1", "u-1", "https://example.com/cb", "").Return("", errors.New("rand error")).Once()
+			}},
+			wants: wants{statusCode: http.StatusInternalServerError, body: `{"error":{"code":"auth_code_error","message":"failed to issue auth code"}}`},
+		},
+		{
+			name:   "5. success without state -> 302 redirect with code only",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1", query: "response_type=code&client_id=c-1&redirect_uri=https://example.com/cb"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					GetClient("c-1").Return(entity.OAuthClient{ID: "c-1"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					IssueAuthCode("c-1", "u-1", "https://example.com/cb", "").Return("test-code-abc", nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusFound, location: "https://example.com/cb?code=test-code-abc"},
+		},
+		{
+			name:   "6. success with state -> 302 redirect with code and state",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1", query: "response_type=code&client_id=c-1&redirect_uri=https://example.com/cb&scope=read&state=xyz123"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					GetClient("c-1").Return(entity.OAuthClient{ID: "c-1"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					IssueAuthCode("c-1", "u-1", "https://example.com/cb", "read").Return("test-code-abc", nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusFound, location: "https://example.com/cb?code=test-code-abc&state=xyz123"},
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			s := serviceMocks.NewMockIOAuth2Service(t)
-			tc.setupMocks(s)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-			h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
-			r := gin.New()
-			r.GET("/oauth2/authorize", func(c *gin.Context) {
-				c.Set(middleware.ContextUserID, "user-1")
-				h.Authorize(c)
-			})
+			tt.mocks.setup(tt.fields, tt.args)
 
-			req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?"+tc.queryParams, nil)
+			handler := NewOAuth2Handler(tt.fields.service, handlerCfg)
+			req := httptest.NewRequest(http.MethodGet, "/oauth2/authorize?"+tt.args.query, nil)
 			rec := httptest.NewRecorder()
-			r.ServeHTTP(rec, req)
+			serveOAuth2Router(handler, tt.args.userID).ServeHTTP(rec, req)
 
-			assert.Equal(t, tc.wantStatus, rec.Code)
-			if tc.wantLocation != "" {
-				assert.Equal(t, tc.wantLocation, rec.Header().Get("Location"))
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
+			if tt.wants.body != "" {
+				assert.JSONEq(t, tt.wants.body, rec.Body.String(), "response body")
+			}
+			if tt.wants.bodyContains != "" {
+				assert.Contains(t, rec.Body.String(), tt.wants.bodyContains, "response body contains")
+			}
+			if tt.wants.location != "" {
+				assert.Equal(t, tt.wants.location, rec.Header().Get("Location"), "Location header")
+			}
+
+			if m, ok := tt.fields.service.(*serviceMocks.MockIOAuth2Service); ok {
+				m.AssertExpectations(t)
 			}
 		})
 	}
 }
+
+// ─── ApproveAuthorize ────────────────────────────────────────────────────────
 
 func TestOAuth2Handler_ApproveAuthorize(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	t.Run("success", func(t *testing.T) {
-		s := serviceMocks.NewMockIOAuth2Service(t)
-		s.EXPECT().IssueAuthCode("c1", "user-1", "http://cb", "read").Return("code123", nil)
-
-		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
-		r := gin.New()
-		r.POST("/oauth2/authorize", func(c *gin.Context) {
-			c.Set(middleware.ContextUserID, "user-1")
-			h.ApproveAuthorize(c)
-		})
-
-		body := url.Values{
-			"response_type": {"code"},
-			"client_id":     {"c1"},
-			"redirect_uri":  {"http://cb"},
-			"scope":         {"read"},
-		}
-		req := httptest.NewRequest(http.MethodPost, "/oauth2/authorize", bytes.NewBufferString(body.Encode()))
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		rec := httptest.NewRecorder()
-		r.ServeHTTP(rec, req)
-
-		assert.Equal(t, http.StatusOK, rec.Code)
-		var payload map[string]any
-		json.Unmarshal(rec.Body.Bytes(), &payload)
-		data := payload["data"].(map[string]any)
-		assert.Contains(t, data["redirect_uri"], "code=code123")
-	})
-}
-
-func TestOAuth2Handler_Token(t *testing.T) {
-	gin.SetMode(gin.TestMode)
+	type fields struct{ service services.IOAuth2Service }
+	type args struct {
+		userID string
+		form   url.Values
+	}
+	type mocks struct{ setup func(f fields, a args) }
+	type wants struct {
+		statusCode   int
+		body         string
+		bodyContains string
+	}
 
 	tests := []struct {
-		name       string
-		body       url.Values
-		setupMocks func(s *serviceMocks.MockIOAuth2Service)
-		wantStatus int
-		wantToken  bool
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
 	}{
 		{
-			name: "auth code grant success",
-			body: url.Values{
-				"grant_type":    {"authorization_code"},
-				"code":          {"code123"},
-				"client_id":     {"c1"},
-				"client_secret": {"secret"},
-				"redirect_uri":  {"http://localhost:3000/cb"},
-			},
-			setupMocks: func(s *serviceMocks.MockIOAuth2Service) {
-				s.EXPECT().ValidateClient("c1", "secret").Return(entity.OAuthClient{ID: "c1"}, nil)
-				s.EXPECT().ExchangeAuthCode("code123", "c1", "http://localhost:3000/cb").Return(entity.AuthorizationCode{UserID: "u1", Scope: "read"}, nil)
-				s.EXPECT().GetUserByID("u1").Return(userEntity.User{ID: "u1", Role: userEntity.RoleMerchant}, nil)
-				s.EXPECT().IssueAccessToken("c1", "u1", "read", userEntity.RoleMerchant).Return("access-token", nil)
-				s.EXPECT().IssueRefreshToken("c1", "u1", "read").Return("refresh-token", nil)
-			},
-			wantStatus: http.StatusOK,
-			wantToken:  true,
+			name:   "1. invalid form body -> 400 invalid_request",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1", form: url.Values{}},
+			mocks:  mocks{setup: func(f fields, a args) {}},
+			wants:  wants{statusCode: http.StatusBadRequest, bodyContains: `"code":"invalid_request"`},
 		},
 		{
-			name: "client credentials success",
-			body: url.Values{
-				"grant_type":    {"client_credentials"},
-				"client_id":     {"c1"},
-				"client_secret": {"secret"},
-				"scope":         {"read"},
-			},
-			setupMocks: func(s *serviceMocks.MockIOAuth2Service) {
-				s.EXPECT().ValidateClient("c1", "secret").Return(entity.OAuthClient{ID: "c1", Scopes: []string{"read"}}, nil)
-				s.EXPECT().IssueAccessToken("c1", "", "read", userEntity.Role("")).Return("access-token", nil)
-			},
-			wantStatus: http.StatusOK,
-			wantToken:  true,
+			name:   "2. IssueAuthCode error -> 500 auth_code_error",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1", form: url.Values{"response_type": {"code"}, "client_id": {"c-1"}, "redirect_uri": {"https://example.com/cb"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					IssueAuthCode("c-1", "u-1", "https://example.com/cb", "").Return("", errors.New("rand error")).Once()
+			}},
+			wants: wants{statusCode: http.StatusInternalServerError, body: `{"error":{"code":"auth_code_error","message":"failed to issue auth code"}}`},
 		},
 		{
-			name: "refresh token success",
-			body: url.Values{
-				"grant_type":    {"refresh_token"},
-				"client_id":     {"c1"},
-				"client_secret": {"secret"},
-				"refresh_token": {"rt123"},
-			},
-			setupMocks: func(s *serviceMocks.MockIOAuth2Service) {
-				s.EXPECT().ValidateClient("c1", "secret").Return(entity.OAuthClient{ID: "c1"}, nil)
-				s.EXPECT().ExchangeRefreshToken("rt123", "c1").Return(entity.RefreshToken{UserID: "u1", Scope: "read"}, nil)
-				s.EXPECT().GetUserByID("u1").Return(userEntity.User{ID: "u1", Role: userEntity.RoleMerchant}, nil)
-				s.EXPECT().IssueAccessToken("c1", "u1", "read", userEntity.RoleMerchant).Return("access-token", nil)
-				s.EXPECT().IssueRefreshToken("c1", "u1", "read").Return("refresh-token", nil)
-			},
-			wantStatus: http.StatusOK,
-			wantToken:  true,
-		},
-		{
-			name: "password grant success",
-			body: url.Values{
-				"grant_type":    {"password"},
-				"username":      {"user@example.com"},
-				"password":      {"pass123"},
-				"client_id":     {"c1"},
-				"client_secret": {"secret"},
-			},
-			setupMocks: func(s *serviceMocks.MockIOAuth2Service) {
-				s.EXPECT().ValidateClient("c1", "secret").Return(entity.OAuthClient{ID: "c1", Scopes: []string{"read"}}, nil)
-				s.EXPECT().ValidateUserCredentials("user@example.com", "pass123").Return(userEntity.User{ID: "u1", Role: userEntity.RoleMerchant}, nil)
-				s.EXPECT().IssueAccessToken("c1", "u1", "read", userEntity.RoleMerchant).Return("access-token", nil)
-				s.EXPECT().IssueRefreshToken("c1", "u1", "read").Return("refresh-token", nil)
-			},
-			wantStatus: http.StatusOK,
-			wantToken:  true,
-		},
-		{
-			name: "unsupported grant type",
-			body: url.Values{
-				"grant_type": {"implicit"},
-			},
-			setupMocks: func(s *serviceMocks.MockIOAuth2Service) {},
-			wantStatus: http.StatusBadRequest,
-		},
-		{
-			name: "invalid client",
-			body: url.Values{
-				"grant_type":    {"client_credentials"},
-				"client_id":     {"c1"},
-				"client_secret": {"wrong"},
-			},
-			setupMocks: func(s *serviceMocks.MockIOAuth2Service) {
-				s.EXPECT().ValidateClient("c1", "wrong").Return(entity.OAuthClient{}, fmt.Errorf("invalid"))
-			},
-			wantStatus: http.StatusUnauthorized,
+			name:   "3. success -> 200 with redirect_uri containing code",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1", form: url.Values{"response_type": {"code"}, "client_id": {"c-1"}, "redirect_uri": {"https://example.com/cb"}, "scope": {"read"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					IssueAuthCode("c-1", "u-1", "https://example.com/cb", "read").Return("test-code-abc", nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, body: `{"data":{"redirect_uri":"https://example.com/cb?code=test-code-abc"}}`},
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			s := serviceMocks.NewMockIOAuth2Service(t)
-			tc.setupMocks(s)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-			h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
-			r := gin.New()
-			r.POST("/oauth2/token", h.Token)
+			tt.mocks.setup(tt.fields, tt.args)
 
-			req := httptest.NewRequest(http.MethodPost, "/oauth2/token", nil)
-			req.PostForm = tc.body
+			handler := NewOAuth2Handler(tt.fields.service, handlerCfg)
+			req := httptest.NewRequest(http.MethodPost, "/oauth2/approve", formBody(tt.args.form))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			rec := httptest.NewRecorder()
-			r.ServeHTTP(rec, req)
+			serveOAuth2Router(handler, tt.args.userID).ServeHTTP(rec, req)
 
-			assert.Equal(t, tc.wantStatus, rec.Code)
-			if tc.wantToken {
-				var payload map[string]any
-				err := json.Unmarshal(rec.Body.Bytes(), &payload)
-				require.NoError(t, err)
-				data := payload["data"].(map[string]any)
-				assert.NotEmpty(t, data["access_token"])
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
+			if tt.wants.body != "" {
+				assert.JSONEq(t, tt.wants.body, rec.Body.String(), "response body")
+			}
+			if tt.wants.bodyContains != "" {
+				assert.Contains(t, rec.Body.String(), tt.wants.bodyContains, "response body contains")
+			}
+
+			if m, ok := tt.fields.service.(*serviceMocks.MockIOAuth2Service); ok {
+				m.AssertExpectations(t)
 			}
 		})
 	}
 }
 
+// ─── Token ───────────────────────────────────────────────────────────────────
+
+func TestOAuth2Handler_Token(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	type fields struct{ service services.IOAuth2Service }
+	type args struct{ form url.Values }
+	type mocks struct{ setup func(f fields, a args) }
+	type wants struct {
+		statusCode   int
+		body         string
+		bodyContains string
+	}
+
+	const tokenSuccessBody = `{"data":{"access_token":"access-token","token_type":"Bearer","expires_in":3600,"refresh_token":"refresh-token","scope":"read"}}`
+	const ccSuccessBody = `{"data":{"access_token":"access-token","token_type":"Bearer","expires_in":3600,"scope":"read"}}`
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
+	}{
+		// Bind error
+		{
+			name:   "1. missing grant_type -> 400 invalid_request",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"code": {"x"}}},
+			mocks:  mocks{setup: func(f fields, a args) {}},
+			wants:  wants{statusCode: http.StatusBadRequest, bodyContains: `"code":"invalid_request"`},
+		},
+		// authorization_code grant
+		{
+			name:   "2. authorization_code, ValidateClient error -> 401 invalid_client",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"grant_type": {"authorization_code"}, "code": {"c"}, "redirect_uri": {"https://example.com/cb"}, "client_id": {"c-1"}, "client_secret": {"bad"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateClient("c-1", "bad").Return(entity.OAuthClient{}, errors.New("invalid")).Once()
+			}},
+			wants: wants{statusCode: http.StatusUnauthorized, body: `{"error":{"code":"invalid_client","message":"client authentication failed"}}`},
+		},
+		{
+			name:   "3. authorization_code, ExchangeAuthCode error -> 400 invalid_grant",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"grant_type": {"authorization_code"}, "code": {"bad-code"}, "redirect_uri": {"https://example.com/cb"}, "client_id": {"c-1"}, "client_secret": {"secret"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateClient("c-1", "secret").Return(entity.OAuthClient{ID: "c-1"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ExchangeAuthCode("bad-code", "c-1", "https://example.com/cb").Return(entity.AuthorizationCode{}, errors.New("expired")).Once()
+			}},
+			wants: wants{statusCode: http.StatusBadRequest, body: `{"error":{"code":"invalid_grant","message":"expired"}}`},
+		},
+		{
+			name:   "4. authorization_code, GetUserByID error -> 500 user_lookup_error",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"grant_type": {"authorization_code"}, "code": {"code-abc"}, "redirect_uri": {"https://example.com/cb"}, "client_id": {"c-1"}, "client_secret": {"secret"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateClient("c-1", "secret").Return(entity.OAuthClient{ID: "c-1"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ExchangeAuthCode("code-abc", "c-1", "https://example.com/cb").Return(entity.AuthorizationCode{UserID: "u-1", Scope: "read"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					GetUserByID("u-1").Return(userEntity.User{}, errors.New("not found")).Once()
+			}},
+			wants: wants{statusCode: http.StatusInternalServerError, body: `{"error":{"code":"user_lookup_error","message":"failed to fetch user"}}`},
+		},
+		{
+			name:   "5. authorization_code success -> 200 with tokens",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"grant_type": {"authorization_code"}, "code": {"code-abc"}, "redirect_uri": {"https://example.com/cb"}, "client_id": {"c-1"}, "client_secret": {"secret"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateClient("c-1", "secret").Return(entity.OAuthClient{ID: "c-1"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ExchangeAuthCode("code-abc", "c-1", "https://example.com/cb").Return(entity.AuthorizationCode{UserID: "u-1", Scope: "read"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					GetUserByID("u-1").Return(userEntity.User{ID: "u-1", Role: userEntity.RoleMerchant}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					IssueAccessToken("c-1", "u-1", "read", userEntity.RoleMerchant).Return("access-token", nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					IssueRefreshToken("c-1", "u-1", "read").Return("refresh-token", nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, body: tokenSuccessBody},
+		},
+		// client_credentials grant
+		{
+			name:   "6. client_credentials, ValidateClient error -> 401",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"grant_type": {"client_credentials"}, "client_id": {"c-1"}, "client_secret": {"bad"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateClient("c-1", "bad").Return(entity.OAuthClient{}, errors.New("invalid")).Once()
+			}},
+			wants: wants{statusCode: http.StatusUnauthorized},
+		},
+		{
+			name:   "7. client_credentials success with provided scope -> 200 with access token only",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"grant_type": {"client_credentials"}, "client_id": {"c-1"}, "client_secret": {"secret"}, "scope": {"read"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateClient("c-1", "secret").Return(entity.OAuthClient{ID: "c-1", Scopes: []string{"read", "write"}}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					IssueAccessToken("c-1", "", "read", userEntity.Role("")).Return("access-token", nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, body: ccSuccessBody},
+		},
+		// refresh_token grant
+		{
+			name:   "8. refresh_token, ExchangeRefreshToken error -> 400 invalid_grant",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"grant_type": {"refresh_token"}, "client_id": {"c-1"}, "client_secret": {"secret"}, "refresh_token": {"bad-rt"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateClient("c-1", "secret").Return(entity.OAuthClient{ID: "c-1"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ExchangeRefreshToken("bad-rt", "c-1").Return(entity.RefreshToken{}, errors.New("expired")).Once()
+			}},
+			wants: wants{statusCode: http.StatusBadRequest, body: `{"error":{"code":"invalid_grant","message":"expired"}}`},
+		},
+		{
+			name:   "9. refresh_token success -> 200 with new tokens",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"grant_type": {"refresh_token"}, "client_id": {"c-1"}, "client_secret": {"secret"}, "refresh_token": {"rt-abc"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateClient("c-1", "secret").Return(entity.OAuthClient{ID: "c-1"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ExchangeRefreshToken("rt-abc", "c-1").Return(entity.RefreshToken{UserID: "u-1", Scope: "read"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					GetUserByID("u-1").Return(userEntity.User{ID: "u-1", Role: userEntity.RoleMerchant}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					IssueAccessToken("c-1", "u-1", "read", userEntity.RoleMerchant).Return("access-token", nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					IssueRefreshToken("c-1", "u-1", "read").Return("refresh-token", nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, body: tokenSuccessBody},
+		},
+		// password grant
+		{
+			name:   "10. password, ValidateUserCredentials error -> 401 invalid_grant",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"grant_type": {"password"}, "client_id": {"c-1"}, "client_secret": {"secret"}, "username": {"alice"}, "password": {"wrong"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateClient("c-1", "secret").Return(entity.OAuthClient{ID: "c-1"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateUserCredentials("alice", "wrong").Return(userEntity.User{}, errors.New("invalid credentials")).Once()
+			}},
+			wants: wants{statusCode: http.StatusUnauthorized, body: `{"error":{"code":"invalid_grant","message":"invalid user credentials"}}`},
+		},
+		{
+			name:   "11. password success with empty scope -> 200 using client scopes",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"grant_type": {"password"}, "client_id": {"c-1"}, "client_secret": {"secret"}, "username": {"alice"}, "password": {"pass123"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateClient("c-1", "secret").Return(entity.OAuthClient{ID: "c-1", Scopes: []string{"read"}}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateUserCredentials("alice", "pass123").Return(userEntity.User{ID: "u-1", Role: userEntity.RoleMerchant}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					IssueAccessToken("c-1", "u-1", "read", userEntity.RoleMerchant).Return("access-token", nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					IssueRefreshToken("c-1", "u-1", "read").Return("refresh-token", nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, body: tokenSuccessBody},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tt.mocks.setup(tt.fields, tt.args)
+
+			handler := NewOAuth2Handler(tt.fields.service, handlerCfg)
+			req := httptest.NewRequest(http.MethodPost, "/oauth2/token", formBody(tt.args.form))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			rec := httptest.NewRecorder()
+			serveOAuth2Router(handler, "").ServeHTTP(rec, req)
+
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
+			if tt.wants.body != "" {
+				assert.JSONEq(t, tt.wants.body, rec.Body.String(), "response body")
+			}
+			if tt.wants.bodyContains != "" {
+				assert.Contains(t, rec.Body.String(), tt.wants.bodyContains, "response body contains")
+			}
+
+			if m, ok := tt.fields.service.(*serviceMocks.MockIOAuth2Service); ok {
+				m.AssertExpectations(t)
+			}
+		})
+	}
+}
+
+// ─── Introspect ──────────────────────────────────────────────────────────────
+
 func TestOAuth2Handler_Introspect(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	t.Run("active token", func(t *testing.T) {
-		s := serviceMocks.NewMockIOAuth2Service(t)
-		s.EXPECT().ValidateToken("valid-token").Return(&services.OAuth2Claims{
-			UserID:   "u1",
-			ClientID: "c1",
-			Scope:    "read",
-			RegisteredClaims: jwt.RegisteredClaims{
-				ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
-			},
-		}, nil)
+	expiry := time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC) // Unix: 1798761600
 
-		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
-		r := gin.New()
-		r.POST("/oauth2/introspect", h.Introspect)
+	type fields struct{ service services.IOAuth2Service }
+	type args struct{ form url.Values }
+	type mocks struct{ setup func(f fields, a args) }
+	type wants struct {
+		statusCode int
+		body       string
+	}
 
-		body := url.Values{"token": {"valid-token"}}
-		req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", nil)
-		req.PostForm = body
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		rec := httptest.NewRecorder()
-		r.ServeHTTP(rec, req)
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
+	}{
+		{
+			name:   "1. missing token field -> 400 invalid_request",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{}},
+			mocks:  mocks{setup: func(f fields, a args) {}},
+			wants:  wants{statusCode: http.StatusBadRequest},
+		},
+		{
+			name:   "2. invalid/expired token -> 200 active:false",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"token": {"bad-token"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateToken("bad-token").Return(nil, errors.New("invalid")).Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, body: `{"data":{"active":false}}`},
+		},
+		{
+			name:   "3. valid token with ExpiresAt -> 200 active:true with exp field",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"token": {"valid-token"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateToken("valid-token").Return(&services.OAuth2Claims{
+						UserID:   "u-1",
+						ClientID: "c-1",
+						Scope:    "read",
+						RegisteredClaims: jwt.RegisteredClaims{
+							ExpiresAt: jwt.NewNumericDate(expiry),
+						},
+					}, nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, body: `{"data":{"active":true,"scope":"read","client_id":"c-1","user_id":"u-1","exp":1798761600}}`},
+		},
+		{
+			name:   "4. valid token without ExpiresAt -> 200 active:true without exp field",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{"token": {"valid-token-no-exp"}}},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateToken("valid-token-no-exp").Return(&services.OAuth2Claims{
+						UserID:   "u-2",
+						ClientID: "c-2",
+						Scope:    "write",
+					}, nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, body: `{"data":{"active":true,"scope":"write","client_id":"c-2","user_id":"u-2"}}`},
+		},
+	}
 
-		assert.Equal(t, http.StatusOK, rec.Code)
-		var payload map[string]any
-		json.Unmarshal(rec.Body.Bytes(), &payload)
-		data := payload["data"].(map[string]any)
-		assert.True(t, data["active"].(bool))
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	t.Run("inactive token", func(t *testing.T) {
-		s := serviceMocks.NewMockIOAuth2Service(t)
-		s.EXPECT().ValidateToken("invalid-token").Return(nil, fmt.Errorf("invalid"))
+			tt.mocks.setup(tt.fields, tt.args)
 
-		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
-		r := gin.New()
-		r.POST("/oauth2/introspect", h.Introspect)
+			handler := NewOAuth2Handler(tt.fields.service, handlerCfg)
+			req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", formBody(tt.args.form))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			rec := httptest.NewRecorder()
+			serveOAuth2Router(handler, "").ServeHTTP(rec, req)
 
-		body := url.Values{"token": {"invalid-token"}}
-		req := httptest.NewRequest(http.MethodPost, "/oauth2/introspect", nil)
-		req.PostForm = body
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		rec := httptest.NewRecorder()
-		r.ServeHTTP(rec, req)
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
+			if tt.wants.body != "" {
+				assert.JSONEq(t, tt.wants.body, rec.Body.String(), "response body")
+			}
 
-		assert.Equal(t, http.StatusOK, rec.Code)
-		var payload map[string]any
-		json.Unmarshal(rec.Body.Bytes(), &payload)
-		data := payload["data"].(map[string]any)
-		assert.False(t, data["active"].(bool))
-	})
+			if m, ok := tt.fields.service.(*serviceMocks.MockIOAuth2Service); ok {
+				m.AssertExpectations(t)
+			}
+		})
+	}
 }
+
+// ─── Revoke ──────────────────────────────────────────────────────────────────
 
 func TestOAuth2Handler_Revoke(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	t.Run("success", func(t *testing.T) {
-		s := serviceMocks.NewMockIOAuth2Service(t)
-		s.EXPECT().ValidateClient("c1", "secret").Return(entity.OAuthClient{ID: "c1"}, nil)
-		s.EXPECT().RevokeRefreshToken("rt123", "c1").Return(nil)
+	type fields struct{ service services.IOAuth2Service }
+	type args struct{ form url.Values }
+	type mocks struct{ setup func(f fields, a args) }
+	type wants struct {
+		statusCode int
+		body       string
+	}
 
-		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
-		r := gin.New()
-		r.POST("/oauth2/revoke", h.Revoke)
+	validForm := url.Values{"token": {"rt-abc"}, "client_id": {"c-1"}, "client_secret": {"secret"}}
 
-		body := url.Values{
-			"token":         {"rt123"},
-			"client_id":     {"c1"},
-			"client_secret": {"secret"},
-		}
-		req := httptest.NewRequest(http.MethodPost, "/oauth2/revoke", nil)
-		req.PostForm = body
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		rec := httptest.NewRecorder()
-		r.ServeHTTP(rec, req)
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
+	}{
+		{
+			name:   "1. missing required fields -> 400 invalid_request",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: url.Values{}},
+			mocks:  mocks{setup: func(f fields, a args) {}},
+			wants:  wants{statusCode: http.StatusBadRequest},
+		},
+		{
+			name:   "2. ValidateClient error -> 401 invalid_client",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: validForm},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateClient("c-1", "secret").Return(entity.OAuthClient{}, errors.New("invalid")).Once()
+			}},
+			wants: wants{statusCode: http.StatusUnauthorized, body: `{"error":{"code":"invalid_client","message":"client authentication failed"}}`},
+		},
+		{
+			name:   "3. RevokeRefreshToken error -> 500 revoke_error",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: validForm},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateClient("c-1", "secret").Return(entity.OAuthClient{ID: "c-1"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					RevokeRefreshToken("rt-abc", "c-1").Return(errors.New("db error")).Once()
+			}},
+			wants: wants{statusCode: http.StatusInternalServerError, body: `{"error":{"code":"revoke_error","message":"db error"}}`},
+		},
+		{
+			name:   "4. success -> 200 status revoked",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{form: validForm},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					ValidateClient("c-1", "secret").Return(entity.OAuthClient{ID: "c-1"}, nil).Once()
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					RevokeRefreshToken("rt-abc", "c-1").Return(nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, body: `{"data":{"status":"revoked"}}`},
+		},
+	}
 
-		assert.Equal(t, http.StatusOK, rec.Code)
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tt.mocks.setup(tt.fields, tt.args)
+
+			handler := NewOAuth2Handler(tt.fields.service, handlerCfg)
+			req := httptest.NewRequest(http.MethodPost, "/oauth2/revoke", formBody(tt.args.form))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			rec := httptest.NewRecorder()
+			serveOAuth2Router(handler, "").ServeHTTP(rec, req)
+
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
+			if tt.wants.body != "" {
+				assert.JSONEq(t, tt.wants.body, rec.Body.String(), "response body")
+			}
+
+			if m, ok := tt.fields.service.(*serviceMocks.MockIOAuth2Service); ok {
+				m.AssertExpectations(t)
+			}
+		})
+	}
 }
+
+// ─── UserInfo ────────────────────────────────────────────────────────────────
 
 func TestOAuth2Handler_UserInfo(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	t.Run("success", func(t *testing.T) {
-		s := serviceMocks.NewMockIOAuth2Service(t)
-		s.EXPECT().GetUserByID("user-1").Return(userEntity.User{
-			ID:    "user-1",
-			Name:  "Test User",
-			Email: "test@example.com",
-			Role:  userEntity.RoleAdmin,
-		}, nil)
-		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
-		r := gin.New()
-		r.GET("/oauth2/userinfo", func(c *gin.Context) {
-			c.Set(middleware.ContextUserID, "user-1")
-			h.UserInfo(c)
+	type fields struct{ service services.IOAuth2Service }
+	type args struct{ userID string }
+	type mocks struct{ setup func(f fields, a args) }
+	type wants struct {
+		statusCode   int
+		body         string
+		bodyContains string
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
+	}{
+		{
+			// MustUserID writes auth_unauthorized; then UserInfo writes auth_required — two JSON objects.
+			// Use bodyContains to assert the handler's own error is present.
+			name:   "1. user not in context -> 401 auth_required",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: ""},
+			mocks:  mocks{setup: func(f fields, a args) {}},
+			wants:  wants{statusCode: http.StatusUnauthorized, bodyContains: `"auth_required"`},
+		},
+		{
+			name:   "2. GetUserByID error -> 500 user_lookup_error",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					GetUserByID("u-1").Return(userEntity.User{}, errors.New("not found")).Once()
+			}},
+			wants: wants{statusCode: http.StatusInternalServerError, body: `{"error":{"code":"user_lookup_error","message":"failed to fetch user"}}`},
+		},
+		{
+			name:   "3. success -> 200 with user data",
+			fields: fields{service: serviceMocks.NewMockIOAuth2Service(t)},
+			args:   args{userID: "u-1"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIOAuth2Service).EXPECT().
+					GetUserByID("u-1").Return(userEntity.User{
+						ID:    "u-1",
+						Name:  "Alice",
+						Email: "alice@example.com",
+						Role:  userEntity.RoleMerchant,
+					}, nil).Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, body: `{"data":{"id":"u-1","name":"Alice","email":"alice@example.com","role":"MERCHANT"}}`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tt.mocks.setup(tt.fields, tt.args)
+
+			handler := NewOAuth2Handler(tt.fields.service, handlerCfg)
+			req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
+			rec := httptest.NewRecorder()
+			serveOAuth2Router(handler, tt.args.userID).ServeHTTP(rec, req)
+
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
+			if tt.wants.body != "" {
+				assert.JSONEq(t, tt.wants.body, rec.Body.String(), "response body")
+			}
+			if tt.wants.bodyContains != "" {
+				assert.Contains(t, rec.Body.String(), tt.wants.bodyContains, "response body contains")
+			}
+
+			if m, ok := tt.fields.service.(*serviceMocks.MockIOAuth2Service); ok {
+				m.AssertExpectations(t)
+			}
 		})
-
-		req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
-		rec := httptest.NewRecorder()
-		r.ServeHTTP(rec, req)
-
-		assert.Equal(t, http.StatusOK, rec.Code)
-		var payload map[string]any
-		json.Unmarshal(rec.Body.Bytes(), &payload)
-		data := payload["data"].(map[string]any)
-		assert.Equal(t, "user-1", data["id"])
-		assert.Equal(t, "Test User", data["name"])
-		assert.Equal(t, "test@example.com", data["email"])
-		assert.Equal(t, "ADMIN", data["role"])
-	})
-
-	t.Run("unauthorized", func(t *testing.T) {
-		s := serviceMocks.NewMockIOAuth2Service(t)
-		h := NewOAuth2Handler(s, config.Config{OAuth2AccessTokenDuration: time.Hour})
-		r := gin.New()
-		r.GET("/oauth2/userinfo", h.UserInfo)
-
-		req := httptest.NewRequest(http.MethodGet, "/oauth2/userinfo", nil)
-		rec := httptest.NewRecorder()
-		r.ServeHTTP(rec, req)
-
-		assert.Equal(t, http.StatusUnauthorized, rec.Code)
-	})
+	}
 }

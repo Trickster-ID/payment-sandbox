@@ -33,6 +33,14 @@ export function run(data) {
   checkOK(get(token, url('/merchant/wallet'), 'merchant_wallet_get'), 'GET /merchant/wallet');
   sleep(0.2);
 
+  // GET /merchant/wallet/transactions
+  checkOK(get(token, `${url('/merchant/wallet/transactions')}?page=1&limit=10`, 'merchant_wallet_transactions_list'), 'GET /merchant/wallet/transactions');
+  sleep(0.2);
+
+  // GET /merchant/wallet/transactions?direction=C (credits only)
+  checkOK(get(token, `${url('/merchant/wallet/transactions')}?direction=C&page=1&limit=10`, 'merchant_wallet_transactions_credits'), 'GET /merchant/wallet/transactions?direction=C');
+  sleep(0.2);
+
   // GET /merchant/topups
   checkOK(get(token, `${url('/merchant/topups')}?page=1&limit=10`, 'merchant_topups_list'), 'GET /merchant/topups');
   sleep(0.2);

@@ -11,29 +11,29 @@ import (
 	handlers2 "payment-sandbox/app/modules/admin/handlers"
 	"payment-sandbox/app/modules/admin/repositories"
 	services2 "payment-sandbox/app/modules/admin/services"
-	handlers9 "payment-sandbox/app/modules/merchants/handlers"
-	repositories8 "payment-sandbox/app/modules/merchants/repositories"
-	services9 "payment-sandbox/app/modules/merchants/services"
-	handlers4 "payment-sandbox/app/modules/invoice/handlers"
-	repositories4 "payment-sandbox/app/modules/invoice/repositories"
-	services4 "payment-sandbox/app/modules/invoice/services"
-	handlers8 "payment-sandbox/app/modules/ledger/handlers"
-	repositories2 "payment-sandbox/app/modules/ledger/repositories"
-	handlers7 "payment-sandbox/app/modules/oauth2/handlers"
-	repositories7 "payment-sandbox/app/modules/oauth2/repositories"
-	services7 "payment-sandbox/app/modules/oauth2/services"
-	handlers5 "payment-sandbox/app/modules/payment/handlers"
-	repositories5 "payment-sandbox/app/modules/payment/repositories"
-	services5 "payment-sandbox/app/modules/payment/services"
-	handlers6 "payment-sandbox/app/modules/refund/handlers"
-	repositories6 "payment-sandbox/app/modules/refund/repositories"
-	services6 "payment-sandbox/app/modules/refund/services"
-	services8 "payment-sandbox/app/modules/saga/services"
+	handlers5 "payment-sandbox/app/modules/invoice/handlers"
+	repositories5 "payment-sandbox/app/modules/invoice/repositories"
+	services5 "payment-sandbox/app/modules/invoice/services"
+	handlers9 "payment-sandbox/app/modules/ledger/handlers"
+	repositories3 "payment-sandbox/app/modules/ledger/repositories"
+	handlers3 "payment-sandbox/app/modules/merchants/handlers"
+	repositories2 "payment-sandbox/app/modules/merchants/repositories"
+	services3 "payment-sandbox/app/modules/merchants/services"
+	handlers8 "payment-sandbox/app/modules/oauth2/handlers"
+	repositories8 "payment-sandbox/app/modules/oauth2/repositories"
+	services8 "payment-sandbox/app/modules/oauth2/services"
+	handlers6 "payment-sandbox/app/modules/payment/handlers"
+	repositories6 "payment-sandbox/app/modules/payment/repositories"
+	services6 "payment-sandbox/app/modules/payment/services"
+	handlers7 "payment-sandbox/app/modules/refund/handlers"
+	repositories7 "payment-sandbox/app/modules/refund/repositories"
+	services7 "payment-sandbox/app/modules/refund/services"
+	services9 "payment-sandbox/app/modules/saga/services"
 	"payment-sandbox/app/modules/users/handlers"
 	"payment-sandbox/app/modules/users/services"
-	handlers3 "payment-sandbox/app/modules/wallet/handlers"
-	repositories3 "payment-sandbox/app/modules/wallet/repositories"
-	services3 "payment-sandbox/app/modules/wallet/services"
+	handlers4 "payment-sandbox/app/modules/wallet/handlers"
+	repositories4 "payment-sandbox/app/modules/wallet/repositories"
+	services4 "payment-sandbox/app/modules/wallet/services"
 	"payment-sandbox/app/shared/database"
 )
 
@@ -56,33 +56,33 @@ func initApp() (*App, error) {
 	adminRepository := repositories.NewAdminRepository(db)
 	adminService := services2.NewAdminService(adminRepository)
 	adminHandler := handlers2.NewAdminHandler(adminService)
-	repository := repositories2.NewRepository(db)
-	walletRepository := repositories3.NewWalletRepository(db, repository)
-	walletService := services3.NewWalletService(walletRepository)
+	merchantsRepository := repositories2.NewMerchantsRepository(db)
+	merchantsService := services3.NewMerchantsService(merchantsRepository)
+	merchantsHandler := handlers3.NewMerchantsHandler(merchantsService)
+	repository := repositories3.NewRepository(db)
+	walletRepository := repositories4.NewWalletRepository(db, repository)
+	walletService := services4.NewWalletService(walletRepository)
 	mongoDatabase, err := database.NewMongoDB(configConfig)
 	if err != nil {
 		return nil, err
 	}
 	iAuditLogger := provideAuditLogger(mongoDatabase)
-	walletHandler := handlers3.NewWalletHandler(walletService, iAuditLogger)
-	invoiceRepository := repositories4.NewInvoiceRepository(db)
-	invoiceService := services4.NewInvoiceService(invoiceRepository)
-	invoiceHandler := handlers4.NewInvoiceHandler(invoiceService, iAuditLogger)
-	paymentRepository := repositories5.NewPaymentRepository(db, repository)
-	paymentService := services5.NewPaymentService(paymentRepository)
-	paymentHandler := handlers5.NewPaymentHandler(paymentService, iAuditLogger)
-	refundRepository := repositories6.NewRefundRepository(db, repository)
-	refundService := services6.NewRefundService(refundRepository)
-	refundHandler := handlers6.NewRefundHandler(refundService, iAuditLogger)
-	oAuth2Repository := repositories7.NewOAuth2Repository(db)
-	oAuth2Service := services7.NewOAuth2Service(oAuth2Repository, configConfig)
-	oAuth2Handler := handlers7.NewOAuth2Handler(oAuth2Service, configConfig)
-	ledgerHandler := handlers8.NewLedgerHandler(repository)
-	merchantsRepository := repositories8.NewMerchantsRepository(db)
-	merchantsService := services9.NewMerchantsService(merchantsRepository)
-	merchantsHandler := handlers9.NewMerchantsHandler(merchantsService)
+	walletHandler := handlers4.NewWalletHandler(walletService, iAuditLogger)
+	invoiceRepository := repositories5.NewInvoiceRepository(db)
+	invoiceService := services5.NewInvoiceService(invoiceRepository)
+	invoiceHandler := handlers5.NewInvoiceHandler(invoiceService, iAuditLogger)
+	paymentRepository := repositories6.NewPaymentRepository(db, repository)
+	paymentService := services6.NewPaymentService(paymentRepository)
+	paymentHandler := handlers6.NewPaymentHandler(paymentService, iAuditLogger)
+	refundRepository := repositories7.NewRefundRepository(db, repository)
+	refundService := services7.NewRefundService(refundRepository)
+	refundHandler := handlers7.NewRefundHandler(refundService, iAuditLogger)
+	oAuth2Repository := repositories8.NewOAuth2Repository(db)
+	oAuth2Service := services8.NewOAuth2Service(oAuth2Repository, configConfig)
+	oAuth2Handler := handlers8.NewOAuth2Handler(oAuth2Service, configConfig)
+	ledgerHandler := handlers9.NewLedgerHandler(repository)
 	engine := newRouter(configConfig, middleware, userHandler, adminHandler, merchantsHandler, walletHandler, invoiceHandler, paymentHandler, refundHandler, oAuth2Handler, ledgerHandler)
-	orchestrator := services8.NewOrchestrator(db)
+	orchestrator := services9.NewOrchestrator(db)
 	app := newApp(configConfig, engine, orchestrator)
 	return app, nil
 }

@@ -7,8 +7,7 @@ SWAG_VERSION ?= v1.8.12
 SWAG_CMD = go run github.com/swaggo/swag/cmd/swag@$(SWAG_VERSION)
 SWAG_ARGS = init -g app/cmd/main.go -o docs --parseDependency --parseInternal
 
-MOCKERY_VERSION ?= v2.53.5
-MOCKERY_CMD = go run github.com/vektra/mockery/v2@$(MOCKERY_VERSION)
+MOCKERY_CMD = go run github.com/vektra/mockery/v2
 
 # ── Performance test targets ──────────────────────────────────────────────────
 # K6_* vars are sourced from .env above; these are fallbacks for CI environments.
@@ -69,7 +68,9 @@ perf-clean-reports:
 
 # ──────────────────────────────────────────────────────────────────────────────
 
-.PHONY: swag swagger mock coverage-services test-integration verify-batch10 verify-batch11 verify-iso verify-iso-ci drill-backup-restore
+.PHONY: swag swagger mock wire init clean-generated coverage-services test-integration verify-batch10 verify-batch11 verify-iso verify-iso-ci drill-backup-restore
+
+# ── Code generation targets ───────────────────────────────────────────────────
 
 swag:
 	$(SWAG_CMD) $(SWAG_ARGS)
@@ -78,6 +79,32 @@ swagger: swag
 
 mock:
 	$(MOCKERY_CMD) --config .mockery.yaml
+
+wire:
+	cd app/cmd && go run github.com/google/wire/cmd/wire
+
+clean-generated:
+	@echo "▶ Removing generated mocks…"
+	@find ./app -type d -name "mocks" -exec rm -rf {} + 2>/dev/null || true
+	@echo "▶ Removing wire_gen.go…"
+	@rm -f app/cmd/wire_gen.go
+	@echo "▶ Removing swagger docs…"
+	@rm -f docs/docs.go docs/swagger.json docs/swagger.yaml
+	@echo "✔ All generated files removed."
+
+init: clean-generated
+	go mod tidy
+	@echo ""
+	@echo "▶ Regenerating mocks…"
+	@$(MAKE) mock
+	@echo ""
+	@echo "▶ Regenerating swagger…"
+	@$(MAKE) swag
+	@echo ""
+	@echo "▶ Regenerating wire…"
+	@$(MAKE) wire
+	@echo ""
+	@echo "✔ All generated files recreated."
 
 coverage-services:
 	go test -cover ./app/modules/.../services

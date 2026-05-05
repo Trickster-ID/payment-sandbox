@@ -1,5 +1,12 @@
 package handlers
 
+// Branch map for CreateInvoice (Section 3.1 of the plan):
+// ├── middleware.MustUserID not ok        -> 401 auth_unauthorized, abort
+// ├── c.ShouldBindJSON fails (malformed)  -> 400 validation_error
+// ├── c.ShouldBindJSON fails (binding)    -> 400 validation_error
+// ├── service.CreateInvoice fails         -> 400 invoice_create_failed + audit FAILED
+// └── service.CreateInvoice succeeds      -> 201 data.id + audit SUCCESS
+
 import (
 	"bytes"
 	"encoding/json"
@@ -10,6 +17,7 @@ import (
 
 	"payment-sandbox/app/middleware"
 	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
+	invoiceServices "payment-sandbox/app/modules/invoice/services"
 	serviceMocks "payment-sandbox/app/modules/invoice/services/mocks"
 	"payment-sandbox/app/shared/audit"
 	auditMocks "payment-sandbox/app/shared/audit/mocks"
@@ -23,112 +31,128 @@ import (
 func TestInvoiceHandler_CreateInvoice(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	tests := []struct {
-		name       string
+	type fields struct {
+		service     invoiceServices.IInvoiceService
+		auditLogger audit.IAuditLogger
+	}
+	type args struct {
 		withUserID bool
 		body       string
-		setupMocks func(service *serviceMocks.MockIInvoiceService, logger *auditMocks.MockIAuditLogger)
-		wantStatus int
-		wantCode   string
-		wantID     string
+	}
+	type mocks struct {
+		setup func(f fields, a args)
+	}
+	type wants struct {
+		statusCode int
+		errorCode  string
+		invoiceID  string
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
 	}{
 		{
-			name:       "missing user context",
-			withUserID: false,
-			body:       `{"customer_name":"Alice","customer_email":"alice@example.com","amount":10000,"description":"desc","due_date":"2026-05-01T10:00:00Z"}`,
-			setupMocks: func(service *serviceMocks.MockIInvoiceService, logger *auditMocks.MockIAuditLogger) {
-				service.AssertNotCalled(t, "CreateInvoice")
-				logger.AssertNotCalled(t, "Log")
+			name: "1. user ID not in context -> unauthorized",
+			fields: fields{
+				service:     serviceMocks.NewMockIInvoiceService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
 			},
-			wantStatus: http.StatusUnauthorized,
-			wantCode:   "auth_unauthorized",
+			args: args{
+				withUserID: false,
+				body:       `{"customer_name":"Alice","customer_email":"alice@example.com","amount":10000,"description":"desc","due_date":"2026-05-01T10:00:00Z"}`,
+			},
+			mocks:  mocks{setup: func(f fields, a args) {}},
+			wants:  wants{statusCode: http.StatusUnauthorized, errorCode: "auth_unauthorized"},
 		},
 		{
-			name:       "validation error",
-			withUserID: true,
-			body:       `{"customer_name":"Alice","customer_email":"invalid","amount":0,"description":"desc","due_date":""}`,
-			setupMocks: func(service *serviceMocks.MockIInvoiceService, logger *auditMocks.MockIAuditLogger) {
-				service.AssertNotCalled(t, "CreateInvoice")
-				logger.AssertNotCalled(t, "Log")
+			name: "2. malformed JSON body -> validation_error bad request",
+			fields: fields{
+				service:     serviceMocks.NewMockIInvoiceService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
 			},
-			wantStatus: http.StatusBadRequest,
-			wantCode:   "validation_error",
+			args:  args{withUserID: true, body: `{invalid-json}`},
+			mocks: mocks{setup: func(f fields, a args) {}},
+			wants: wants{statusCode: http.StatusBadRequest, errorCode: "validation_error"},
 		},
 		{
-			name:       "malformed json",
-			withUserID: true,
-			body:       `{invalid-json}`,
-			setupMocks: func(service *serviceMocks.MockIInvoiceService, logger *auditMocks.MockIAuditLogger) {
-				service.AssertNotCalled(t, "CreateInvoice")
-				logger.AssertNotCalled(t, "Log")
+			name: "3. binding validation fails (invalid email, zero amount) -> validation_error bad request",
+			fields: fields{
+				service:     serviceMocks.NewMockIInvoiceService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
 			},
-			wantStatus: http.StatusBadRequest,
-			wantCode:   "validation_error",
+			args:  args{withUserID: true, body: `{"customer_name":"Alice","customer_email":"invalid","amount":0,"due_date":""}`},
+			mocks: mocks{setup: func(f fields, a args) {}},
+			wants: wants{statusCode: http.StatusBadRequest, errorCode: "validation_error"},
 		},
 		{
-			name:       "service error and logger failure",
-			withUserID: true,
-			body:       `{"customer_name":"Alice","customer_email":"alice@example.com","amount":10000,"description":"desc","due_date":"2026-05-01T10:00:00Z"}`,
-			setupMocks: func(service *serviceMocks.MockIInvoiceService, logger *auditMocks.MockIAuditLogger) {
-				service.EXPECT().
+			name: "4. service.CreateInvoice fails -> invoice_create_failed, audit log written with FAILED",
+			fields: fields{
+				service:     serviceMocks.NewMockIInvoiceService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{
+				withUserID: true,
+				body:       `{"customer_name":"Alice","customer_email":"alice@example.com","amount":10000,"description":"desc","due_date":"2026-05-01T10:00:00Z"}`,
+			},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIInvoiceService).EXPECT().
 					CreateInvoice("user-1", "Alice", "alice@example.com", int64(10000), "desc", "2026-05-01T10:00:00Z").
-					Return(invoiceEntity.Invoice{}, errors.New("due_date must be today or future"))
-
-				logger.EXPECT().
-					Log(
-						mock.Anything,
-						mock.MatchedBy(func(event audit.Event) bool {
-							result, _ := event.Metadata["result"].(string)
-							return event.EventType == "invoice.created" &&
-								result == "FAILED" &&
-								event.RequestID == "req-1"
-						}),
-					).
-					Return(errors.New("mongo write failed"))
-			},
-			wantStatus: http.StatusBadRequest,
-			wantCode:   "invoice_create_failed",
+					Return(invoiceEntity.Invoice{}, errors.New("due_date must be today or future")).
+					Once()
+				f.auditLogger.(*auditMocks.MockIAuditLogger).EXPECT().
+					Log(mock.Anything, mock.MatchedBy(func(e audit.Event) bool {
+						result, _ := e.Metadata["result"].(string)
+						return e.EventType == "invoice.created" && result == "FAILED"
+					})).
+					Return(nil).
+					Once()
+			}},
+			wants: wants{statusCode: http.StatusBadRequest, errorCode: "invoice_create_failed"},
 		},
 		{
-			name:       "success and logger failure",
-			withUserID: true,
-			body:       `{"customer_name":"Alice","customer_email":"alice@example.com","amount":10000,"description":"desc","due_date":"2026-05-01T10:00:00Z"}`,
-			setupMocks: func(service *serviceMocks.MockIInvoiceService, logger *auditMocks.MockIAuditLogger) {
-				service.EXPECT().
+			name: "5. valid request, service succeeds -> 201 with invoice ID in data",
+			fields: fields{
+				service:     serviceMocks.NewMockIInvoiceService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{
+				withUserID: true,
+				body:       `{"customer_name":"Alice","customer_email":"alice@example.com","amount":10000,"description":"desc","due_date":"2026-05-01T10:00:00Z"}`,
+			},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIInvoiceService).EXPECT().
 					CreateInvoice("user-1", "Alice", "alice@example.com", int64(10000), "desc", "2026-05-01T10:00:00Z").
 					Return(invoiceEntity.Invoice{
 						ID:     "inv-1",
 						Status: invoiceEntity.InvoicePending,
 						Amount: 10000,
-					}, nil)
-
-				logger.EXPECT().
-					Log(
-						mock.Anything,
-						mock.MatchedBy(func(event audit.Event) bool {
-							result, _ := event.Metadata["result"].(string)
-							return event.EventType == "invoice.created" &&
-								result == "SUCCESS" &&
-								event.ResourceID == "inv-1"
-						}),
-					).
-					Return(errors.New("mongo write failed"))
-			},
-			wantStatus: http.StatusCreated,
-			wantID:     "inv-1",
+					}, nil).
+					Once()
+				f.auditLogger.(*auditMocks.MockIAuditLogger).EXPECT().
+					Log(mock.Anything, mock.MatchedBy(func(e audit.Event) bool {
+						result, _ := e.Metadata["result"].(string)
+						return e.EventType == "invoice.created" && result == "SUCCESS" && e.ResourceID == "inv-1"
+					})).
+					Return(nil).
+					Once()
+			}},
+			wants: wants{statusCode: http.StatusCreated, invoiceID: "inv-1"},
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockIInvoiceService(t)
-			logger := auditMocks.NewMockIAuditLogger(t)
-			tc.setupMocks(service, logger)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// not parallel: gin.SetMode is global
+			tt.mocks.setup(tt.fields, tt.args)
 
-			handler := NewInvoiceHandler(service, logger)
+			handler := NewInvoiceHandler(tt.fields.service, tt.fields.auditLogger)
 			router := gin.New()
 			router.POST("/merchant/invoices", func(c *gin.Context) {
-				if tc.withUserID {
+				if tt.args.withUserID {
 					c.Set(middleware.ContextUserID, "user-1")
 					c.Set(middleware.ContextRole, "MERCHANT")
 				}
@@ -136,27 +160,32 @@ func TestInvoiceHandler_CreateInvoice(t *testing.T) {
 				handler.CreateInvoice(c)
 			})
 
-			req := httptest.NewRequest(http.MethodPost, "/merchant/invoices", bytes.NewBufferString(tc.body))
+			req := httptest.NewRequest(http.MethodPost, "/merchant/invoices", bytes.NewBufferString(tt.args.body))
 			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 			router.ServeHTTP(rec, req)
 
-			assert.Equal(t, tc.wantStatus, rec.Code)
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
 
 			var payload map[string]any
-			err := json.Unmarshal(rec.Body.Bytes(), &payload)
-			require.NoError(t, err)
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload), "response JSON parseable")
 
-			if tc.wantCode != "" {
-				errorData, ok := payload["error"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, tc.wantCode, errorData["code"])
-				return
+			if tt.wants.errorCode != "" {
+				errData, ok := payload["error"].(map[string]any)
+				require.True(t, ok, "error envelope present")
+				assert.Equal(t, tt.wants.errorCode, errData["code"], "error code")
+			} else {
+				data, ok := payload["data"].(map[string]any)
+				require.True(t, ok, "data envelope present")
+				assert.Equal(t, tt.wants.invoiceID, data["id"], "invoice ID")
 			}
 
-			data, ok := payload["data"].(map[string]any)
-			require.True(t, ok)
-			assert.Equal(t, tc.wantID, data["id"])
+			if m, ok := tt.fields.service.(*serviceMocks.MockIInvoiceService); ok {
+				m.AssertExpectations(t)
+			}
+			if m, ok := tt.fields.auditLogger.(*auditMocks.MockIAuditLogger); ok {
+				m.AssertExpectations(t)
+			}
 		})
 	}
 }

@@ -83,7 +83,10 @@ func runReconcile() int {
 	}
 	defer db.Close()
 
-	runner := services.NewRunner(db)
+	return executeReconcile(ctx, services.NewRunner(db))
+}
+
+func executeReconcile(ctx context.Context, runner services.IRunner) int {
 	exitCode := 0
 
 	if bad, err := runner.CheckTransactionBalance(ctx); err != nil {

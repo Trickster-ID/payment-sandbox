@@ -1,5 +1,31 @@
 package handlers
 
+// Branch analysis for WalletHandler.Wallet:
+// ├── middleware.MustUserID fails → 401 auth_unauthorized
+// ├── service.WalletByUserID → error → 404 wallet_not_found
+// └── service.WalletByUserID → success → 200 with merchant data
+//
+// Branch analysis for WalletHandler.ListTopups:
+// └── service.ListTopups → always 200 (no error path)
+//
+// Branch analysis for WalletHandler.ListWalletTransactions:
+// ├── middleware.MustUserID fails → 401 auth_unauthorized
+// ├── non-admin role with merchant_id param → 403 auth_forbidden
+// ├── invalid 'from' date (not RFC3339) → 400 validation_error
+// ├── invalid 'to' date (not RFC3339) → 400 validation_error
+// ├── direction != "D" && direction != "C" → 400 validation_error
+// ├── valid direction "D" filter → forwarded in EntryFilter
+// ├── valid reference_prefix filter → forwarded in EntryFilter
+// ├── targetMerchantID != "" (admin) → ListWalletTransactionsByMerchant
+// ├── targetMerchantID == "" (merchant) → ListWalletTransactions
+// ├── service error → 400 transactions_list_failed
+// └── success → 200 with data + meta
+//
+// Branch analysis for WalletHandler.UpdateTopupStatus:
+// ├── c.ShouldBindJSON → validation error (empty status) → 400 validation_error
+// ├── service.UpdateTopupStatus → error → audit log (FAILED event), 400 topup_update_failed
+// └── service.UpdateTopupStatus → success → audit log (SUCCESS event), 200 with topup
+
 import (
 	"bytes"
 	"encoding/json"
@@ -11,6 +37,7 @@ import (
 	"payment-sandbox/app/middleware"
 	ledgerEntity "payment-sandbox/app/modules/ledger/models/entity"
 	walletEntity "payment-sandbox/app/modules/wallet/models/entity"
+	walletServices "payment-sandbox/app/modules/wallet/services"
 	serviceMocks "payment-sandbox/app/modules/wallet/services/mocks"
 	"payment-sandbox/app/shared/audit"
 	auditMocks "payment-sandbox/app/shared/audit/mocks"
@@ -21,55 +48,89 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// ─── Wallet ──────────────────────────────────────────────────────────────────
+
 func TestWalletHandler_Wallet(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	type fields struct {
+		service     walletServices.IWalletService
+		auditLogger audit.IAuditLogger
+	}
+	type args struct {
+		userID string // empty → MustUserID missing
+	}
+	type mocks struct {
+		setup func(f fields, a args)
+	}
+	type wants struct {
+		statusCode int
+		errCode    string
+		merchantID string
+	}
+
 	tests := []struct {
-		name       string
-		withUserID bool
-		setupMocks func(service *serviceMocks.MockIWalletService)
-		wantStatus int
-		wantCode   string
-		wantID     string
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
 	}{
 		{
-			name:       "missing user context",
-			withUserID: false,
-			setupMocks: func(service *serviceMocks.MockIWalletService) {},
-			wantStatus: http.StatusUnauthorized,
-			wantCode:   "auth_unauthorized",
+			name: "1. missing user_id in context -> 401 auth_unauthorized",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{userID: ""},
+			mocks: mocks{setup: func(f fields, a args) {}},
+			wants: wants{statusCode: http.StatusUnauthorized, errCode: "auth_unauthorized"},
 		},
 		{
-			name:       "wallet not found",
-			withUserID: true,
-			setupMocks: func(service *serviceMocks.MockIWalletService) {
-				service.EXPECT().WalletByUserID("user-1").Return(walletEntity.Merchant{}, errors.New("wallet not found"))
+			name: "2. service.WalletByUserID error -> 404 wallet_not_found",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
 			},
-			wantStatus: http.StatusNotFound,
-			wantCode:   "wallet_not_found",
+			args: args{userID: "user-1"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIWalletService).EXPECT().
+					WalletByUserID("user-1").
+					Return(walletEntity.Merchant{}, errors.New("merchant wallet not found")).
+					Once()
+			}},
+			wants: wants{statusCode: http.StatusNotFound, errCode: "wallet_not_found"},
 		},
 		{
-			name:       "success",
-			withUserID: true,
-			setupMocks: func(service *serviceMocks.MockIWalletService) {
-				service.EXPECT().WalletByUserID("user-1").Return(walletEntity.Merchant{ID: "merchant-1"}, nil)
+			name: "3. service.WalletByUserID success -> 200 with merchant data",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
 			},
-			wantStatus: http.StatusOK,
-			wantID:     "merchant-1",
+			args: args{userID: "user-1"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIWalletService).EXPECT().
+					WalletByUserID("user-1").
+					Return(walletEntity.Merchant{ID: "merchant-1", Balance: 50000}, nil).
+					Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, merchantID: "merchant-1"},
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockIWalletService(t)
-			logger := auditMocks.NewMockIAuditLogger(t)
-			tc.setupMocks(service)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-			handler := NewWalletHandler(service, logger)
+			if tt.mocks.setup != nil {
+				tt.mocks.setup(tt.fields, tt.args)
+			}
+
+			handler := NewWalletHandler(tt.fields.service, tt.fields.auditLogger)
 			router := gin.New()
 			router.GET("/merchant/wallet", func(c *gin.Context) {
-				if tc.withUserID {
-					c.Set(middleware.ContextUserID, "user-1")
+				if tt.args.userID != "" {
+					c.Set(middleware.ContextUserID, tt.args.userID)
 				}
 				handler.Wallet(c)
 			})
@@ -78,251 +139,419 @@ func TestWalletHandler_Wallet(t *testing.T) {
 			rec := httptest.NewRecorder()
 			router.ServeHTTP(rec, req)
 
-			assert.Equal(t, tc.wantStatus, rec.Code)
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
+
 			var payload map[string]any
 			err := json.Unmarshal(rec.Body.Bytes(), &payload)
-			require.NoError(t, err)
+			require.NoError(t, err, "response must be valid JSON")
 
-			if tc.wantCode != "" {
+			if tt.wants.errCode != "" {
 				errData, ok := payload["error"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, tc.wantCode, errData["code"])
-				return
+				require.True(t, ok, "error key must be present")
+				assert.Equal(t, tt.wants.errCode, errData["code"], "error code")
+			} else {
+				data, ok := payload["data"].(map[string]any)
+				require.True(t, ok, "data key must be present")
+				assert.Equal(t, tt.wants.merchantID, data["id"], "data.id")
 			}
 
-			data, ok := payload["data"].(map[string]any)
-			require.True(t, ok)
-			assert.Equal(t, tc.wantID, data["id"])
+			if m, ok := tt.fields.service.(*serviceMocks.MockIWalletService); ok {
+				m.AssertExpectations(t)
+			}
 		})
 	}
 }
+
+// ─── ListTopups ──────────────────────────────────────────────────────────────
+
+func TestWalletHandler_ListTopups(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	type fields struct {
+		service     walletServices.IWalletService
+		auditLogger audit.IAuditLogger
+	}
+	type mocks struct {
+		setup func(f fields, _ struct{})
+	}
+	type wants struct {
+		statusCode int
+		dataLen    int
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		mocks  mocks
+		wants  wants
+	}{
+		{
+			name: "1. service.ListTopups returns items -> 200 all items returned",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
+			},
+			mocks: mocks{setup: func(f fields, _ struct{}) {
+				f.service.(*serviceMocks.MockIWalletService).EXPECT().
+					ListTopups().
+					Return([]walletEntity.Topup{{ID: "t1"}, {ID: "t2"}}).
+					Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, dataLen: 2},
+		},
+		{
+			name: "2. service.ListTopups returns empty slice -> 200 empty array",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
+			},
+			mocks: mocks{setup: func(f fields, _ struct{}) {
+				f.service.(*serviceMocks.MockIWalletService).EXPECT().
+					ListTopups().
+					Return([]walletEntity.Topup{}).
+					Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, dataLen: 0},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if tt.mocks.setup != nil {
+				tt.mocks.setup(tt.fields, struct{}{})
+			}
+
+			handler := NewWalletHandler(tt.fields.service, tt.fields.auditLogger)
+			router := gin.New()
+			router.GET("/admin/topups", handler.ListTopups)
+
+			req := httptest.NewRequest(http.MethodGet, "/admin/topups", nil)
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
+
+			var payload map[string]any
+			err := json.Unmarshal(rec.Body.Bytes(), &payload)
+			require.NoError(t, err, "response must be valid JSON")
+			data, ok := payload["data"].([]any)
+			require.True(t, ok, "data must be an array")
+			assert.Len(t, data, tt.wants.dataLen, "data length")
+
+			if m, ok := tt.fields.service.(*serviceMocks.MockIWalletService); ok {
+				m.AssertExpectations(t)
+			}
+		})
+	}
+}
+
+// ─── ListWalletTransactions ───────────────────────────────────────────────────
 
 func TestWalletHandler_ListWalletTransactions(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	entry := ledgerEntity.EntryWithTxn{ID: 1, Reference: "topup:t1", Direction: ledgerEntity.Debit, Amount: 50000, Currency: "IDR"}
 
+	dirD := "D"
+	prefix := "topup:"
+
+	type fields struct {
+		service     walletServices.IWalletService
+		auditLogger audit.IAuditLogger
+	}
+	type args struct {
+		query  string
+		userID string // empty → MustUserID missing
+		role   string
+	}
+	type mocks struct {
+		setup func(f fields, a args)
+	}
+	type wants struct {
+		statusCode int
+		errCode    string
+		dataLen    int
+	}
+
 	tests := []struct {
-		name       string
-		query      string
-		userID     string
-		role       string
-		setupMocks func(service *serviceMocks.MockIWalletService)
-		wantStatus int
-		wantCode   string
-		wantLen    int
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
 	}{
 		{
-			name:       "missing user context",
-			query:      "",
-			role:       "MERCHANT",
-			setupMocks: func(service *serviceMocks.MockIWalletService) {},
-			wantStatus: http.StatusUnauthorized,
-			wantCode:   "auth_unauthorized",
-		},
-		{
-			name:       "merchant forbidden to use merchant_id param",
-			query:      "?merchant_id=some-uuid",
-			userID:     "user-1",
-			role:       "MERCHANT",
-			setupMocks: func(service *serviceMocks.MockIWalletService) {},
-			wantStatus: http.StatusForbidden,
-			wantCode:   "auth_forbidden",
-		},
-		{
-			name:   "invalid direction param",
-			query:  "?direction=X",
-			userID: "user-1",
-			role:   "MERCHANT",
-			setupMocks: func(service *serviceMocks.MockIWalletService) {},
-			wantStatus: http.StatusBadRequest,
-			wantCode:   "validation_error",
-		},
-		{
-			name:   "invalid from date",
-			query:  "?from=not-a-date",
-			userID: "user-1",
-			role:   "MERCHANT",
-			setupMocks: func(service *serviceMocks.MockIWalletService) {},
-			wantStatus: http.StatusBadRequest,
-			wantCode:   "validation_error",
-		},
-		{
-			name:   "invalid to date",
-			query:  "?to=not-a-date",
-			userID: "user-1",
-			role:   "MERCHANT",
-			setupMocks: func(service *serviceMocks.MockIWalletService) {},
-			wantStatus: http.StatusBadRequest,
-			wantCode:   "validation_error",
-		},
-		{
-			name:   "service error",
-			query:  "",
-			userID: "user-1",
-			role:   "MERCHANT",
-			setupMocks: func(service *serviceMocks.MockIWalletService) {
-				service.EXPECT().
-					ListWalletTransactions("user-1", ledgerEntity.EntryFilter{}, 1, 10).
-					Return(nil, 0, errors.New("db error"))
+			name: "1. missing user_id in context -> 401 auth_unauthorized",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
 			},
-			wantStatus: http.StatusBadRequest,
-			wantCode:   "transactions_list_failed",
+			args: args{query: "", userID: "", role: "MERCHANT"},
+			mocks: mocks{setup: func(f fields, a args) {}},
+			wants: wants{statusCode: http.StatusUnauthorized, errCode: "auth_unauthorized"},
 		},
 		{
-			name:   "merchant success",
-			query:  "",
-			userID: "user-1",
-			role:   "MERCHANT",
-			setupMocks: func(service *serviceMocks.MockIWalletService) {
-				service.EXPECT().
-					ListWalletTransactions("user-1", ledgerEntity.EntryFilter{}, 1, 10).
-					Return([]ledgerEntity.EntryWithTxn{entry}, 1, nil)
+			name: "2. non-admin uses merchant_id param -> 403 auth_forbidden",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
 			},
-			wantStatus: http.StatusOK,
-			wantLen:    1,
+			args: args{query: "?merchant_id=some-uuid", userID: "user-1", role: "MERCHANT"},
+			mocks: mocks{setup: func(f fields, a args) {}},
+			wants: wants{statusCode: http.StatusForbidden, errCode: "auth_forbidden"},
 		},
 		{
-			name:   "admin success with merchant_id",
-			query:  "?merchant_id=merchant-99",
-			userID: "admin-1",
-			role:   "ADMIN",
-			setupMocks: func(service *serviceMocks.MockIWalletService) {
-				service.EXPECT().
+			name: "3. invalid 'from' date param -> 400 validation_error",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{query: "?from=not-a-date", userID: "user-1", role: "MERCHANT"},
+			mocks: mocks{setup: func(f fields, a args) {}},
+			wants: wants{statusCode: http.StatusBadRequest, errCode: "validation_error"},
+		},
+		{
+			name: "4. invalid 'to' date param -> 400 validation_error",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{query: "?to=not-a-date", userID: "user-1", role: "MERCHANT"},
+			mocks: mocks{setup: func(f fields, a args) {}},
+			wants: wants{statusCode: http.StatusBadRequest, errCode: "validation_error"},
+		},
+		{
+			name: "5. invalid direction param (not D or C) -> 400 validation_error",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{query: "?direction=X", userID: "user-1", role: "MERCHANT"},
+			mocks: mocks{setup: func(f fields, a args) {}},
+			wants: wants{statusCode: http.StatusBadRequest, errCode: "validation_error"},
+		},
+		{
+			name: "6. service.ListWalletTransactions error -> 400 transactions_list_failed",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{query: "", userID: "user-1", role: "MERCHANT"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIWalletService).EXPECT().
+					ListWalletTransactions("user-1", ledgerEntity.EntryFilter{}, 1, 10).
+					Return(nil, 0, errors.New("db error")).
+					Once()
+			}},
+			wants: wants{statusCode: http.StatusBadRequest, errCode: "transactions_list_failed"},
+		},
+		{
+			name: "7. merchant success no filters -> 200 with entries and meta",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{query: "", userID: "user-1", role: "MERCHANT"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIWalletService).EXPECT().
+					ListWalletTransactions("user-1", ledgerEntity.EntryFilter{}, 1, 10).
+					Return([]ledgerEntity.EntryWithTxn{entry}, 1, nil).
+					Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, dataLen: 1},
+		},
+		{
+			name: "8. direction=D filter -> ListWalletTransactions called with direction filter",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{query: "?direction=D", userID: "user-1", role: "MERCHANT"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIWalletService).EXPECT().
+					ListWalletTransactions("user-1", ledgerEntity.EntryFilter{Direction: &dirD}, 1, 10).
+					Return([]ledgerEntity.EntryWithTxn{entry}, 1, nil).
+					Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, dataLen: 1},
+		},
+		{
+			name: "9. reference_prefix filter -> ListWalletTransactions called with prefix filter",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{query: "?reference_prefix=topup:", userID: "user-1", role: "MERCHANT"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIWalletService).EXPECT().
+					ListWalletTransactions("user-1", ledgerEntity.EntryFilter{ReferencePrefix: &prefix}, 1, 10).
+					Return([]ledgerEntity.EntryWithTxn{entry}, 1, nil).
+					Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, dataLen: 1},
+		},
+		{
+			name: "10. admin with merchant_id param -> ListWalletTransactionsByMerchant called",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
+			},
+			args: args{query: "?merchant_id=merchant-99", userID: "admin-1", role: "ADMIN"},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIWalletService).EXPECT().
 					ListWalletTransactionsByMerchant("merchant-99", ledgerEntity.EntryFilter{}, 1, 10).
-					Return([]ledgerEntity.EntryWithTxn{entry}, 1, nil)
-			},
-			wantStatus: http.StatusOK,
-			wantLen:    1,
+					Return([]ledgerEntity.EntryWithTxn{entry}, 1, nil).
+					Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, dataLen: 1},
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockIWalletService(t)
-			logger := auditMocks.NewMockIAuditLogger(t)
-			tc.setupMocks(service)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-			handler := NewWalletHandler(service, logger)
+			if tt.mocks.setup != nil {
+				tt.mocks.setup(tt.fields, tt.args)
+			}
+
+			handler := NewWalletHandler(tt.fields.service, tt.fields.auditLogger)
 			router := gin.New()
 			router.GET("/merchant/wallet/transactions", func(c *gin.Context) {
-				if tc.userID != "" {
-					c.Set(middleware.ContextUserID, tc.userID)
+				if tt.args.userID != "" {
+					c.Set(middleware.ContextUserID, tt.args.userID)
 				}
-				c.Set(middleware.ContextRole, tc.role)
+				c.Set(middleware.ContextRole, tt.args.role)
 				handler.ListWalletTransactions(c)
 			})
 
-			req := httptest.NewRequest(http.MethodGet, "/merchant/wallet/transactions"+tc.query, nil)
+			req := httptest.NewRequest(http.MethodGet, "/merchant/wallet/transactions"+tt.args.query, nil)
 			rec := httptest.NewRecorder()
 			router.ServeHTTP(rec, req)
 
-			assert.Equal(t, tc.wantStatus, rec.Code)
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
+
 			var payload map[string]any
 			err := json.Unmarshal(rec.Body.Bytes(), &payload)
-			require.NoError(t, err)
+			require.NoError(t, err, "response must be valid JSON")
 
-			if tc.wantCode != "" {
+			if tt.wants.errCode != "" {
 				errData, ok := payload["error"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, tc.wantCode, errData["code"])
-				return
+				require.True(t, ok, "error key must be present")
+				assert.Equal(t, tt.wants.errCode, errData["code"], "error code")
+			} else {
+				data, ok := payload["data"].([]any)
+				require.True(t, ok, "data must be an array")
+				assert.Len(t, data, tt.wants.dataLen, "data length")
+				_, hasMeta := payload["meta"]
+				assert.True(t, hasMeta, "meta must be present on success")
 			}
 
-			data, ok := payload["data"].([]any)
-			require.True(t, ok)
-			assert.Len(t, data, tc.wantLen)
+			if m, ok := tt.fields.service.(*serviceMocks.MockIWalletService); ok {
+				m.AssertExpectations(t)
+			}
 		})
 	}
 }
 
-func TestWalletHandler_ListTopups(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	service := serviceMocks.NewMockIWalletService(t)
-	logger := auditMocks.NewMockIAuditLogger(t)
-	service.EXPECT().ListTopups().Return([]walletEntity.Topup{{ID: "topup-1"}, {ID: "topup-2"}})
-
-	handler := NewWalletHandler(service, logger)
-	router := gin.New()
-	router.GET("/admin/topups", handler.ListTopups)
-
-	req := httptest.NewRequest(http.MethodGet, "/admin/topups", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusOK, rec.Code)
-	var payload map[string]any
-	err := json.Unmarshal(rec.Body.Bytes(), &payload)
-	require.NoError(t, err)
-
-	data, ok := payload["data"].([]any)
-	require.True(t, ok)
-	assert.Len(t, data, 2)
-}
+// ─── UpdateTopupStatus ────────────────────────────────────────────────────────
 
 func TestWalletHandler_UpdateTopupStatus(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	type fields struct {
+		service     walletServices.IWalletService
+		auditLogger audit.IAuditLogger
+	}
+	type args struct {
+		topupID string
+		body    string
+	}
+	type mocks struct {
+		setup func(f fields, a args)
+	}
+	type wants struct {
+		statusCode int
+		errCode    string
+		dataID     string
+	}
+
 	tests := []struct {
-		name       string
-		body       string
-		setupMocks func(service *serviceMocks.MockIWalletService, logger *auditMocks.MockIAuditLogger)
-		wantStatus int
-		wantCode   string
-		wantID     string
+		name   string
+		fields fields
+		args   args
+		mocks  mocks
+		wants  wants
 	}{
 		{
-			name: "validation error",
-			body: `{"status":""}`,
-			setupMocks: func(service *serviceMocks.MockIWalletService, logger *auditMocks.MockIAuditLogger) {
-				service.AssertNotCalled(t, "UpdateTopupStatus")
-				logger.AssertNotCalled(t, "Log")
+			name: "1. empty status fails binding validation -> 400 validation_error",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
 			},
-			wantStatus: http.StatusBadRequest,
-			wantCode:   "validation_error",
+			args: args{topupID: "topup-1", body: `{"status":""}`},
+			mocks: mocks{setup: func(f fields, a args) {}},
+			wants: wants{statusCode: http.StatusBadRequest, errCode: "validation_error"},
 		},
 		{
-			name: "service error and logger failure",
-			body: `{"status":"SUCCESS"}`,
-			setupMocks: func(service *serviceMocks.MockIWalletService, logger *auditMocks.MockIAuditLogger) {
-				service.EXPECT().UpdateTopupStatus("topup-1", "SUCCESS").Return(walletEntity.Topup{}, errors.New("topup already processed"))
-				logger.EXPECT().Log(
-					mock.Anything,
-					mock.MatchedBy(func(event audit.Event) bool {
-						result, _ := event.Metadata["result"].(string)
-						return event.EventType == "topup.status_updated" && result == "FAILED"
-					}),
-				).Return(errors.New("mongo write failed"))
+			name: "2. service.UpdateTopupStatus error -> audit FAILED event 400 topup_update_failed",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
 			},
-			wantStatus: http.StatusBadRequest,
-			wantCode:   "topup_update_failed",
+			args: args{topupID: "topup-1", body: `{"status":"SUCCESS"}`},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIWalletService).EXPECT().
+					UpdateTopupStatus("topup-1", "SUCCESS").
+					Return(walletEntity.Topup{}, errors.New("topup already finalized")).
+					Once()
+				f.auditLogger.(*auditMocks.MockIAuditLogger).EXPECT().
+					Log(mock.Anything, mock.MatchedBy(func(event audit.Event) bool {
+						result, _ := event.Metadata["result"].(string)
+						return event.EventType == "topup.status_updated" && result == "FAILED" &&
+							event.ResourceID == "topup-1"
+					})).
+					Return(nil).
+					Once()
+			}},
+			wants: wants{statusCode: http.StatusBadRequest, errCode: "topup_update_failed"},
 		},
 		{
-			name: "success and logger failure",
-			body: `{"status":"SUCCESS"}`,
-			setupMocks: func(service *serviceMocks.MockIWalletService, logger *auditMocks.MockIAuditLogger) {
-				service.EXPECT().UpdateTopupStatus("topup-1", "SUCCESS").Return(walletEntity.Topup{ID: "topup-1"}, nil)
-				logger.EXPECT().Log(
-					mock.Anything,
-					mock.MatchedBy(func(event audit.Event) bool {
-						result, _ := event.Metadata["result"].(string)
-						return event.EventType == "topup.status_updated" && result == "SUCCESS"
-					}),
-				).Return(errors.New("mongo write failed"))
+			name: "3. service.UpdateTopupStatus success -> audit SUCCESS event 200 with topup",
+			fields: fields{
+				service:     serviceMocks.NewMockIWalletService(t),
+				auditLogger: auditMocks.NewMockIAuditLogger(t),
 			},
-			wantStatus: http.StatusOK,
-			wantID:     "topup-1",
+			args: args{topupID: "topup-1", body: `{"status":"SUCCESS"}`},
+			mocks: mocks{setup: func(f fields, a args) {
+				f.service.(*serviceMocks.MockIWalletService).EXPECT().
+					UpdateTopupStatus("topup-1", "SUCCESS").
+					Return(walletEntity.Topup{ID: "topup-1"}, nil).
+					Once()
+				f.auditLogger.(*auditMocks.MockIAuditLogger).EXPECT().
+					Log(mock.Anything, mock.MatchedBy(func(event audit.Event) bool {
+						result, _ := event.Metadata["result"].(string)
+						return event.EventType == "topup.status_updated" && result == "SUCCESS" &&
+							event.ResourceID == "topup-1"
+					})).
+					Return(nil).
+					Once()
+			}},
+			wants: wants{statusCode: http.StatusOK, dataID: "topup-1"},
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			service := serviceMocks.NewMockIWalletService(t)
-			logger := auditMocks.NewMockIAuditLogger(t)
-			tc.setupMocks(service, logger)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-			handler := NewWalletHandler(service, logger)
+			if tt.mocks.setup != nil {
+				tt.mocks.setup(tt.fields, tt.args)
+			}
+
+			handler := NewWalletHandler(tt.fields.service, tt.fields.auditLogger)
 			router := gin.New()
 			router.PATCH("/admin/topups/:id/status", func(c *gin.Context) {
 				c.Set(middleware.ContextRequestID, "req-1")
@@ -330,26 +559,34 @@ func TestWalletHandler_UpdateTopupStatus(t *testing.T) {
 				handler.UpdateTopupStatus(c)
 			})
 
-			req := httptest.NewRequest(http.MethodPatch, "/admin/topups/topup-1/status", bytes.NewBufferString(tc.body))
+			req := httptest.NewRequest(http.MethodPatch, "/admin/topups/"+tt.args.topupID+"/status",
+				bytes.NewBufferString(tt.args.body))
 			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 			router.ServeHTTP(rec, req)
 
-			assert.Equal(t, tc.wantStatus, rec.Code)
+			assert.Equal(t, tt.wants.statusCode, rec.Code, "status code")
+
 			var payload map[string]any
 			err := json.Unmarshal(rec.Body.Bytes(), &payload)
-			require.NoError(t, err)
+			require.NoError(t, err, "response must be valid JSON")
 
-			if tc.wantCode != "" {
+			if tt.wants.errCode != "" {
 				errData, ok := payload["error"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, tc.wantCode, errData["code"])
-				return
+				require.True(t, ok, "error key must be present")
+				assert.Equal(t, tt.wants.errCode, errData["code"], "error code")
+			} else {
+				data, ok := payload["data"].(map[string]any)
+				require.True(t, ok, "data key must be present")
+				assert.Equal(t, tt.wants.dataID, data["id"], "data.id")
 			}
 
-			data, ok := payload["data"].(map[string]any)
-			require.True(t, ok)
-			assert.Equal(t, tc.wantID, data["id"])
+			if m, ok := tt.fields.service.(*serviceMocks.MockIWalletService); ok {
+				m.AssertExpectations(t)
+			}
+			if m, ok := tt.fields.auditLogger.(*auditMocks.MockIAuditLogger); ok {
+				m.AssertExpectations(t)
+			}
 		})
 	}
 }

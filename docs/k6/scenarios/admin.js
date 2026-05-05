@@ -72,6 +72,23 @@ export function run(data) {
     sleep(0.2);
   }
 
+  // GET /admin/merchants
+  checkOK(get(token, `${url('/admin/merchants')}?page=1&limit=20`, 'admin_merchants_list'), 'GET /admin/merchants');
+  sleep(0.2);
+
+  // GET /admin/merchants?search=... (prefix search)
+  checkOK(get(token, `${url('/admin/merchants')}?search=test&page=1&limit=20`, 'admin_merchants_search'), 'GET /admin/merchants?search=');
+  sleep(0.2);
+
+  // GET /merchant/wallet/transactions (admin viewing a specific merchant)
+  if (data.seedMerchantId) {
+    checkOK(
+      get(token, `${url('/merchant/wallet/transactions')}?merchant_id=${data.seedMerchantId}&page=1&limit=10`, 'admin_wallet_transactions'),
+      'GET /merchant/wallet/transactions (admin)'
+    );
+    sleep(0.2);
+  }
+
   sleep(0.5);
 }
 

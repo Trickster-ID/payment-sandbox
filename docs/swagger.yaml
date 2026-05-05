@@ -271,6 +271,30 @@ definitions:
       updated_at:
         type: string
     type: object
+  app_modules_wallet_handlers.TransactionResponse:
+    properties:
+      amount:
+        type: integer
+      balance_after:
+        type: integer
+      created_at:
+        type: string
+      currency:
+        type: string
+      description:
+        type: string
+      direction:
+        type: string
+      id:
+        type: integer
+      metadata:
+        additionalProperties: {}
+        type: object
+      reference:
+        type: string
+      transaction_id:
+        type: string
+    type: object
   app_modules_wallet_handlers.UpdateTopupStatusRequest:
     properties:
       status:
@@ -332,6 +356,15 @@ definitions:
     - InvoicePending
     - InvoicePaid
     - InvoiceExpired
+  payment-sandbox_app_modules_merchants_models_entity.MerchantSummary:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+    type: object
   payment-sandbox_app_modules_oauth2_models_dto.ClientResponse:
     properties:
       created_at:
@@ -585,6 +618,73 @@ paths:
       summary: Get merchant ledger account
       tags:
       - ledger
+  /admin/merchants:
+    get:
+      description: Admin lists merchants with optional prefix search on name or email.
+        Powers the admin merchant picker.
+      parameters:
+      - description: Prefix search on name or email (case-insensitive)
+        in: query
+        name: search
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/payment-sandbox_app_modules_merchants_models_entity.MerchantSummary'
+                  type: array
+                meta:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.PaginationMeta'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List merchants
+      tags:
+      - admin
   /admin/payment-intents:
     get:
       description: Admin lists payment intents with optional status filter
@@ -1407,6 +1507,58 @@ paths:
       tags:
       - refund
   /merchant/topups:
+    get:
+      description: Merchant lists own top-up requests with pagination
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/payment-sandbox_app_modules_wallet_models_entity.Topup'
+                  type: array
+                meta:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.PaginationMeta'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List merchant top-ups
+      tags:
+      - wallet
     post:
       consumes:
       - application/json
@@ -1524,6 +1676,93 @@ paths:
       security:
       - BearerAuth: []
       summary: Get merchant wallet
+      tags:
+      - wallet
+  /merchant/wallet/transactions:
+    get:
+      description: Merchant lists own wallet debit/credit history. Admin can list
+        any merchant's history by passing merchant_id query param.
+      parameters:
+      - description: Merchant UUID (admin only)
+        in: query
+        name: merchant_id
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Filter from date (RFC3339)
+        in: query
+        name: from
+        type: string
+      - description: Filter to date (RFC3339)
+        in: query
+        name: to
+        type: string
+      - description: 'Filter direction: D (debit) or C (credit)'
+        enum:
+        - D
+        - C
+        in: query
+        name: direction
+        type: string
+      - description: Filter by transaction reference prefix (e.g. topup:, refund:,
+          payment:)
+        in: query
+        name: reference_prefix
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/app_modules_wallet_handlers.TransactionResponse'
+                  type: array
+                meta:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.PaginationMeta'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List wallet transactions
       tags:
       - wallet
   /oauth2/authorize:

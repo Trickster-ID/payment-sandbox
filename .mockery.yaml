@@ -1,3 +1,4 @@
+version: 2
 with-expecter: true
 inpackage: false
 filename: "{{.InterfaceName}}.go"
@@ -53,3 +54,6 @@ packages:
   payment-sandbox/app/modules/oauth2/services:
     interfaces:
       IOAuth2Service:
+  payment-sandbox/app/modules/reconciliation/services:
+    interfaces:
+      IRunner:
