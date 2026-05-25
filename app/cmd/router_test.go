@@ -5,13 +5,13 @@ import (
 	"time"
 
 	adminHandlers "payment-sandbox/app/modules/admin/handlers"
+	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
 	ledgerHandlers "payment-sandbox/app/modules/ledger/handlers"
 	merchantHandlers "payment-sandbox/app/modules/merchants/handlers"
-	usersHandlers "payment-sandbox/app/modules/users/handlers"
-	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
 	oauth2Handlers "payment-sandbox/app/modules/oauth2/handlers"
 	paymentHandlers "payment-sandbox/app/modules/payment/handlers"
 	refundHandlers "payment-sandbox/app/modules/refund/handlers"
+	usersHandlers "payment-sandbox/app/modules/users/handlers"
 	walletHandlers "payment-sandbox/app/modules/wallet/handlers"
 	"payment-sandbox/app/shared/audit"
 	"payment-sandbox/app/shared/idempotency"
@@ -57,22 +57,36 @@ func TestNewRouter_RegistersExpectedRoutes(t *testing.T) {
 		{name: "swagger docs", method: "GET", path: "/swagger/*any"},
 		{name: "health check", method: "GET", path: "/api/v1/ping"},
 		{name: "users register", method: "POST", path: "/api/v1/users/register"},
+		{name: "oauth2 token", method: "POST", path: "/api/v1/oauth2/token"},
+		{name: "oauth2 introspect", method: "POST", path: "/api/v1/oauth2/introspect"},
+		{name: "oauth2 revoke", method: "POST", path: "/api/v1/oauth2/revoke"},
+		{name: "oauth2 authorize get", method: "GET", path: "/api/v1/oauth2/authorize"},
+		{name: "oauth2 authorize post", method: "POST", path: "/api/v1/oauth2/authorize"},
+		{name: "oauth2 userinfo", method: "GET", path: "/api/v1/oauth2/userinfo"},
 		{name: "public invoice", method: "GET", path: "/api/v1/pay/:token"},
 		{name: "public payment intent", method: "POST", path: "/api/v1/pay/:token/intents"},
 		{name: "merchant wallet", method: "GET", path: "/api/v1/merchant/wallet"},
+		{name: "merchant wallet transactions", method: "GET", path: "/api/v1/merchant/wallet/transactions"},
 		{name: "merchant topup create", method: "POST", path: "/api/v1/merchant/topups"},
+		{name: "merchant topup list", method: "GET", path: "/api/v1/merchant/topups"},
 		{name: "merchant invoice create", method: "POST", path: "/api/v1/merchant/invoices"},
 		{name: "merchant invoice list", method: "GET", path: "/api/v1/merchant/invoices"},
 		{name: "merchant invoice detail", method: "GET", path: "/api/v1/merchant/invoices/:id"},
 		{name: "merchant refund request", method: "POST", path: "/api/v1/merchant/refunds"},
+		{name: "merchant refund list", method: "GET", path: "/api/v1/merchant/refunds"},
+		{name: "merchant oauth client create", method: "POST", path: "/api/v1/merchant/clients"},
+		{name: "merchant oauth client list", method: "GET", path: "/api/v1/merchant/clients"},
+		{name: "merchant oauth client delete", method: "DELETE", path: "/api/v1/merchant/clients/:id"},
 		{name: "admin topup list", method: "GET", path: "/api/v1/admin/topups"},
 		{name: "admin topup status update", method: "PATCH", path: "/api/v1/admin/topups/:id/status"},
+		{name: "admin wallet transactions", method: "GET", path: "/api/v1/admin/wallet/transactions"},
 		{name: "admin payment intent list", method: "GET", path: "/api/v1/admin/payment-intents"},
 		{name: "admin payment intent status update", method: "PATCH", path: "/api/v1/admin/payment-intents/:id/status"},
 		{name: "admin refund list", method: "GET", path: "/api/v1/admin/refunds"},
 		{name: "admin refund review", method: "PATCH", path: "/api/v1/admin/refunds/:id/review"},
 		{name: "admin refund process", method: "PATCH", path: "/api/v1/admin/refunds/:id/process"},
 		{name: "admin stats", method: "GET", path: "/api/v1/admin/stats"},
+		{name: "admin ledger account", method: "GET", path: "/api/v1/admin/ledger/accounts/:merchant_id"},
 		{name: "admin merchants list", method: "GET", path: "/api/v1/admin/merchants"},
 	}
 

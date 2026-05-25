@@ -35,6 +35,25 @@ Last updated: 2026-04-27 09:54 WIB
   - payment intent and invoice final statuses
   - refund final status and merchant balance adjustment
 
+### Complete API E2E tests (`app/cmd/e2e_api_test.go`)
+- Covers every registered API route except Swagger UI through in-process HTTP requests against the real router and PostgreSQL-backed repositories.
+- Authenticates through the real OAuth2 token endpoint instead of minting JWTs directly.
+- Exercises public, secured, merchant, and admin route groups:
+  - `/ping`, `/users/register`, OAuth2 token/introspect/revoke/authorize/userinfo.
+  - public invoice/payment link endpoints.
+  - merchant wallet, top-up, invoice, refund, and OAuth2 client endpoints.
+  - admin top-up, payment intent, refund, stats, wallet transaction, ledger account, and merchant listing endpoints.
+- Verifies idempotency behavior for protected money-mutating POST routes:
+  - missing key returns `idempotency_key_required`.
+  - replaying the same key and payload returns the original response.
+  - reusing the same key with a different payload returns `idempotency_key_conflict`.
+- Includes DB-backed lifecycle assertions:
+  - top-up success increases balance once.
+  - payment success sets payment intent to `SUCCESS` and invoice to `PAID` atomically.
+  - refund success sets refund to `SUCCESS` and restores merchant balance.
+  - admin stats and ledger/wallet transaction endpoints reflect lifecycle data.
+- Includes negative E2E coverage for auth, role guards, invalid payloads, invalid state transitions, ownership isolation, and invalid filters.
+
 ### Service tests
 - Added/expanded tests:
   - `app/modules/invoice/services/invoice_service_test.go`
@@ -49,6 +68,7 @@ Last updated: 2026-04-27 09:54 WIB
 
 ```bash
 go test ./app/cmd -run TestIntegration -v
+go test ./app/cmd -run TestE2EAPI -v
 go test ./app/modules/admin/services ./app/modules/invoice/services
 make coverage-services
 go test ./...
@@ -63,4 +83,3 @@ From `make coverage-services`:
 - `payment/services`: 100.0%
 - `refund/services`: 94.1%
 - `wallet/services`: 90.9%
-

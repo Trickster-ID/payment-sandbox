@@ -16,10 +16,6 @@ import (
 	adminHandlers "payment-sandbox/app/modules/admin/handlers"
 	adminRepo "payment-sandbox/app/modules/admin/repositories"
 	adminSvc "payment-sandbox/app/modules/admin/services"
-	usersHandlers "payment-sandbox/app/modules/users/handlers"
-	usersRepo "payment-sandbox/app/modules/users/repositories"
-	usersSvc "payment-sandbox/app/modules/users/services"
-	usersEntity "payment-sandbox/app/modules/users/models/entity"
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
 	invoiceRepo "payment-sandbox/app/modules/invoice/repositories"
 	invoiceSvc "payment-sandbox/app/modules/invoice/services"
@@ -28,20 +24,24 @@ import (
 	merchantHandlers "payment-sandbox/app/modules/merchants/handlers"
 	merchantRepo "payment-sandbox/app/modules/merchants/repositories"
 	merchantSvc "payment-sandbox/app/modules/merchants/services"
+	oauth2Handlers "payment-sandbox/app/modules/oauth2/handlers"
+	oauth2Repo "payment-sandbox/app/modules/oauth2/repositories"
+	oauth2Svc "payment-sandbox/app/modules/oauth2/services"
 	paymentHandlers "payment-sandbox/app/modules/payment/handlers"
 	paymentRepo "payment-sandbox/app/modules/payment/repositories"
 	paymentSvc "payment-sandbox/app/modules/payment/services"
 	refundHandlers "payment-sandbox/app/modules/refund/handlers"
 	refundRepo "payment-sandbox/app/modules/refund/repositories"
 	refundSvc "payment-sandbox/app/modules/refund/services"
+	usersHandlers "payment-sandbox/app/modules/users/handlers"
+	usersEntity "payment-sandbox/app/modules/users/models/entity"
+	usersRepo "payment-sandbox/app/modules/users/repositories"
+	usersSvc "payment-sandbox/app/modules/users/services"
 	walletHandlers "payment-sandbox/app/modules/wallet/handlers"
 	walletRepo "payment-sandbox/app/modules/wallet/repositories"
 	walletSvc "payment-sandbox/app/modules/wallet/services"
-	oauth2Handlers "payment-sandbox/app/modules/oauth2/handlers"
-	oauth2Repo "payment-sandbox/app/modules/oauth2/repositories"
-	oauth2Svc "payment-sandbox/app/modules/oauth2/services"
-	"payment-sandbox/app/shared/database"
 	"payment-sandbox/app/shared/audit"
+	"payment-sandbox/app/shared/database"
 	"payment-sandbox/app/shared/idempotency"
 
 	"github.com/gin-gonic/gin"
@@ -279,7 +279,7 @@ func setupIntegrationSuite(t *testing.T) *integrationSuite {
 	oauth2Service := oauth2Svc.NewOAuth2Service(oauth2Repo.NewOAuth2Repository(db), cfg)
 
 	auditLogger := audit.NewNoopLogger()
-	idemMW := &idempotency.Middleware{Store: &idempotency.Store{TTL: 24 * time.Hour}, Cache: &idempotency.Cache{TTL: 24 * time.Hour}}
+	idemMW := &idempotency.Middleware{Store: &idempotency.Store{DB: db, TTL: 24 * time.Hour}, Cache: &idempotency.Cache{TTL: 24 * time.Hour}}
 	merchantsRepo := merchantRepo.NewMerchantsRepository(db)
 	merchantsService := merchantSvc.NewMerchantsService(merchantsRepo)
 	merchantsHandler := merchantHandlers.NewMerchantsHandler(merchantsService)
@@ -304,7 +304,7 @@ func setupIntegrationSuite(t *testing.T) *integrationSuite {
 }
 
 func ensureRequiredSchema(db *sql.DB) error {
-	required := []string{"users", "merchants", "invoices", "payment_intents", "refunds", "topups"}
+	required := []string{"users", "merchants", "invoices", "payment_intents", "refunds", "topups", "idempotency_records", "oauth2_clients", "oauth2_authorization_codes", "oauth2_refresh_tokens"}
 	for _, table := range required {
 		var exists bool
 		err := db.QueryRow(`
@@ -330,6 +330,11 @@ func cleanupIntegrationData(db *sql.DB) error {
 	// ledger_entries — for integration tests we disable it for the cleanup session.
 	stmts := []string{
 		`SET session_replication_role = 'replica'`,
+		`DELETE FROM idempotency_records`,
+		`DELETE FROM oauth2_authorization_codes`,
+		`DELETE FROM oauth2_refresh_tokens`,
+		`DELETE FROM oauth2_consents`,
+		`DELETE FROM oauth2_clients WHERE owner_id IN (SELECT id FROM users WHERE email LIKE 'it_%@example.com')`,
 		`DELETE FROM refunds`,
 		`DELETE FROM payment_intents`,
 		`DELETE FROM invoices`,

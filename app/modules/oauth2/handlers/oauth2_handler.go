@@ -175,7 +175,10 @@ func (h *OAuth2Handler) ApproveAuthorize(c *gin.Context) {
 		return
 	}
 
-	userID, _ := middleware.MustUserID(c)
+	userID, ok := middleware.MustUserID(c)
+	if !ok {
+		return
+	}
 
 	code, err := h.service.IssueAuthCode(req.ClientID, userID, req.RedirectURI, req.Scope)
 	if err != nil {
