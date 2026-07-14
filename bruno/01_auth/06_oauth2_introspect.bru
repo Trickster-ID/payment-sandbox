@@ -1,0 +1,35 @@
+meta {
+  name: OAuth2 Introspect Token
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/oauth2/introspect
+  body: text
+  auth: none
+}
+
+body:text {
+  placeholder (built in pre-request script; see note in 02_oauth2_token_password_merchant.bru)
+}
+
+script:pre-request {
+  const token = bru.getVar("merchantToken");
+  req.setHeader("Content-Type", "application/x-www-form-urlencoded");
+  req.setBody("token=" + encodeURIComponent(token));
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("token is active", function() {
+    expect(res.body.data.active).to.equal(true);
+  });
+
+  test("client_id matches", function() {
+    expect(res.body.data.client_id).to.equal(bru.getEnvVar("oauth2ClientId"));
+  });
+}

@@ -1,0 +1,31 @@
+meta {
+  name: Wallet - Negative - Missing Idempotency Key
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/merchant/topups
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{merchantToken}}
+}
+
+body:json {
+  {
+    "amount": 500000
+  }
+}
+
+tests {
+  test("status 400", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("error code idempotency_key_required", function() {
+    expect(res.body.error.code).to.equal("idempotency_key_required");
+  });
+}

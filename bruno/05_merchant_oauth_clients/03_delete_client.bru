@@ -1,0 +1,24 @@
+meta {
+  name: Delete OAuth2 Client
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/merchant/clients/{{clientId}}
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{merchantToken}}
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("status deleted", function() {
+    expect(res.body.data.status).to.equal("deleted");
+  });
+}

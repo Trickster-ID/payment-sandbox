@@ -1,0 +1,31 @@
+meta {
+  name: Admin Update Topup Status - FAILED
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/admin/topups/{{topupId}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "status": "FAILED"
+  }
+}
+
+tests {
+  test("status 400 (already finalized)", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("error code topup_update_failed", function() {
+    expect(res.body.error.code).to.equal("topup_update_failed");
+  });
+}

@@ -1,0 +1,28 @@
+meta {
+  name: Get Public Invoice
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/pay/{{paymentToken}}
+  auth: none
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("id matches invoiceId", function() {
+    expect(res.body.data.id).to.equal(bru.getVar("invoiceId"));
+  });
+
+  test("payment_link_token matches", function() {
+    expect(res.body.data.payment_link_token).to.equal(bru.getVar("paymentToken"));
+  });
+
+  test("amount present", function() {
+    expect(res.body.data.amount).to.be.a("number");
+  });
+}

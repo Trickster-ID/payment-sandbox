@@ -1,0 +1,49 @@
+meta {
+  name: Create Topup
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/merchant/topups
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{merchantToken}}
+}
+
+headers {
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "amount": 1000000
+  }
+}
+
+script:post-response {
+  if (res.status === 201 && res.body.data) {
+    bru.setVar("topupId", res.body.data.id);
+  }
+}
+
+tests {
+  test("status 201", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("status is PENDING", function() {
+    expect(res.body.data.status).to.equal("PENDING");
+  });
+
+  test("amount matches", function() {
+    expect(res.body.data.amount).to.equal(1000000);
+  });
+
+  test("id saved to env", function() {
+    expect(bru.getVar("topupId")).to.be.a("string");
+  });
+}

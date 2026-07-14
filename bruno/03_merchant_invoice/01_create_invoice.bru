@@ -1,0 +1,62 @@
+meta {
+  name: Create Invoice
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/merchant/invoices
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{merchantToken}}
+}
+
+headers {
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "customer_name": "Bruno Customer",
+    "customer_email": "bruno.customer@example.com",
+    "amount": 250000,
+    "description": "Bruno test invoice",
+    "due_date": "2027-12-31T23:59:59Z"
+  }
+}
+
+script:post-response {
+  if (res.status === 201 && res.body.data) {
+    bru.setVar("invoiceId", res.body.data.id);
+    bru.setVar("paymentToken", res.body.data.payment_link_token);
+  }
+}
+
+tests {
+  test("status 201", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("status is PENDING", function() {
+    expect(res.body.data.status).to.equal("PENDING");
+  });
+
+  test("amount matches", function() {
+    expect(res.body.data.amount).to.equal(250000);
+  });
+
+  test("payment_link_token present", function() {
+    expect(res.body.data.payment_link_token).to.be.a("string");
+  });
+
+  test("invoice_number generated", function() {
+    expect(res.body.data.invoice_number).to.be.a("string");
+  });
+
+  test("invoiceId saved to env", function() {
+    expect(bru.getVar("invoiceId")).to.be.a("string");
+  });
+}

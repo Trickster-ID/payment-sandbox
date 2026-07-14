@@ -1,0 +1,36 @@
+meta {
+  name: Admin Dashboard Stats
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/stats?merchant_id={{merchantId}}&start_date={{statsStartDate}}&end_date={{statsEndDate}}
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("total_invoice_created is a number", function() {
+    expect(res.body.data.total_invoice_created).to.be.a("number");
+  });
+
+  test("total_by_status present", function() {
+    expect(res.body.data.total_by_status).to.be.an("object");
+  });
+
+  test("total_payment_nominal is a number", function() {
+    expect(res.body.data.total_payment_nominal).to.be.a("number");
+  });
+
+  test("total_refund_nominal is a number", function() {
+    expect(res.body.data.total_refund_nominal).to.be.a("number");
+  });
+}

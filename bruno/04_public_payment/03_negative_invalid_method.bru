@@ -1,0 +1,27 @@
+meta {
+  name: Payment - Negative - Invalid Method
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/pay/{{paymentToken}}/intents
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "method": "CRYPTO"
+  }
+}
+
+tests {
+  test("status 400", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("error code payment_intent_create_failed", function() {
+    expect(res.body.error.code).to.equal("payment_intent_create_failed");
+  });
+}

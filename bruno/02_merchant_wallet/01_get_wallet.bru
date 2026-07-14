@@ -1,0 +1,34 @@
+meta {
+  name: Get Merchant Wallet
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/merchant/wallet
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{merchantToken}}
+}
+
+script:post-response {
+  if (res.status === 200 && res.body.data) {
+    bru.setVar("merchantId", res.body.data.id);
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("balance is a number", function() {
+    expect(res.body.data.balance).to.be.a("number");
+  });
+
+  test("id present", function() {
+    expect(res.body.data.id).to.be.a("string");
+  });
+}

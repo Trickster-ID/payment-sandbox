@@ -1,0 +1,52 @@
+meta {
+  name: Register OAuth2 Client
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/merchant/clients
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{merchantToken}}
+}
+
+body:json {
+  {
+    "name": "Bruno Test Client",
+    "redirect_uris": ["http://localhost:3000/callback"],
+    "scopes": ["read", "write"]
+  }
+}
+
+script:post-response {
+  if (res.status === 201 && res.body.data) {
+    bru.setVar("clientId", res.body.data.client.id);
+    bru.setVar("clientSecret", res.body.data.client_secret);
+  }
+}
+
+tests {
+  test("status 201", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("client id present", function() {
+    expect(res.body.data.client.id).to.be.a("string");
+  });
+
+  test("client_secret present", function() {
+    expect(res.body.data.client_secret).to.be.a("string");
+  });
+
+  test("is_first_party is false", function() {
+    expect(res.body.data.client.is_first_party).to.equal(false);
+  });
+
+  test("clientId saved to env", function() {
+    expect(bru.getVar("clientId")).to.be.a("string");
+  });
+}

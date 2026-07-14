@@ -1,0 +1,29 @@
+meta {
+  name: Admin Topup - Negative - Missing Status Field
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/admin/topups/{{topupId}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {}
+}
+
+tests {
+  test("status 400", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("error code validation_error", function() {
+    expect(res.body.error.code).to.equal("validation_error");
+  });
+}

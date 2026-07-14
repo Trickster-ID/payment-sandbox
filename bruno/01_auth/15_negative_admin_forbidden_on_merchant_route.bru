@@ -1,0 +1,24 @@
+meta {
+  name: Auth - Negative - Admin Forbidden on Merchant Route
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/merchant/wallet
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+tests {
+  test("status 403", function() {
+    expect(res.status).to.equal(403);
+  });
+
+  test("error code auth_forbidden", function() {
+    expect(res.body.error.code).to.equal("auth_forbidden");
+  });
+}

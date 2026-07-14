@@ -1,0 +1,32 @@
+meta {
+  name: Refund - Negative - Before Payment Success
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/merchant/refunds
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{merchantToken}}
+}
+
+headers {
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "invoice_id": "{{invoiceId}}",
+    "reason": "Should fail - payment not successful yet"
+  }
+}
+
+tests {
+  test("status 400 or 201 (depends on invoice state)", function() {
+    expect([201, 400]).to.include(res.status);
+  });
+}

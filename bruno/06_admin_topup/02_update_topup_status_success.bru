@@ -1,0 +1,31 @@
+meta {
+  name: Admin Update Topup Status - SUCCESS
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{baseUrl}}/admin/topups/{{topupId}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "status": "SUCCESS"
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("status is SUCCESS", function() {
+    expect(res.body.data.status).to.equal("SUCCESS");
+  });
+}
