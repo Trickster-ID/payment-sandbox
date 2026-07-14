@@ -24,16 +24,16 @@ const (
 )
 
 type Account struct {
-	ID         uuid.UUID
-	MerchantID *uuid.UUID
-	Name       string
-	Type       AccountType
-	Currency   string
-	Balance    int64
-	Version    int64
-	IsActive   bool
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID         uuid.UUID   `json:"id"`
+	MerchantID *uuid.UUID  `json:"merchant_id,omitempty"`
+	Name       string      `json:"name"`
+	Type       AccountType `json:"type"`
+	Currency   string      `json:"currency"`
+	Balance    int64       `json:"balance"`
+	Version    int64       `json:"version"`
+	IsActive   bool        `json:"is_active"`
+	CreatedAt  time.Time   `json:"created_at"`
+	UpdatedAt  time.Time   `json:"updated_at"`
 }
 
 type Entry struct {

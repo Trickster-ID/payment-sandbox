@@ -102,6 +102,16 @@ func (h *OAuth2Handler) ListClients(c *gin.Context) {
 	response.OK(c, res)
 }
 
+// DeleteClient godoc
+// @Summary Delete OAuth2 client
+// @Description Delete an OAuth2 client owned by the merchant
+// @Tags oauth2
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Client ID"
+// @Success 200 {object} response.Envelope{data=object}
+// @Failure 500 {object} response.Envelope{error=response.ErrorPayload}
+// @Router /merchant/clients/{id} [delete]
 func (h *OAuth2Handler) DeleteClient(c *gin.Context) {
 	clientID := c.Param("id")
 	userID, _ := middleware.MustUserID(c)
@@ -168,6 +178,19 @@ func (h *OAuth2Handler) Authorize(c *gin.Context) {
 	c.Redirect(http.StatusFound, target.String())
 }
 
+// ApproveAuthorize godoc
+// @Summary Approve authorization (form submission)
+// @Description Authorization endpoint accepting form-encoded approval (RFC 6749 Section 4.1.1)
+// @Tags oauth2
+// @Accept x-www-form-urlencoded
+// @Param response_type formData string true "Response type (code)"
+// @Param client_id formData string true "Client ID"
+// @Param redirect_uri formData string true "Redirect URI"
+// @Param scope formData string false "Scopes"
+// @Param state formData string false "State"
+// @Success 302 "Redirect to client callback"
+// @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
+// @Router /oauth2/authorize [post]
 func (h *OAuth2Handler) ApproveAuthorize(c *gin.Context) {
 	var req dto.AuthorizeRequest // Use same DTO for simplicity
 	if err := c.ShouldBind(&req); err != nil {
@@ -175,7 +198,10 @@ func (h *OAuth2Handler) ApproveAuthorize(c *gin.Context) {
 		return
 	}
 
-	userID, _ := middleware.MustUserID(c)
+	userID, ok := middleware.MustUserID(c)
+	if !ok {
+		return
+	}
 
 	code, err := h.service.IssueAuthCode(req.ClientID, userID, req.RedirectURI, req.Scope)
 	if err != nil {

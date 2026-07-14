@@ -1,0 +1,31 @@
+meta {
+  name: Admin Process Refund - FAILED (already finalized)
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/admin/refunds/{{refundId}}/process
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "status": "FAILED"
+  }
+}
+
+tests {
+  test("status 400 (already finalized)", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("error code refund_process_failed", function() {
+    expect(res.body.error.code).to.equal("refund_process_failed");
+  });
+}

@@ -1,0 +1,29 @@
+meta {
+  name: List Invoices
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/merchant/invoices?status=PENDING&page=1&limit=10
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{merchantToken}}
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("data is array", function() {
+    expect(res.body.data).to.be.an("array");
+  });
+
+  test("meta has pagination", function() {
+    expect(res.body.meta.page).to.equal(1);
+    expect(res.body.meta.limit).to.equal(10);
+  });
+}

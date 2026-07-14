@@ -1,0 +1,35 @@
+meta {
+  name: Admin Process Refund - SUCCESS
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/admin/refunds/{{refundId}}/process
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "status": "SUCCESS"
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("refund status is SUCCESS", function() {
+    expect(res.body.data.refund.status).to.equal("SUCCESS");
+  });
+
+  test("merchant present in response", function() {
+    expect(res.body.data.merchant).to.be.an("object");
+  });
+}

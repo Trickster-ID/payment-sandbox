@@ -91,6 +91,12 @@ DB-backed integration tests only:
 make test-integration
 ```
 
+Complete API end-to-end tests:
+
+```bash
+make test-e2e-api
+```
+
 Service-layer coverage snapshot:
 
 ```bash

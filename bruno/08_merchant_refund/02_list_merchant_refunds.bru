@@ -1,0 +1,24 @@
+meta {
+  name: List Merchant Refunds
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/merchant/refunds?status=REQUESTED
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{merchantToken}}
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("data is array", function() {
+    expect(res.body.data).to.be.an("array");
+  });
+}

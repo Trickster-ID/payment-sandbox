@@ -1,0 +1,20 @@
+meta {
+  name: Auth - Negative - Missing Bearer Token
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/merchant/wallet
+  auth: none
+}
+
+tests {
+  test("status 401", function() {
+    expect(res.status).to.equal(401);
+  });
+
+  test("error code auth_missing_bearer_token", function() {
+    expect(res.body.error.code).to.equal("auth_missing_bearer_token");
+  });
+}

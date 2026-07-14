@@ -1,0 +1,29 @@
+meta {
+  name: Auth - Negative - Register Invalid Email
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/users/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "Bad Email User",
+    "email": "not-an-email",
+    "password": "merchant1234"
+  }
+}
+
+tests {
+  test("status 400", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("error code validation_error", function() {
+    expect(res.body.error.code).to.equal("validation_error");
+  });
+}

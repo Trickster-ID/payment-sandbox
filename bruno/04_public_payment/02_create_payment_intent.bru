@@ -1,0 +1,45 @@
+meta {
+  name: Create Payment Intent
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/pay/{{paymentToken}}/intents
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "method": "WALLET"
+  }
+}
+
+script:post-response {
+  if (res.status === 201 && res.body.data && res.body.data.payment_intent) {
+    bru.setVar("paymentIntentId", res.body.data.payment_intent.id);
+  }
+}
+
+tests {
+  test("status 201", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("payment_intent status is PENDING", function() {
+    expect(res.body.data.payment_intent.status).to.equal("PENDING");
+  });
+
+  test("payment_intent method is WALLET", function() {
+    expect(res.body.data.payment_intent.method).to.equal("WALLET");
+  });
+
+  test("invoice present", function() {
+    expect(res.body.data.invoice).to.be.an("object");
+  });
+
+  test("paymentIntentId saved to env", function() {
+    expect(bru.getVar("paymentIntentId")).to.be.a("string");
+  });
+}

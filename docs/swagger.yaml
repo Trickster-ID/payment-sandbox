@@ -356,6 +356,43 @@ definitions:
     - InvoicePending
     - InvoicePaid
     - InvoiceExpired
+  payment-sandbox_app_modules_ledger_models_entity.Account:
+    properties:
+      balance:
+        type: integer
+      created_at:
+        type: string
+      currency:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      merchant_id:
+        type: string
+      name:
+        type: string
+      type:
+        $ref: '#/definitions/payment-sandbox_app_modules_ledger_models_entity.AccountType'
+      updated_at:
+        type: string
+      version:
+        type: integer
+    type: object
+  payment-sandbox_app_modules_ledger_models_entity.AccountType:
+    enum:
+    - asset
+    - liability
+    - revenue
+    - expense
+    - equity
+    type: string
+    x-enum-varnames:
+    - Asset
+    - Liability
+    - Revenue
+    - Expense
+    - Equity
   payment-sandbox_app_modules_merchants_models_entity.MerchantSummary:
     properties:
       email:
@@ -585,7 +622,12 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/payment-sandbox_app_modules_ledger_models_entity.Account'
+              type: object
         "400":
           description: Bad Request
           schema:
@@ -1129,6 +1171,93 @@ paths:
       summary: Update top-up status
       tags:
       - wallet
+  /admin/wallet/transactions:
+    get:
+      description: Merchant lists own wallet debit/credit history. Admin can list
+        any merchant's history by passing merchant_id query param.
+      parameters:
+      - description: Merchant UUID (admin only)
+        in: query
+        name: merchant_id
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Page size
+        in: query
+        name: limit
+        type: integer
+      - description: Filter from date (RFC3339)
+        in: query
+        name: from
+        type: string
+      - description: Filter to date (RFC3339)
+        in: query
+        name: to
+        type: string
+      - description: 'Filter direction: D (debit) or C (credit)'
+        enum:
+        - D
+        - C
+        in: query
+        name: direction
+        type: string
+      - description: Filter by transaction reference prefix (e.g. topup:, refund:,
+          payment:)
+        in: query
+        name: reference_prefix
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/app_modules_wallet_handlers.TransactionResponse'
+                  type: array
+                meta:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.PaginationMeta'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+        "403":
+          description: Forbidden
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: List wallet transactions
+      tags:
+      - wallet
   /merchant/clients:
     get:
       description: List all OAuth2 clients owned by the merchant
@@ -1186,6 +1315,41 @@ paths:
       security:
       - BearerAuth: []
       summary: Register OAuth2 client
+      tags:
+      - oauth2
+  /merchant/clients/{id}:
+    delete:
+      description: Delete an OAuth2 client owned by the merchant
+      parameters:
+      - description: Client ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                data:
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+      security:
+      - BearerAuth: []
+      summary: Delete OAuth2 client
       tags:
       - oauth2
   /merchant/invoices:
@@ -1796,6 +1960,50 @@ paths:
         "302":
           description: Redirect to client callback
       summary: Authorize client
+      tags:
+      - oauth2
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Authorization endpoint accepting form-encoded approval (RFC 6749
+        Section 4.1.1)
+      parameters:
+      - description: Response type (code)
+        in: formData
+        name: response_type
+        required: true
+        type: string
+      - description: Client ID
+        in: formData
+        name: client_id
+        required: true
+        type: string
+      - description: Redirect URI
+        in: formData
+        name: redirect_uri
+        required: true
+        type: string
+      - description: Scopes
+        in: formData
+        name: scope
+        type: string
+      - description: State
+        in: formData
+        name: state
+        type: string
+      responses:
+        "302":
+          description: Redirect to client callback
+        "401":
+          description: Unauthorized
+          schema:
+            allOf:
+            - $ref: '#/definitions/payment-sandbox_app_shared_response.Envelope'
+            - properties:
+                error:
+                  $ref: '#/definitions/payment-sandbox_app_shared_response.ErrorPayload'
+              type: object
+      summary: Approve authorization (form submission)
       tags:
       - oauth2
   /oauth2/introspect:

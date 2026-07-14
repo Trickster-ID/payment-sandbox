@@ -68,7 +68,7 @@ perf-clean-reports:
 
 # ──────────────────────────────────────────────────────────────────────────────
 
-.PHONY: swag swagger mock wire init clean-generated coverage-services test-integration verify-batch10 verify-batch11 verify-iso verify-iso-ci drill-backup-restore
+.PHONY: swag swagger mock wire init clean-generated coverage-services test-integration test-e2e-api verify-batch10 verify-batch11 verify-iso verify-iso-ci drill-backup-restore
 
 # ── Code generation targets ───────────────────────────────────────────────────
 
@@ -112,9 +112,13 @@ coverage-services:
 test-integration:
 	go test ./app/cmd -run TestIntegration -v
 
+test-e2e-api:
+	go test ./app/cmd -run TestE2EAPI -v
+
 verify-batch10:
 	go test ./...
 	go test ./app/cmd -run TestIntegration -v
+	go test ./app/cmd -run TestE2EAPI -v
 	go test ./app/modules/admin/services ./app/modules/invoice/services
 	go test -cover ./app/modules/.../services
 

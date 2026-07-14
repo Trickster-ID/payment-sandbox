@@ -1,0 +1,20 @@
+meta {
+  name: OAuth2 Authorize - GET (no session, expect 401)
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/oauth2/authorize?response_type=code&client_id={{oauth2ClientId}}&redirect_uri=http://localhost:3000/callback&scope=read&state=bruno-test
+  auth: none
+}
+
+tests {
+  test("status 401 without auth context", function() {
+    expect(res.status).to.equal(401);
+  });
+
+  test("error code auth_unauthorized", function() {
+    expect(res.body.error.code).to.equal("auth_unauthorized");
+  });
+}

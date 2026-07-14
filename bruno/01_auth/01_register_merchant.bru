@@ -1,0 +1,49 @@
+meta {
+  name: Register Merchant
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/users/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "Test Merchant",
+    "email": "test.merchant.{{$timestamp}}@example.com",
+    "password": "merchant1234"
+  }
+}
+
+script:post-response {
+  if (res.status === 201 && res.body.data) {
+    bru.setVar("registeredEmail", res.body.data.email);
+    bru.setVar("registeredUserId", res.body.data.id);
+    // Chain into downstream requests: subsequent login/token requests use
+    // {{merchantEmail}}/{{merchantPassword}}, so point them at the user
+    // just registered instead of the static seed merchant.
+    bru.setVar("merchantEmail", res.body.data.email);
+    bru.setVar("merchantPassword", "merchant1234");
+  }
+}
+
+tests {
+  test("status 201", function() {
+    expect(res.status).to.equal(201);
+  });
+
+  test("no error", function() {
+    expect(res.body.error).to.be.undefined;
+  });
+
+  test("role is MERCHANT", function() {
+    expect(res.body.data.role).to.equal("MERCHANT");
+  });
+
+  test("id is present", function() {
+    expect(res.body.data.id).to.be.a("string");
+  });
+}

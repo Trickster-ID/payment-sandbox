@@ -1,0 +1,39 @@
+meta {
+  name: Invoice - Negative - Invalid Due Date Format
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/merchant/invoices
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{merchantToken}}
+}
+
+headers {
+  Idempotency-Key: {{$guid}}
+}
+
+body:json {
+  {
+    "customer_name": "Bad Date Customer",
+    "customer_email": "bad@example.com",
+    "amount": 100,
+    "description": "bad due date",
+    "due_date": "2027-12-31"
+  }
+}
+
+tests {
+  test("status 400", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("error code invoice_create_failed", function() {
+    expect(res.body.error.code).to.equal("invoice_create_failed");
+  });
+}

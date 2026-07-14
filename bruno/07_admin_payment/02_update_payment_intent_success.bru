@@ -1,0 +1,35 @@
+meta {
+  name: Admin Update Payment Intent Status - SUCCESS
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{baseUrl}}/admin/payment-intents/{{paymentIntentId}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "status": "SUCCESS"
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("payment_intent status is SUCCESS", function() {
+    expect(res.body.data.payment_intent.status).to.equal("SUCCESS");
+  });
+
+  test("invoice status is PAID", function() {
+    expect(res.body.data.invoice.status).to.equal("PAID");
+  });
+}

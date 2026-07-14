@@ -11,7 +11,8 @@ handler_files=(
   "app/modules/wallet/handlers/wallet_handler.go"
 )
 
-required_actions=(
+# parallel arrays (portable across bash 3.2 / no associative arrays)
+required_action_names=(
   "INVOICE_CREATE"
   "PAYMENT_INTENT_CREATE"
   "PAYMENT_INTENT_STATUS_UPDATE"
@@ -20,6 +21,16 @@ required_actions=(
   "REFUND_PROCESS"
   "TOPUP_CREATE"
   "TOPUP_STATUS_UPDATE"
+)
+required_event_types=(
+  "invoice.created"
+  "payment.intent_created"
+  "payment.status_updated"
+  "refund.requested"
+  "refund.reviewed"
+  "refund.processed"
+  "topup.created"
+  "topup.status_updated"
 )
 
 echo "[iso-journey-events] checking handler files"
@@ -31,9 +42,12 @@ for file in "${handler_files[@]}"; do
 done
 
 echo "[iso-journey-events] checking required journey action constants"
-for action in "${required_actions[@]}"; do
-  if ! rg -q "Action:\\s*\"${action}\"" "${handler_files[@]}"; then
-    echo "[iso-journey-events] missing journey action: ${action}" >&2
+count="${#required_action_names[@]}"
+for ((i = 0; i < count; i++)); do
+  action="${required_action_names[$i]}"
+  event_type="${required_event_types[$i]}"
+  if ! grep -qE "EventType:[[:space:]]*\"${event_type}\"" "${handler_files[@]}"; then
+    echo "[iso-journey-events] missing journey action: ${action} (EventType: \"${event_type}\")" >&2
     exit 1
   fi
 done

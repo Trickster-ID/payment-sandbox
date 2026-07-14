@@ -1,0 +1,20 @@
+meta {
+  name: Public Invoice - Negative - Not Found
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/pay/token-that-does-not-exist
+  auth: none
+}
+
+tests {
+  test("status 404", function() {
+    expect(res.status).to.equal(404);
+  });
+
+  test("error code invoice_not_found", function() {
+    expect(res.body.error.code).to.equal("invoice_not_found");
+  });
+}

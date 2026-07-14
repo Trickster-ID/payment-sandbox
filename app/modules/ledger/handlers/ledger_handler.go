@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"payment-sandbox/app/modules/ledger/models/entity"
 	"payment-sandbox/app/modules/ledger/repositories"
 	appErrors "payment-sandbox/app/shared/errors"
 	"payment-sandbox/app/shared/response"
@@ -26,7 +27,7 @@ func NewLedgerHandler(repo repositories.IRepository) *LedgerHandler {
 // @Produce json
 // @Security BearerAuth
 // @Param merchant_id path string true "Merchant UUID"
-// @Success 200 {object} response.Envelope{}
+// @Success 200 {object} response.Envelope{data=entity.Account}
 // @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
 // @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
 // @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
@@ -37,7 +38,8 @@ func (h *LedgerHandler) GetMerchantAccount(c *gin.Context) {
 		response.Fail(c, appErrors.BadRequest("invalid_merchant_id", "merchant_id must be a valid UUID", nil))
 		return
 	}
-	account, err := h.repo.GetAccountByMerchantID(c.Request.Context(), merchantID)
+	var account entity.Account
+	account, err = h.repo.GetAccountByMerchantID(c.Request.Context(), merchantID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "account not found"})
 		return

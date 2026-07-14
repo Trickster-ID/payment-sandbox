@@ -1,0 +1,28 @@
+meta {
+  name: Admin Get Merchant Ledger Account
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/ledger/accounts/{{merchantId}}
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("merchant_id matches", function() {
+    expect(res.body.data.merchant_id).to.not.be.undefined;
+  });
+
+  test("balance is a number", function() {
+    expect(res.body.data.balance).to.be.a("number");
+  });
+}

@@ -1,0 +1,33 @@
+meta {
+  name: OAuth2 Client - Negative - Invalid Redirect URI
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/merchant/clients
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{merchantToken}}
+}
+
+body:json {
+  {
+    "name": "Bad Client",
+    "redirect_uris": ["not-a-valid-url"],
+    "scopes": ["read"]
+  }
+}
+
+tests {
+  test("status 400", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("error code validation_error", function() {
+    expect(res.body.error.code).to.equal("validation_error");
+  });
+}

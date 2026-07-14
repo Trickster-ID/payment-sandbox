@@ -1,0 +1,19 @@
+meta {
+  name: Ping
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/ping
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("data.status is ok", function() {
+    expect(res.body.data.status).to.equal("ok");
+  });
+}

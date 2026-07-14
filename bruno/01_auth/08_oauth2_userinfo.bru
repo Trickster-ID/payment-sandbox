@@ -1,0 +1,32 @@
+meta {
+  name: OAuth2 UserInfo
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/oauth2/userinfo
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{merchantToken}}
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("id present", function() {
+    expect(res.body.data.id).to.be.a("string");
+  });
+
+  test("role is MERCHANT", function() {
+    expect(res.body.data.role).to.equal("MERCHANT");
+  });
+
+  test("email present", function() {
+    expect(res.body.data.email).to.be.a("string");
+  });
+}

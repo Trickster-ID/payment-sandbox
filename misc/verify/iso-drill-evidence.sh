@@ -17,7 +17,7 @@ if [[ "$count" -lt 1 ]]; then
   exit 1
 fi
 
-backup_restore_count=$(rg -l "^-\s*Drill type:\s*backup-restore$" "$DRILL_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')
+backup_restore_count=$(grep -lE "^-[[:space:]]*Drill type:[[:space:]]*backup-restore$" "$DRILL_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')
 if [[ "$backup_restore_count" -lt 1 ]]; then
   echo "[iso-drill-evidence] at least one backup-restore drill record is required" >&2
   exit 1

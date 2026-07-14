@@ -214,13 +214,14 @@ func (h *WalletHandler) ListTopups(c *gin.Context) {
 // @Param limit query int false "Page size" default(10)
 // @Param from query string false "Filter from date (RFC3339)"
 // @Param to query string false "Filter to date (RFC3339)"
-// @Param direction query string false "Filter direction: D (debit) or C (credit)" enums(D,C)
+// @Param direction query string false "Filter direction: D (debit) or C (credit)" Enums(D,C)
 // @Param reference_prefix query string false "Filter by transaction reference prefix (e.g. topup:, refund:, payment:)"
 // @Success 200 {object} response.Envelope{data=handlers.TransactionListResponse,meta=response.PaginationMeta}
 // @Failure 400 {object} response.Envelope{error=response.ErrorPayload}
 // @Failure 401 {object} response.Envelope{error=response.ErrorPayload}
 // @Failure 403 {object} response.Envelope{error=response.ErrorPayload}
 // @Router /merchant/wallet/transactions [get]
+// @Router /admin/wallet/transactions [get]
 func (h *WalletHandler) ListWalletTransactions(c *gin.Context) {
 	userID, ok := middleware.MustUserID(c)
 	if !ok {

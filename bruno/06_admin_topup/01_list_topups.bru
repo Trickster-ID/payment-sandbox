@@ -1,0 +1,24 @@
+meta {
+  name: Admin List Topups
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/topups
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("data is array", function() {
+    expect(res.body.data).to.be.an("array");
+  });
+}

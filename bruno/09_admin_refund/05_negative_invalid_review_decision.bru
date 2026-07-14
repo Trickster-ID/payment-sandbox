@@ -1,0 +1,31 @@
+meta {
+  name: Refund - Negative - Invalid Review Decision
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/admin/refunds/{{refundId}}/review
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "decision": "MAYBE"
+  }
+}
+
+tests {
+  test("status 400", function() {
+    expect(res.status).to.equal(400);
+  });
+
+  test("error code refund_review_failed", function() {
+    expect(res.body.error.code).to.equal("refund_review_failed");
+  });
+}

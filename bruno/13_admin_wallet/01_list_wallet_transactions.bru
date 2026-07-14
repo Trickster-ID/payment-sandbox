@@ -1,0 +1,28 @@
+meta {
+  name: Admin List Wallet Transactions
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/admin/wallet/transactions?merchant_id={{merchantId}}&page=1&limit=10
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("data is array", function() {
+    expect(res.body.data).to.be.an("array");
+  });
+
+  test("meta has pagination", function() {
+    expect(res.body.meta.page).to.equal(1);
+  });
+}
