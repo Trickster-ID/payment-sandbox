@@ -55,6 +55,27 @@ export function run(_data) {
 
   sleep(0.3);
 
+  // POST /api/v1/oauth2/authorize — approve consent (authenticated, form body)
+  const approveParams = [
+    `response_type=code`,
+    `client_id=${encodeURIComponent(OAUTH2_CLIENT_ID)}`,
+    `redirect_uri=${encodeURIComponent('http://localhost:3000/cb')}`,
+    `state=perftest`,
+  ].join('&');
+  const approveRes = http.post(
+    `${BASE_URL}/api/v1/oauth2/authorize`,
+    approveParams,
+    { headers: { ...bearerHeaders(accessToken), 'Content-Type': 'application/x-www-form-urlencoded' }, tags: { endpoint: 'oauth2_authorize_approve' } }
+  );
+  check(approveRes, {
+    'oauth2/authorize POST: status 200': (r) => r.status === 200,
+    'oauth2/authorize POST: has redirect_uri': (r) => {
+      try { return !!JSON.parse(r.body).data.redirect_uri; } catch (_) { return false; }
+    },
+  });
+
+  sleep(0.3);
+
   // POST /api/v1/oauth2/token — refresh_token grant (if refresh token available)
   if (refreshTok) {
     const refreshParams = [
