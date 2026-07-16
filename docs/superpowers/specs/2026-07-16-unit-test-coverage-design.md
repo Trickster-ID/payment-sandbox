@@ -82,6 +82,23 @@ implementation. Re-run after every tier below.
   handler struct (only needs the method set, not real behavior), assert
   expected routes exist via `engine.Routes()` (method + path), following the
   existing style in `app/cmd/router_test.go`.
+- **`oauth2/api` grouping is load-bearing, do not "correct" it**: as of
+  2026-07-16, `POST /oauth2/authorize` lives in `RegisterSecuredRoutes` (behind
+  `middleware.AuthMiddleware`), while `GET /oauth2/authorize` stays in
+  `RegisterPublicRoutes`. This was a deliberate bug fix (the handler calls
+  `middleware.MustUserID`, which requires `AuthMiddleware` to have run first —
+  see production bug note below). Tests for `oauth2/api` must assert this exact
+  split (`GET` public, `POST` secured), not assume both verbs are public.
+
+  > **Production bug fix context (do not revert)**: `POST /oauth2/authorize`
+  > was previously registered under `RegisterPublicRoutes`, which made it
+  > 100% broken — `ApproveAuthorize` always failed `MustUserID` and returned
+  > 401 regardless of a valid Bearer token, because `AuthMiddleware` never ran.
+  > Fixed by moving it to `RegisterSecuredRoutes`. No DB/contract change; only
+  > effect is that valid-Bearer-token requests are now correctly accepted.
+  > If any new consent/authorize endpoint is added, check whether its handler
+  > calls `middleware.MustUserID`/`RequireRoles` — if so it belongs under
+  > `RegisterSecuredRoutes`, not `RegisterPublicRoutes`.
 
 **Tier 3 — Repository gaps via `sqlmock`**
 - `app/modules/ledger/repositories` (currently 0%, no test file at all): add
