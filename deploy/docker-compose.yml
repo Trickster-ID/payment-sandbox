@@ -1,0 +1,48 @@
+services:
+  api:
+    image: ${IMAGE:?IMAGE must be set in .deploy.env}
+    container_name: payment-sandbox-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks:
+      - postgres_default
+      - mongodb_mongodb_default
+      - redis_redis_default
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  schema:
+    image: postgres:18.3-alpine3.23
+    profiles:
+      - schema
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: payment_sandbox
+      PGUSER: payment_sandbox_user
+      PGPASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+    volumes:
+      - ./misc/init-sql:/sql:ro
+    networks:
+      - postgres_default
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        for file in /sql/*.sql; do
+          psql -v ON_ERROR_STOP=1 -f "$$file"
+        done
+
+networks:
+  postgres_default:
+    external: true
+  mongodb_mongodb_default:
+    external: true
+  redis_redis_default:
+    external: true
