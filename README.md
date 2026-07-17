@@ -72,6 +72,75 @@ go run ./app/cmd
 Open Swagger UI:
 - `http://localhost:8080/swagger/index.html`
 
+## VPS Deployment
+
+The API container listens only on `127.0.0.1:8080`. Host-installed Nginx terminates TLS for `https://api-payment.pikri.my.id` and proxies to that listener. Do not run Nginx in Docker.
+
+The existing Certbot certificate is valid through August 2026. Nginx expects its renewal-managed paths to remain:
+
+```text
+/etc/letsencrypt/live/api-payment.pikri.my.id/fullchain.pem
+/etc/letsencrypt/live/api-payment.pikri.my.id/privkey.pem
+```
+
+First-server setup, run on the VPS except `ssh-keyscan`, which runs on the trusted GitHub Actions runner or administrator workstation:
+
+```bash
+sudo install -d -m 0750 -o pik -g pik /home/pik/container/payment-sandbox
+sudo docker network inspect postgres_default mongodb_mongodb_default redis_redis_default
+ssh-keyscan -H <VPS_HOST> > /tmp/payment-sandbox-known-hosts
+sudo cp deploy/nginx/api-payment.pikri.my.id.conf /etc/nginx/sites-available/api-payment.pikri.my.id
+sudo ln -s /etc/nginx/sites-available/api-payment.pikri.my.id /etc/nginx/sites-enabled/api-payment.pikri.my.id
+sudo nginx -t
+sudo systemctl reload nginx
+curl -fsS http://127.0.0.1:8080/api/v1/ping
+curl -fsS https://api-payment.pikri.my.id/api/v1/ping
+```
+
+The deployed Compose file joins these pre-existing external Docker networks exactly: `postgres_default`, `mongodb_mongodb_default`, and `redis_redis_default`.
+
+`payment_sandbox_user` must own database `payment_sandbox` and schema `public`. If ownership differs, the PostgreSQL `root` superuser must execute:
+
+```sql
+ALTER DATABASE payment_sandbox OWNER TO payment_sandbox_user;
+\c payment_sandbox
+ALTER SCHEMA public OWNER TO payment_sandbox_user;
+GRANT ALL ON SCHEMA public TO payment_sandbox_user;
+```
+
+Configure GitHub repository secrets without committing their values:
+
+- `VPS_HOST`
+- `VPS_SSH_PRIVATE_KEY`
+- `VPS_SSH_KNOWN_HOSTS` (contents of `/tmp/payment-sandbox-known-hosts`)
+- `JWT_SECRET`
+- `DB_PASSWORD`
+- `MONGO_PASSWORD`
+- `GHCR_PULL_TOKEN`
+
+Set optional repository variable `VPS_SSH_PORT`; it defaults to `22` when unset.
+
+Deploy by pushing to `master`; `.github/workflows/deploy-vps.yml` tests, publishes the immutable Git SHA image, uploads the runtime files, and runs `deploy/deploy.sh`.
+
+Manual rollback: replace the SHA with an already-published image tag, then restart the API:
+
+```bash
+printf 'IMAGE=ghcr.io/<repository-owner>/payment-sandbox:<previous-sha>\n' > /home/pik/container/payment-sandbox/.deploy.env
+cd /home/pik/container/payment-sandbox
+sudo docker compose -f docker-compose.yml --env-file .env --env-file .deploy.env up -d api
+curl -fsS http://127.0.0.1:8080/api/v1/ping
+```
+
+After copying or changing the Nginx configuration on the VPS, validate the public endpoint:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+curl -fsS https://api-payment.pikri.my.id/api/v1/ping
+```
+
+Expected public response: HTTP `200` with `{"data":{"status":"ok"}}`.
+
 ## Seeded Admin Account
 
 - Email: `admin@sandbox.local`
