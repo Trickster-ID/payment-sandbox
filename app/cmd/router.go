@@ -50,7 +50,7 @@ func newRouter(
 	docs.SwaggerInfo.Schemes = []string{"http"}
 
 	router := gin.New()
-	if err := router.SetTrustedProxies([]string{"127.0.0.1", "::1"}); err != nil {
+	if err := router.SetTrustedProxies([]string{"172.16.0.0/12", "127.0.0.1", "::1"}); err != nil {
 		panic("configure trusted proxies: " + err.Error())
 	}
 	router.Use(middleware.CORSMiddleware())

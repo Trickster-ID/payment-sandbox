@@ -129,6 +129,7 @@ func TestNewRouter_TrustedProxies(t *testing.T) {
 		want       string
 	}{
 		{name: "untrusted proxy ignores forwarded IP", remoteAddr: "203.0.113.10:1234", want: "203.0.113.10"},
+		{name: "Docker bridge proxy accepts forwarded IP", remoteAddr: "172.17.0.1:1234", want: "198.51.100.5"},
 		{name: "loopback proxy accepts forwarded IP", remoteAddr: "127.0.0.1:1234", want: "198.51.100.5"},
 		{name: "IPv6 loopback proxy accepts forwarded IP", remoteAddr: "[::1]:1234", want: "198.51.100.5"},
 	}

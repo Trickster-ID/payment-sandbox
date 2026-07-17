@@ -1,0 +1,640 @@
+# Generation Progress Tracker
+
+This file is the handover checkpoint between AI sessions.
+
+## Current Progress
+
+- last_updated: 2026-07-17 17:30:06 WIB
+- current_batch: Batch 11 - Performance, Reliability, and Final Delivery
+- status: done
+
+## Completed Items
+
+- Completed deployment Task 4:
+  - added host-Nginx HTTPS configuration for `api-payment.pikri.my.id`, proxying to `127.0.0.1:8080` with standard forwarded headers.
+  - documented VPS setup, exact external Docker network keys, certificate paths, GitHub secrets, PostgreSQL ownership repair, deployment, rollback, and host validation commands.
+  - did not execute VPS commands.
+- Completed deployment Task 3:
+  - added `.github/workflows/deploy-vps.yml` for test, immutable GHCR image publication, trusted SSH upload, and remote VPS deployment.
+   - workflow deploys only 40-character Git SHA image tags and writes Mongo URI with `authSource=payment_sandbox`.
+   - validated workflow whitespace and YAML parsing; static secret-exposure scan passed. `actionlint`, `yamllint`, and `yq` were unavailable.
+- Fixed final deployment review findings:
+  - encoded `MONGO_PASSWORD` with Python stdlib URL quoting before building `MONGO_URI`; no secret output and no Mongo provisioning added.
+  - restricted Gin trusted proxies to IPv4/IPv6 loopback and fail fast on static configuration errors.
+  - added table-driven router coverage for untrusted, IPv4-loopback, and IPv6-loopback forwarded IP behavior.
+  - verified focused router tests, workflow YAML parsing, and static secret scan.
+- Fixed follow-up final deployment review findings:
+  - pinned all third-party workflow actions to full resolved commit SHAs while retaining v4/v5/v3/v6 comments.
+  - restricted Gin proxy trust to `172.16.0.0/12`, `127.0.0.1`, and `::1`; added Docker bridge forwarded-IP test coverage.
+  - made Nginx replace `X-Forwarded-For` with `$remote_addr`; updated stale deployment wording/configuration records.
+  - verified focused router tests, workflow YAML parse, stale append scan, and diff whitespace. Local Nginx binary is unavailable; container check reached only absent host certificate paths.
+- Fixed valid Task 2 deployment review findings:
+  - `deploy/deploy.sh` installs rollback protection before `.deploy.env` mutation and GHCR login; failed login restores prior content or removes newly created `.deploy.env` when no prior file existed.
+  - image validation accepts only `ghcr.io/<owner>/payment-sandbox:<40 lowercase hexadecimal SHA>`.
+  - added `deploy/deploy_test.sh`, a no-Docker fake-binary regression test for login rollback and `:latest` rejection.
+  - appended verification result to `.superpowers/sdd/task-2-report.md`.
+- Fixed Bruno collection execution bugs found while running via Bruno CLI (`@usebruno/cli` 3.5.2), confirmed by isolated reproduction against a local echo server:
+  - Bug: `body: form-urlencoded` builtin block never sends a body (Content-Length: 0) regardless of content. Workaround applied: build the body manually in `script:pre-request` via `req.setBody()` + `req.setHeader("Content-Type", "application/x-www-form-urlencoded")`, reading values with `bru.getEnvVar()` (static env vars) and `bru.getVar()` (runtime vars set via `bru.setVar()`). Applied to all 9 OAuth2 form-encoded endpoints (token/introspect/revoke/authorize) across `01_auth/` and `06_merchant_oauth_clients/05_oauth2_token_client_credentials.bru`.
+  - Bug: setting `Content-Type: application/x-www-form-urlencoded` via a `headers {}` block (or `req.setHeader` in a separate script) disables `{{var}}` interpolation inside `body: text`. Confirmed the same fix (building body inline in the same pre-request script that sets both header and body) avoids this.
+  - Bug: `params:query {}` block is never sent on GET requests. Workaround applied: moved all query params inline into the `url:` field (`?key=value&...`) across 12 files: `07_admin_payment/01`, `09_admin_refund/01`, `10_admin_stats/01,02`, `03_merchant_invoice/02`, `02_merchant_wallet/03,04`, `12_admin_merchants/01,02`, `13_admin_wallet/01,02`, `08_merchant_refund/02`, `01_auth/09_oauth2_authorize_get.bru`.
+- Fixed `01_auth/01_register_merchant.bru` post-response script to overwrite `merchantEmail`/`merchantPassword` env vars with the newly registered user, so downstream login/token requests chain correctly instead of depending on the static seed merchant.
+- Fixed `bruno/environments/local.bru`: removed `adminPassword`, `merchantPassword`, `oauth2ClientSecret` from `vars:secret` — these are static demo credentials needed at runtime, not real secrets; marking them secret caused the CLI to resolve them as empty strings.
+- Renumbered Bruno folders to fix a scenario-ordering bug (refund flow requires an admin-approved SUCCESS payment first, but the old folder numbers ran refund before payment approval):
+  - `06_merchant_oauth_clients` -> `05_merchant_oauth_clients`
+  - `07_admin_topup` -> `06_admin_topup`
+  - `08_admin_payment` -> `07_admin_payment`
+  - old `05_merchant_refund` -> `08_merchant_refund` (now runs after payment approval)
+  - old `09_admin_refund` -> `09_admin_refund` (unchanged number, now runs after merchant refund request)
+  - Updated `meta.bru` names in each moved folder to match new numbers.
+- Fixed `06_merchant_oauth_clients` (now `05_merchant_oauth_clients`) internal request `seq`: `03_delete_client` was seq 3 (ran before `05_oauth2_token_client_credentials` could use the registered client); reordered so token-via-client-credentials test (seq 3) runs before delete (seq 5).
+- Root-caused and fixed the recurring "14 failed" artifact in every Bruno CLI run: each folder had a misnamed folder-metadata file `meta.bru` instead of the correct Bruno convention `folder.bru`. Bruno tried to parse it as a request file (no `get{}`/`post{}` block) and failed, which also caused visible failures in the Bruno desktop app. Renamed all 14 `meta.bru` -> `folder.bru` across every folder (`00_system` through `13_admin_wallet`).
+- Verified with Bruno CLI full collection run (`bru run . --env local -r`): clean result — 58/58 requests passed, 153/153 tests passed, Status: PASS (no artifacts, no failures).
+- Audited Swagger/OpenAPI annotations against Go handler code and the validated Bruno collection to find contract drift (source of truth: handler code > Bruno > swagger). Found and fixed 5 real gaps:
+  - `app/modules/oauth2/handlers/oauth2_handler.go` `DeleteClient` (`DELETE /merchant/clients/{id}`) had zero swagger annotations — added full godoc block.
+  - `app/modules/oauth2/handlers/oauth2_handler.go` `ApproveAuthorize` (`POST /oauth2/authorize`) had zero swagger annotations — added full godoc block (form-urlencoded params).
+  - `app/modules/wallet/handlers/wallet_handler.go` `ListWalletTransactions` served both `/merchant/wallet/transactions` and `/admin/wallet/transactions` (see `wallet/api/routes.go`) but swagger only documented the merchant path — added a second `@Router /admin/wallet/transactions [get]` line.
+  - Same handler: `direction` query param used lowercase `enums(D,C)` swag keyword (invalid, silently ignored) instead of the correct `Enums(D,C)` — fixed casing so the enum now appears in the generated spec.
+  - `app/modules/ledger/handlers/ledger_handler.go` `GetMerchantAccount` response schema was an empty `response.Envelope{}` instead of documenting the `entity.Account` payload — added explicit import + `data=entity.Account` return-type usage so swag can resolve the type, then referenced it in `@Success 200 {object} response.Envelope{data=entity.Account}`.
+  - Payment and Refund modules: audited, fully in sync already, no changes needed.
+- Regenerated swagger artifacts with `make swag`: `docs/docs.go`, `docs/swagger.json`, `docs/swagger.yaml`. Path count grew from 26 to 28 (added `/admin/wallet/transactions`, `/merchant/clients/{id}`, and `/oauth2/authorize` now documents both `get` and `post`).
+- Re-verified with `go test ./...` (pass, 40 packages) and `docker compose build app && docker compose up -d app` (rebuilt image so the running server serves the regenerated swagger spec — confirmed via `curl localhost:8080/swagger/doc.json`, now 28 paths).
+- Re-verified with Bruno CLI full collection run after the handler/docker changes: 58/58 requests, 153/153 tests, Status: PASS — no regression from the swagger fixes.
+- Clarified swagger UI behavior for the user: OpenAPI/Swagger UI has no native "click run, execute everything" feature — it's manual "Try it out" per endpoint. The equivalent automated/chained "run all" workflow already exists via the Bruno collection (`bru run . --env local`), which is now fully in sync with the (corrected) swagger contract.
+- Validated `bruno/` collection (73 `.bru` files) against actual Go handler/route code (source of truth, not stale `docs/api-contract-v1.md`):
+  - all endpoints across auth/oauth2, wallet, invoice, payment, refund, admin stats, admin merchants, admin ledger, admin wallet, merchant oauth clients matched code (method, path, query params, body fields, enums, headers).
+  - found 1 incomplete Bruno request: `10_admin_stats/01_dashboard_stats.bru` missing `start_date`/`end_date` query params supported by `DashboardStats` handler.
+  - found 1 backend inconsistency: `ledger.Account` entity had no `json` tags, serializing as PascalCase instead of the snake_case convention used by every other endpoint.
+- Fixed Bruno gap: added `start_date`/`end_date` query params to `10_admin_stats/01_dashboard_stats.bru` and new env vars `statsStartDate`/`statsEndDate` in `bruno/environments/local.bru`.
+- Fixed backend inconsistency: added snake_case `json` tags to `Account` struct in `app/modules/ledger/models/entity/ledger_entity.go`.
+- Updated `bruno/11_admin_ledger/01_get_merchant_account.bru` assertions from `MerchantID`/`Balance` to `merchant_id`/`balance`.
+- Re-verified: `go build ./...` (pass), `go test ./...` (pass, 40 packages ok, 0 fail).
+- Added complete DB-backed API E2E test coverage:
+  - new `app/cmd/e2e_api_test.go` covers all registered API routes except Swagger UI through real router/middleware/handler/service/repository flow.
+  - E2E auth uses real `/api/v1/oauth2/token` password grant with seeded first-party OAuth2 client.
+  - E2E lifecycle covers register, token, OAuth2 protocol routes, wallet/top-up, invoice, public payment, payment settlement, refund, admin stats, wallet transactions, ledger account, merchant listing, OAuth2 clients, ownership isolation, and idempotency replay/conflict.
+  - E2E negatives cover missing/invalid auth, forbidden role access, invalid inputs, invalid transitions, invalid filters, duplicate registration, and invalid OAuth2 client credentials.
+- Expanded `app/cmd/router_test.go` route parity expectations to include OAuth2, wallet transactions, merchant list endpoints, merchant OAuth2 client endpoints, admin wallet transactions, and admin ledger account route.
+- Fixed OAuth2 `ApproveAuthorize` handler double-write bug by returning when `MustUserID` fails.
+- Wired integration test idempotency middleware to the PostgreSQL-backed store and expanded cleanup/schema checks for idempotency and OAuth2 tables.
+- Added `make test-e2e-api` and included the E2E command in `verify-batch10`.
+- Updated README and Batch 10 test report with complete API E2E test command and coverage notes.
+- Added `pgweb` service (image `sosedoff/pgweb`) to `docker-compose.yml` to query the postgres container.
+- Added revised K6 performance planning artifacts:
+  - `.agents/performance-generation-plan.md` updated to enforce:
+    - project location under `./docs/k6/`
+    - full API endpoint coverage across all modules
+    - junior-friendly execution workflow
+  - `.agents/performance-generation-progress.md` created as mandatory progress tracker for all future performance-test updates.
+- Added dedicated K6 performance-test generation plan with HTML report objective:
+  - `.agents/performance-generation-plan.md`
+  - includes scope, objectives, K6 folder structure, execution profiles (smoke/baseline/stress/soak), thresholds, HTML artifact strategy, Makefile target design, CI-safe strategy, and batch-by-batch rollout for junior engineers.
+- Hardened Swagger detail quality from generic/mock-style envelopes to concrete request/response schemas:
+  - added concrete Swagger response metadata type:
+    - `app/shared/response/swagger_models.go` (`PaginationMeta`)
+  - expanded handler DTO and response schema annotations with concrete types + examples + enums:
+    - `app/modules/auth/handlers/auth_handler.go`
+    - `app/modules/invoice/handlers/invoice_handler.go`
+    - `app/modules/payment/handlers/payment_handler.go`
+    - `app/modules/refund/handlers/refund_handler.go`
+    - `app/modules/wallet/handlers/wallet_handler.go`
+    - `app/modules/admin/handlers/admin_handler.go`
+  - replaced generic `map[string]interface{}` / `map[string]string` Swagger annotations with `response.Envelope{data=...,meta=...,error=...}` references.
+  - regenerated docs artifacts with `make swag`:
+    - `docs/docs.go`
+    - `docs/swagger.json`
+    - `docs/swagger.yaml`
+  - re-verified with `go test ./...` (pass).
+- Expanded Swagger/OpenAPI annotation coverage across non-auth handlers:
+  - `app/modules/admin/handlers/admin_handler.go`
+  - `app/modules/invoice/handlers/invoice_handler.go`
+  - `app/modules/payment/handlers/payment_handler.go`
+  - `app/modules/refund/handlers/refund_handler.go`
+  - `app/modules/wallet/handlers/wallet_handler.go`
+- Regenerated docs artifacts with `make swag`:
+  - `docs/docs.go`
+  - `docs/swagger.json`
+  - `docs/swagger.yaml`
+- Re-verified with `go test ./...` (pass) after Swagger regeneration.
+- Committed Swagger hardening checkpoint:
+  - commit `6d1fcdc`
+  - message: `docs(swagger): annotate module handlers and regenerate spec`
+- Re-verified full integration and batch bundle with running DBs:
+  - `make test-integration` (pass)
+  - `make verify-batch10` (pass)
+- Closed Batch 11 handoff documentation gaps:
+  - updated `docs/swagger-parity-review.md` status from partial -> done after annotation standardization + route verification.
+  - updated `docs/requirement-gap.md` statuses for Swagger/OpenAPI and README completeness to done.
+  - updated `docs/backend-acceptance-checklist.md` remaining handoff items to complete based on existing performance + query-plan evidence.
+- Re-verified route parity command:
+  - `go test ./app/cmd -run TestNewRouter_RegistersExpectedRoutes -v` (pass)
+- Added submission packaging document and README linkage:
+  - `docs/submission-handoff.md`
+  - `README.md` delivery artifacts section updated
+- Added repeatable Batch 11 verification automation:
+  - `misc/verify/batch11-query-plans.sh` for SQL `EXPLAIN (ANALYZE, BUFFERS)` checks.
+  - `make verify-batch11` target to run test suite + route parity + query-plan checks.
+- Updated docs to reference the new Batch 11 verification command:
+  - `README.md`
+  - `docs/batch11-performance-report.md`
+  - `docs/submission-handoff.md`
+- Re-verified:
+  - `make verify-batch11` (pass)
+- Started Batch 10 integration-test completion with DB-backed endpoint coverage in `app/cmd/integration_batch10_test.go`:
+  - auth register/login integration.
+  - merchant invoice flow integration.
+  - admin payment intent update flow integration.
+  - refund approve/process flow integration.
+  - negative integration checks: unauthorized access, forbidden role access, duplicate register input, and invalid state transitions (re-processing payment/refund).
+  - added DB-backed assertions for payment+invoice final status and refund+merchant balance outcomes.
+- Re-verified with `go test ./...` (pass).
+- Extended Batch 10 integration negatives in table-driven style:
+  - register invalid email payload.
+  - login invalid credentials.
+  - invoice invalid due-date format.
+  - payment intent invalid method.
+  - payment status update missing required field.
+  - refund review invalid decision.
+  - refund process before approval.
+- Added additional access-control integration negatives:
+  - invalid bearer token returns `auth_invalid_token`.
+  - admin token access to merchant endpoint returns `auth_forbidden`.
+- Verified integration tests with running DB:
+  - `go test ./app/cmd -run TestIntegration -v` (pass).
+  - `go test ./...` (pass).
+- Added `make coverage-services` command and README note for service-layer coverage snapshot.
+- Captured latest service coverage snapshot:
+  - `auth/services`: 91.3%
+  - `invoice/services`: 100.0%
+  - `payment/services`: 100.0%
+  - `refund/services`: 94.1%
+  - `wallet/services`: 90.9%
+  - `admin/services`: 100.0%
+- Added focused service tests to close coverage gap:
+  - expanded `invoice` service tests with `ListInvoices` and `InvoiceByID` table-driven cases.
+  - added `admin` service table-driven tests for date parsing and filter-mapping behavior.
+- Re-verified:
+  - `go test ./app/modules/admin/services ./app/modules/invoice/services` (pass)
+  - `make coverage-services` (pass)
+  - `go test ./...` (pass)
+- Added Batch 10 reviewer handoff doc:
+  - `docs/batch10-test-report.md` with covered flows, negative cases, verification commands, and service coverage snapshot.
+- Added batch verification runner commands:
+  - `make test-integration`
+  - `make verify-batch10`
+- Added Batch 11 handoff artifact:
+  - `docs/backend-acceptance-checklist.md`
+- Verified complete Batch 10 bundle:
+  - `make verify-batch10` (pass)
+- Added Batch 11 performance/reliability evidence document:
+  - `docs/batch11-performance-report.md`
+  - includes endpoint timing samples and `EXPLAIN (ANALYZE, BUFFERS)` query-plan notes.
+- Re-verified with `go test ./...` (pass).
+- Added Swagger parity review document:
+  - `docs/swagger-parity-review.md`
+  - identified mismatch: Swagger `/healthz` vs runtime `/api/v1/ping`.
+- Updated `docs/requirement-gap.md` to reference parity findings and next fix action.
+- Fixed Swagger health path mismatch in docs artifacts:
+  - `docs/swagger.yaml` path updated to `/ping`
+  - `docs/swagger.json` path updated to `/ping`
+  - `docs/docs.go` path updated to `/ping`
+- Updated parity docs after fix; remaining Swagger task is broader annotation coverage hardening.
+- Completed final README completeness pass:
+  - added prerequisites, env setup, DB init command, verification commands, and delivery artifact links.
+- Re-verified with `go test ./...` (pass).
+- Synced AI docs with latest DI refactor baseline:
+  - updated `.agents/ai-generation-plan.md` "Known gaps" to reflect standardized interface/DI/wire conventions.
+  - added "Current DI/Testability Baseline (Already Applied)" section in `.agents/backend-requirements-todo.md`.
+- Updated VCS ignore hygiene for editor/IDE artifacts:
+  - fixed `.gitignore` editor entries and added broader popular IDE/editor ignore patterns.
+  - removed tracked `.idea/*` files from Git index via `git rm -r --cached .idea` so ignores apply on remote after commit/push.
+- Added project-default skill bootstrap for response-depth control:
+  - created `.agents/skills/token-budget-advisor/SKILL.md`.
+  - updated `AGENTS.md` to enforce token-budget-advisor as mandatory default for every new session.
+- Completed route composition split: one `RegisterRoutes`-style registrar per module API package.
+- Migrated sandbox business code into module-specific layers:
+  - `wallet` (handler/service/repository)
+  - `invoice` (handler/service/repository)
+  - `payment` (handler/service/repository)
+  - `refund` (handler/service/repository)
+  - `admin` (handler/service/repository, including health + stats)
+- Rewired DI/bootstrap (`wire.go`, `wire_gen.go`) to remove all sandbox dependencies.
+- Deleted `app/modules/sandbox/*` and removed empty sandbox directories.
+- Kept existing endpoint paths stable; route regression test remains table-driven in `app/cmd/router_test.go`.
+- Verified with `go test ./...` (pass).
+- Added request ID middleware and propagated `X-Request-ID`.
+- Added MongoDB journey logging infrastructure (`app/shared/journeylog`) with best-effort fallback to no-op when Mongo is unavailable.
+- Integrated journey event writes in transaction handlers:
+  - wallet top-up create/update
+  - invoice create
+  - payment intent create/update
+  - refund request/review/process
+- Added Mongo config fields and env keys (`MONGO_URI`, `MONGO_DB_NAME`, `MONGO_COLLECTION`, `MONGO_JOURNEY_ENABLE`).
+- Fixed Mongo healthcheck variable expansion in Docker Compose (`$$MONGO_INITDB_ROOT_USERNAME`, `$$MONGO_INITDB_ROOT_PASSWORD`).
+- Updated README with Mongo setup and initialization behavior.
+- Added Mockery setup with repository + journey logger interface coverage.
+- Added `.mockery.yaml` and `make mock` command.
+- Generated mocks under module-local `mocks/` directories.
+- Pinned mockery tool in `tools/tools.go` and synced module dependencies.
+- Refactored handlers to depend on service interfaces instead of concrete service structs:
+  - `auth`, `admin`, `wallet`, `invoice`, `payment`, `refund`.
+- Generated handler-service mocks for unit testing handler package behavior.
+- Added service interfaces in every services package (`type Service interface { ... }`) and compile-time implementation assertions.
+- Updated `.mockery.yaml` to generate mocks for all service-package interfaces.
+- Moved shared domain types from `app/shared/store/types.go` into module-local model entities:
+  - `app/modules/wallet/models/entity/wallet_entity.go`
+  - `app/modules/invoice/models/entity/invoice_entity.go`
+  - `app/modules/payment/models/entity/payment_entity.go`
+  - `app/modules/refund/models/entity/refund_entity.go`
+  - `app/modules/admin/models/entity/admin_entity.go`
+- Refactored repositories/services/handlers to use module entities instead of `app/shared/store`.
+- Removed deprecated shared store type file and empty directory.
+- Updated AI docs to enforce module-local entity rule as default:
+  - `.agents/ai-generation-plan.md`
+  - `.agents/backend-requirements-todo.md`
+- Added explicit unit-test generation requirement:
+  - table-driven test style
+  - mandatory `testify/require` + `testify/assert` usage
+- Added/updated table-driven unit tests with assertion library:
+  - middleware request ID propagation (`app/middleware/request_id_test.go`)
+  - wallet handler create top-up (`app/modules/wallet/handlers/wallet_handler_test.go`)
+  - payment handler create payment intent (`app/modules/payment/handlers/payment_handler_test.go`)
+  - invoice service create invoice (`app/modules/invoice/services/invoice_service_test.go`)
+  - refund service request/review/process (`app/modules/refund/services/refund_service_test.go`)
+- Verified with `go test ./...` (pass).
+- Added table-driven service unit tests (with `testify/require` + `testify/assert`) for remaining core modules:
+  - `auth` service register/login (`app/modules/auth/services/auth_service_test.go`)
+  - `wallet` service top-up/status/list (`app/modules/wallet/services/wallet_service_test.go`)
+  - `payment` service public invoice/create intent/update status/list (`app/modules/payment/services/payment_service_test.go`)
+- Core service minimum in Batch 10 is now covered by unit tests:
+  - auth, invoice, payment, refund, top-up(wallet)
+- Re-verified with `go test ./...` (pass).
+- Added table-driven handler unit tests (with `testify/require` + `testify/assert`) for:
+  - auth handler register/login (`app/modules/auth/handlers/auth_handler_test.go`)
+  - invoice handler create invoice with auth/validation/error/success branches (`app/modules/invoice/handlers/invoice_handler_test.go`)
+- Re-verified with `go test ./...` (pass).
+- Added table-driven handler unit tests (with `testify/require` + `testify/assert`) for:
+  - refund handler request/process with validation, service error, success, and best-effort journey logging assertions (`app/modules/refund/handlers/refund_handler_test.go`)
+  - admin handler health and dashboard stats success/failure (`app/modules/admin/handlers/admin_handler_test.go`)
+- Re-verified with `go test ./...` (pass).
+- Added remaining table-driven handler endpoint-variant tests (with `testify/require` + `testify/assert`):
+  - wallet handler wallet/list/update status (`app/modules/wallet/handlers/wallet_handler_endpoints_test.go`)
+  - payment handler public/list/update status (`app/modules/payment/handlers/payment_handler_endpoints_test.go`)
+  - invoice handler list/get (`app/modules/invoice/handlers/invoice_handler_endpoints_test.go`)
+  - refund handler list/review (`app/modules/refund/handlers/refund_handler_endpoints_test.go`)
+- Batch 0.6 acceptance is now satisfied:
+  - handler + service unit tests run with mocks only (no DB/network).
+  - mock regeneration is one command (`make mock`) with stable output.
+  - table-driven test style with assertion library is standardized and applied broadly.
+- Re-verified with `go test ./...` (pass).
+- Started Batch 1 response/error/validation hardening:
+  - added shared pagination utility (`app/shared/pagination`) with sanitizer defaults and tests.
+  - added shared validator utility (`app/shared/validator`) for email/amount/date helpers with tests.
+  - added shared error extraction tests (`app/shared/errors/errors_test.go`).
+  - added shared response envelope helper tests (`app/shared/response/response_test.go`).
+  - refactored invoice list handler to use shared pagination parser instead of inline query parsing.
+- Re-verified with `go test ./...` (pass).
+- Applied shared validator helpers into service-layer validation paths:
+  - `auth` service email validation now uses `shared/validator.IsEmail`.
+  - `invoice` service email + RFC3339 parsing now use shared validator helpers.
+- Added baseline planning docs from Batch 0 requirements:
+  - `docs/api-contract-v1.md`
+  - `docs/requirement-gap.md`
+- Re-verified with `go test ./...` (pass).
+- Refactored DI style across all modules to match simplified pattern:
+  - handlers now depend directly on service-package interfaces (no duplicate handler-local service interfaces).
+  - updated constructors to accept service interfaces from `modules/<module>/services`.
+  - kept interface-based injection for unit-testability.
+- Updated mockery strategy to match new DI convention:
+  - removed handler-interface generation entries from `.mockery.yaml`.
+  - switched refund service mock target to `IRefundService`.
+  - regenerated mocks with `make mock`.
+  - removed obsolete generated handler-level mock files.
+- Updated handler tests to consume service-package mocks instead of handler-package mocks.
+- Re-verified with `go test ./...` (pass).
+- Enforced repository-wide interface naming convention: all project interfaces now start with `I*`.
+  - services: `IAuthService`, `IAdminService`, `IWalletService`, `IInvoiceService`, `IPaymentService`, `IRefundService`
+  - repositories: `IAuthRepository`, `IAdminRepository`, `IWalletRepository`, `IInvoiceRepository`, `IPaymentRepository`, `IRefundRepository`
+  - shared logger: `IJourneyLogger`
+- Updated DI/wiring references to renamed interfaces (`wire.go`, providers, handlers/services constructors).
+- Updated mockery config and regenerated mocks for new interface names; removed stale old-name mock files.
+- Updated unit tests to use renamed mock types and constructors (service/repository/journey logger mocks).
+- Updated AI plan rule: interface names must start with `I`.
+- Re-verified with `go test ./...` (pass).
+- Manually refactored concrete repository naming (removed SQL prefix).
+- Manually renamed generic Service interface to module-specific names (e.g. `IAuthService`).
+- Manually removed compile-time interface assertions (`var _ IService = ...`) for cleaner service files.
+- Added explicit `wire.Bind` maps for all service interfaces in `app/cmd/wire.go` to support DI with returned struct pattern.
+- Re-generated `wire_gen.go` successfully.
+
+## Next Action
+
+- No pending action.
+
+## Blockers
+
+- None.
+
+## Files Changed (Latest Update)
+
+- `deploy/nginx/api-payment.pikri.my.id.conf`
+- `README.md`
+- `.superpowers/sdd/task-4-report.md`
+- `.agents/feature/generation-progress.md`
+
+- `.github/workflows/deploy-vps.yml`
+- `app/cmd/router.go`
+- `app/cmd/router_test.go`
+- `deploy/nginx/api-payment.pikri.my.id.conf`
+- `docs/superpowers/specs/2026-07-17-vps-github-actions-deployment-design.md`
+- `docs/superpowers/plans/2026-07-17-vps-github-actions-deployment.md`
+- `.superpowers/sdd/task-4-brief.md`
+- `.superpowers/sdd/final-fixes-report.md`
+- `.agents/feature/generation-progress.md`
+- `deploy/deploy.sh`
+- `deploy/deploy_test.sh`
+- `.superpowers/sdd/task-2-report.md`
+- `.github/workflows/deploy-vps.yml`
+- `app/cmd/router.go`
+- `app/cmd/router_test.go`
+- `.superpowers/sdd/final-fixes-report.md`
+- `.superpowers/sdd/task-3-report.md`
+- `.agents/feature/generation-progress.md`
+- `.agents/feature/generation-progress.md`
+
+- Renamed all 14 `meta.bru` -> `folder.bru` (correct Bruno folder-metadata filename): `00_system`, `01_auth`, `02_merchant_wallet`, `03_merchant_invoice`, `04_public_payment`, `05_merchant_oauth_clients`, `06_admin_topup`, `07_admin_payment`, `08_merchant_refund`, `09_admin_refund`, `10_admin_stats`, `11_admin_ledger`, `12_admin_merchants`, `13_admin_wallet`
+- `app/modules/oauth2/handlers/oauth2_handler.go` (added swagger docs for `DeleteClient` and `ApproveAuthorize`)
+- `app/modules/wallet/handlers/wallet_handler.go` (added `/admin/wallet/transactions` router line, fixed `Enums` casing)
+- `app/modules/ledger/handlers/ledger_handler.go` (added `entity.Account` import + explicit typed variable, documented response schema)
+- `docs/docs.go`, `docs/swagger.json`, `docs/swagger.yaml` (regenerated via `make swag`)
+- `bruno/01_auth/01_register_merchant.bru`
+- `bruno/01_auth/02_oauth2_token_password_merchant.bru`
+- `bruno/01_auth/03_oauth2_token_password_admin.bru`
+- `bruno/01_auth/04_oauth2_token_refresh.bru`
+- `bruno/01_auth/06_oauth2_introspect.bru`
+- `bruno/01_auth/07_oauth2_revoke.bru`
+- `bruno/01_auth/09_oauth2_authorize_get.bru`
+- `bruno/01_auth/10_oauth2_authorize_post.bru`
+- `bruno/01_auth/11_negative_invalid_credentials.bru`
+- `bruno/01_auth/12_negative_invalid_client_secret.bru`
+- `bruno/environments/local.bru`
+- `bruno/02_merchant_wallet/03_list_merchant_topups.bru`
+- `bruno/02_merchant_wallet/04_list_wallet_transactions.bru`
+- `bruno/03_merchant_invoice/02_list_invoices.bru`
+- `bruno/07_admin_payment/01_list_payment_intents.bru` (renumbered from `08_admin_payment`)
+- `bruno/09_admin_refund/01_list_refunds.bru` (renumbered from `09_admin_refund`, path unchanged)
+- `bruno/10_admin_stats/01_dashboard_stats.bru`
+- `bruno/10_admin_stats/02_negative_invalid_date.bru`
+- `bruno/12_admin_merchants/01_list_merchants.bru`
+- `bruno/12_admin_merchants/02_list_merchants_search.bru`
+- `bruno/13_admin_wallet/01_list_wallet_transactions.bru`
+- `bruno/13_admin_wallet/02_negative_invalid_direction.bru`
+- `bruno/08_merchant_refund/02_list_merchant_refunds.bru` (renumbered from `05_merchant_refund`)
+- Bruno folder renumbering (git mv-equivalent, no diff content beyond meta.bru name updates):
+  - `06_merchant_oauth_clients` -> `05_merchant_oauth_clients`
+  - `07_admin_topup` -> `06_admin_topup`
+  - `08_admin_payment` -> `07_admin_payment`
+  - old `05_merchant_refund` -> `08_merchant_refund`
+  - `09_admin_refund` stays `09_admin_refund` (content/order unaffected by number)
+- `bruno/05_merchant_oauth_clients/05_oauth2_token_client_credentials.bru` (seq reordered + form-urlencoded fix; path renumbered from `06_merchant_oauth_clients`)
+- `bruno/05_merchant_oauth_clients/03_delete_client.bru` (seq changed from 3 to 5)
+- `bruno/10_admin_stats/01_dashboard_stats.bru`
+- `app/modules/ledger/models/entity/ledger_entity.go`
+- `bruno/11_admin_ledger/01_get_merchant_account.bru`
+- `.agents/feature/generation-progress.md`
+- `app/cmd/e2e_api_test.go`
+- `app/cmd/integration_batch10_test.go`
+- `app/cmd/router_test.go`
+- `app/modules/oauth2/handlers/oauth2_handler.go`
+- `Makefile`
+- `README.md`
+- `docs/batch10-test-report.md`
+- `.agents/feature/generation-progress.md`
+- `docker-compose.yml`
+- `README.md`
+- `docs/swagger-parity-review.md`
+- `docs/requirement-gap.md`
+- `docs/swagger.yaml`
+- `docs/swagger.json`
+- `docs/docs.go`
+- `docs/batch11-performance-report.md`
+- `docs/batch10-test-report.md`
+- `docs/backend-acceptance-checklist.md`
+- `app/modules/admin/services/admin_service_test.go`
+- `app/modules/invoice/services/invoice_service_test.go`
+- `app/cmd/integration_batch10_test.go`
+- `Makefile`
+- `README.md`
+- `docs/requirement-gap.md`
+- `.agents/ai-generation-plan.md`
+- `.agents/backend-requirements-todo.md`
+- `.gitignore`
+- `.idea/.gitignore` (deleted from git index)
+- `.idea/dataSources.xml` (deleted from git index)
+- `.idea/db-forest-config.xml` (deleted from git index)
+- `.idea/go.imports.xml` (deleted from git index)
+- `.idea/modules.xml` (deleted from git index)
+- `.idea/payment-sandbox.iml` (deleted from git index)
+- `.idea/sqldialects.xml` (deleted from git index)
+- `.idea/vcs.xml` (deleted from git index)
+- `.agents/generation-progress.md`
+- `AGENTS.md`
+- `.agents/skills/token-budget-advisor/SKILL.md`
+- `.agents/generation-progress.md`
+- `app/cmd/router.go`
+- `app/cmd/router_test.go`
+- `app/cmd/wire.go`
+- `app/cmd/wire_gen.go`
+- `app/modules/auth/api/routes.go`
+- `app/modules/admin/api/routes.go`
+- `app/modules/admin/handlers/admin_handler.go`
+- `app/modules/admin/repositories/admin_repository.go`
+- `app/modules/admin/services/admin_service.go`
+- `app/modules/invoice/api/routes.go`
+- `app/modules/invoice/handlers/invoice_handler.go`
+- `app/modules/auth/services/auth_service.go`
+- `app/modules/invoice/services/invoice_service.go`
+- `docs/api-contract-v1.md`
+- `docs/requirement-gap.md`
+- `.mockery.yaml`
+- `.agents/ai-generation-plan.md`
+- `app/modules/auth/handlers/auth_handler.go`
+- `app/modules/admin/handlers/admin_handler.go`
+- `app/modules/wallet/handlers/wallet_handler.go`
+- `app/modules/invoice/handlers/invoice_handler.go`
+- `app/modules/payment/handlers/payment_handler.go`
+- `app/modules/refund/handlers/refund_handler.go`
+- `app/modules/refund/services/refund_service.go`
+- `app/modules/auth/handlers/auth_handler_test.go`
+- `app/modules/admin/handlers/admin_handler_test.go`
+- `app/modules/wallet/handlers/wallet_handler_test.go`
+- `app/modules/wallet/handlers/wallet_handler_endpoints_test.go`
+- `app/modules/invoice/handlers/invoice_handler_test.go`
+- `app/modules/invoice/handlers/invoice_handler_endpoints_test.go`
+- `app/modules/payment/handlers/payment_handler_test.go`
+- `app/modules/payment/handlers/payment_handler_endpoints_test.go`
+- `app/modules/refund/handlers/refund_handler_test.go`
+- `app/modules/refund/handlers/refund_handler_endpoints_test.go`
+- `app/modules/admin/handlers/mocks/AdminService.go` (deleted)
+- `app/modules/auth/handlers/mocks/AuthService.go` (deleted)
+- `app/modules/invoice/handlers/mocks/InvoiceService.go` (deleted)
+- `app/modules/payment/handlers/mocks/PaymentService.go` (deleted)
+- `app/modules/refund/handlers/mocks/RefundService.go` (deleted)
+- `app/modules/wallet/handlers/mocks/WalletService.go` (deleted)
+- `app/modules/refund/services/mocks/IRefundService.go`
+- `app/modules/invoice/repositories/invoice_repository.go`
+- `app/modules/invoice/services/invoice_service.go`
+- `app/modules/payment/api/routes.go`
+- `app/modules/payment/handlers/payment_handler.go`
+- `app/modules/payment/repositories/payment_repository.go`
+- `app/modules/payment/services/payment_service.go`
+- `app/modules/refund/api/routes.go`
+- `app/modules/refund/handlers/refund_handler.go`
+- `app/modules/refund/repositories/refund_repository.go`
+- `app/modules/refund/services/refund_service.go`
+- `app/modules/wallet/api/routes.go`
+- `app/modules/wallet/handlers/wallet_handler.go`
+- `app/modules/wallet/repositories/wallet_repository.go`
+- `app/modules/wallet/services/wallet_service.go`
+- `app/modules/sandbox/handlers/sandbox_handler.go` (deleted)
+- `app/modules/sandbox/repositories/sandbox_repository.go` (deleted)
+- `app/modules/sandbox/services/sandbox_service.go` (deleted)
+- `.agents/generation-progress.md`
+- `.agents/ai-generation-plan.md`
+- `AGENTS.md`
+- `.agents/project-requirement.md`
+- `.agents/backend-requirements-todo.md`
+- `docker-compose.yml`
+- `misc/init-mongo/mongo.js`
+- `app/middleware/request_id.go`
+- `app/shared/journeylog/journeylog.go`
+- `app/shared/journeylog/mongo_logger.go`
+- `app/shared/journeylog/gin_helper.go`
+- `app/modules/wallet/handlers/wallet_handler.go`
+- `app/modules/invoice/handlers/invoice_handler.go`
+- `app/modules/payment/handlers/payment_handler.go`
+- `app/modules/refund/handlers/refund_handler.go`
+- `app/cmd/providers.go`
+- `app/cmd/wire.go`
+- `app/cmd/wire_gen.go`
+- `app/config/config.go`
+- `.env.example`
+- `README.md`
+- `go.mod`
+- `go.sum`
+- `.mockery.yaml`
+- `Makefile`
+- `tools/tools.go`
+- `app/modules/admin/repositories/mocks/AdminRepository.go`
+- `app/modules/auth/repositories/mocks/AuthRepository.go`
+- `app/modules/invoice/repositories/mocks/InvoiceRepository.go`
+- `app/modules/payment/repositories/mocks/PaymentRepository.go`
+- `app/modules/refund/repositories/mocks/RefundRepository.go`
+- `app/modules/wallet/repositories/mocks/WalletRepository.go`
+- `app/shared/journeylog/mocks/JourneyLogger.go`
+- `app/modules/auth/handlers/auth_handler.go`
+- `app/modules/admin/handlers/admin_handler.go`
+- `app/modules/wallet/handlers/wallet_handler.go`
+- `app/modules/invoice/handlers/invoice_handler.go`
+- `app/modules/payment/handlers/payment_handler.go`
+- `app/modules/refund/handlers/refund_handler.go`
+- `app/modules/auth/handlers/mocks/AuthService.go`
+- `app/modules/admin/handlers/mocks/AdminService.go`
+- `app/modules/wallet/handlers/mocks/WalletService.go`
+- `app/modules/invoice/handlers/mocks/InvoiceService.go`
+- `app/modules/payment/handlers/mocks/PaymentService.go`
+- `app/modules/refund/handlers/mocks/RefundService.go`
+- `app/modules/auth/services/auth_service.go`
+- `app/modules/admin/services/admin_service.go`
+- `app/modules/wallet/services/wallet_service.go`
+- `app/modules/invoice/services/invoice_service.go`
+- `app/modules/payment/services/payment_service.go`
+- `app/modules/refund/services/refund_service.go`
+- `app/modules/auth/services/mocks/Service.go`
+- `app/modules/admin/services/mocks/Service.go`
+- `app/modules/wallet/services/mocks/Service.go`
+- `app/modules/invoice/services/mocks/Service.go`
+- `app/modules/payment/services/mocks/Service.go`
+- `app/modules/refund/services/mocks/Service.go`
+- `app/modules/wallet/models/entity/wallet_entity.go`
+- `app/modules/invoice/models/entity/invoice_entity.go`
+- `app/modules/payment/models/entity/payment_entity.go`
+- `app/modules/refund/models/entity/refund_entity.go`
+- `app/modules/admin/models/entity/admin_entity.go`
+- `app/modules/wallet/repositories/wallet_repository.go`
+- `app/modules/wallet/services/wallet_service.go`
+- `app/modules/wallet/handlers/wallet_handler.go`
+- `app/modules/invoice/repositories/invoice_repository.go`
+- `app/modules/invoice/services/invoice_service.go`
+- `app/modules/invoice/handlers/invoice_handler.go`
+- `app/modules/payment/repositories/payment_repository.go`
+- `app/modules/payment/services/payment_service.go`
+- `app/modules/payment/handlers/payment_handler.go`
+- `app/modules/refund/repositories/refund_repository.go`
+- `app/modules/refund/services/refund_service.go`
+- `app/modules/refund/handlers/refund_handler.go`
+- `app/modules/admin/repositories/admin_repository.go`
+- `app/modules/admin/services/admin_service.go`
+- `app/modules/admin/handlers/admin_handler.go`
+- `app/shared/store/types.go` (deleted)
+- `AGENTS.md`
+- `.agents/ai-generation-plan.md`
+- `app/middleware/request_id_test.go`
+- `app/modules/wallet/handlers/wallet_handler_test.go`
+- `app/modules/payment/handlers/payment_handler_test.go`
+- `app/modules/invoice/services/invoice_service_test.go`
+- `app/modules/refund/services/refund_service_test.go`
+- `app/modules/auth/services/auth_service_test.go`
+- `app/modules/wallet/services/wallet_service_test.go`
+- `app/modules/payment/services/payment_service_test.go`
+- `app/modules/auth/handlers/auth_handler_test.go`
+- `app/modules/invoice/handlers/invoice_handler_test.go`
+- `app/modules/refund/handlers/refund_handler_test.go`
+- `app/modules/admin/handlers/admin_handler_test.go`
+- `app/modules/wallet/handlers/wallet_handler_endpoints_test.go`
+- `app/modules/payment/handlers/payment_handler_endpoints_test.go`
+- `app/modules/invoice/handlers/invoice_handler_endpoints_test.go`
+- `app/modules/refund/handlers/refund_handler_endpoints_test.go`
+- `app/shared/pagination/pagination.go`
+- `app/shared/pagination/pagination_test.go`
+- `app/shared/validator/validator.go`
+- `app/shared/validator/validator_test.go`
+- `app/shared/errors/errors_test.go`
+- `app/shared/response/response_test.go`
+- `app/modules/invoice/handlers/invoice_handler.go`
+- `app/shared/journeylog/journeylog.go`
+- `app/shared/journeylog/gin_helper.go`
+- `app/shared/journeylog/mongo_logger.go`
+- `app/cmd/providers.go`
+- `app/cmd/wire.go`
+- `app/modules/auth/repositories/auth_repository.go`
+- `app/modules/admin/repositories/admin_repository.go`
+- `app/modules/wallet/repositories/wallet_repository.go`
+- `app/modules/invoice/repositories/invoice_repository.go`
+- `app/modules/payment/repositories/payment_repository.go`
+- `app/modules/refund/repositories/refund_repository.go`
+- `app/modules/admin/repositories/mocks/IAdminRepository.go`
+- `app/modules/auth/repositories/mocks/IAuthRepository.go`
+- `app/modules/invoice/repositories/mocks/IInvoiceRepository.go`
+- `app/modules/payment/repositories/mocks/IPaymentRepository.go`
+- `app/modules/refund/repositories/mocks/IRefundRepository.go`
+- `app/modules/wallet/repositories/mocks/IWalletRepository.go`
+- `app/modules/admin/services/mocks/IAdminService.go`
+- `app/modules/auth/services/mocks/IAuthService.go`
+- `app/modules/invoice/services/mocks/IInvoiceService.go`
+- `app/modules/payment/services/mocks/IPaymentService.go`
+- `app/modules/refund/services/mocks/IRefundService.go`
+- `app/modules/wallet/services/mocks/IWalletService.go`
+- `app/shared/journeylog/mocks/IJourneyLogger.go`
+- `app/modules/admin/repositories/mocks/AdminRepository.go` (deleted)
+- `app/modules/auth/repositories/mocks/AuthRepository.go` (deleted)
+- `app/modules/invoice/repositories/mocks/InvoiceRepository.go` (deleted)
+- `app/modules/payment/repositories/mocks/PaymentRepository.go` (deleted)
+- `app/modules/refund/repositories/mocks/RefundRepository.go` (deleted)
+- `app/modules/wallet/repositories/mocks/WalletRepository.go` (deleted)
+- `app/modules/admin/services/mocks/Service.go` (deleted)
+- `app/modules/auth/services/mocks/Service.go` (deleted)
+- `app/modules/invoice/services/mocks/Service.go` (deleted)
+- `app/modules/payment/services/mocks/Service.go` (deleted)
+- `app/modules/refund/services/mocks/Service.go` (deleted)
+- `app/modules/wallet/services/mocks/Service.go` (deleted)
+- `app/shared/journeylog/mocks/JourneyLogger.go` (deleted)
