@@ -1,0 +1,120 @@
+name: Deploy VPS
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: payment-sandbox-production
+  cancel-in-progress: false
+
+jobs:
+  test-build-deploy:
+    runs-on: ubuntu-latest
+    environment: tc-pikri-2c2g
+    env:
+      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/payment-sandbox
+      VPS_PORT: ${{ vars.VPS_SSH_PORT || '22' }}
+      VPS_TARGET: /home/pik/container/payment-sandbox
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+      - name: Login to GHCR
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish immutable image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:latest
+
+      - name: Prepare deployment files
+        env:
+          JWT_SECRET: ${{ vars.JWT_SECRET }}
+          DB_PASSWORD: ${{ vars.DB_PASSWORD }}
+          MONGO_PASSWORD: ${{ vars.MONGO_PASSWORD }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          umask 077
+          mkdir -p .deploy-upload/misc
+          cp deploy/docker-compose.yml deploy/deploy.sh .deploy-upload/
+          cp -R misc/init-sql .deploy-upload/misc/init-sql
+          reject_dotenv_newlines() {
+            lf="$(printf '\nx')"
+            lf=${lf%x}
+            cr="$(printf '\r')"
+            case "$1" in
+              *"$cr"*|*"$lf"*)
+                echo 'deployment secret contains a CR or LF' >&2
+                exit 1
+                ;;
+            esac
+          }
+          dotenv_single_quote() {
+            printf '%s' "$1" | sed "s/'/\\\\'/g"
+          }
+          reject_dotenv_newlines "$JWT_SECRET"
+          reject_dotenv_newlines "$DB_PASSWORD"
+          reject_dotenv_newlines "$MONGO_PASSWORD"
+          MONGO_PASSWORD_ENCODED="$(python3 -c 'import os; from urllib.parse import quote; print(quote(os.environ["MONGO_PASSWORD"], safe=""))')"
+          MONGO_URI="mongodb://payment_sandbox_user:${MONGO_PASSWORD_ENCODED}@mongodb:27017/payment_sandbox?authSource=payment_sandbox"
+          cat > .deploy-upload/.env <<EOF
+          APP_ENV=prod
+          APP_PORT=8080
+          JWT_SECRET='$(dotenv_single_quote "$JWT_SECRET")'
+          JWT_DURATION_MINUTES=60
+          SHUTDOWN_TIMEOUT_SECONDS=10
+          DB_HOST=postgres
+          DB_PORT=5432
+          DB_USER=payment_sandbox_user
+          DB_PASSWORD='$(dotenv_single_quote "$DB_PASSWORD")'
+          DB_NAME=payment_sandbox
+          DB_SSLMODE=disable
+          MONGO_URI='$(dotenv_single_quote "$MONGO_URI")'
+          MONGO_DB_NAME=payment_sandbox
+          MONGO_JOURNEY_ENABLE=true
+          REDIS_URL=redis://redis:6379
+          OAUTH2_ACCESS_TOKEN_DURATION_MINUTES=15
+          OAUTH2_REFRESH_TOKEN_DURATION_DAYS=30
+          OAUTH2_AUTH_CODE_DURATION_MINUTES=10
+          EOF
+          printf '%s' "$GHCR_PULL_TOKEN" > .deploy-upload/.ghcr-token
+
+      - name: Configure SSH
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_SSH_KNOWN_HOSTS: ${{ vars.VPS_SSH_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Upload and deploy
+        env:
+          VPS_HOST: ${{ vars.VPS_HOST }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -p "$VPS_PORT" pik@"$VPS_HOST" "mkdir -p $VPS_TARGET/misc"
+          scp -i ~/.ssh/id_ed25519 -P "$VPS_PORT" .deploy-upload/docker-compose.yml .deploy-upload/deploy.sh .deploy-upload/.env .deploy-upload/.ghcr-token pik@"$VPS_HOST":"$VPS_TARGET"/
+          scp -i ~/.ssh/id_ed25519 -P "$VPS_PORT" -r .deploy-upload/misc/init-sql pik@"$VPS_HOST":"$VPS_TARGET"/misc/
+          ssh -i ~/.ssh/id_ed25519 -p "$VPS_PORT" pik@"$VPS_HOST" "chmod 600 $VPS_TARGET/.env $VPS_TARGET/.ghcr-token && chmod 700 $VPS_TARGET/deploy.sh && $VPS_TARGET/deploy.sh $IMAGE_NAME:${{ github.sha }}"
