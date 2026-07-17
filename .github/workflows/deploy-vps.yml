@@ -1,0 +1,100 @@
+name: Deploy VPS
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: payment-sandbox-production
+  cancel-in-progress: false
+
+jobs:
+  test-build-deploy:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/payment-sandbox
+      VPS_PORT: ${{ vars.VPS_SSH_PORT || '22' }}
+      VPS_TARGET: /home/pik/container/payment-sandbox
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish immutable image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:latest
+
+      - name: Prepare deployment files
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          umask 077
+          mkdir -p .deploy-upload/misc
+          cp deploy/docker-compose.yml deploy/deploy.sh .deploy-upload/
+          cp -R misc/init-sql .deploy-upload/misc/init-sql
+          cat > .deploy-upload/.env <<EOF
+          APP_ENV=prod
+          APP_PORT=8080
+          JWT_SECRET=${JWT_SECRET}
+          JWT_DURATION_MINUTES=60
+          SHUTDOWN_TIMEOUT_SECONDS=10
+          DB_HOST=postgres
+          DB_PORT=5432
+          DB_USER=payment_sandbox_user
+          DB_PASSWORD=${DB_PASSWORD}
+          DB_NAME=payment_sandbox
+          DB_SSLMODE=disable
+          MONGO_URI=mongodb://payment_sandbox_user:${MONGO_PASSWORD}@mongodb:27017/payment_sandbox?authSource=payment_sandbox
+          MONGO_DB_NAME=payment_sandbox
+          MONGO_JOURNEY_ENABLE=true
+          REDIS_URL=redis://redis:6379
+          OAUTH2_ACCESS_TOKEN_DURATION_MINUTES=15
+          OAUTH2_REFRESH_TOKEN_DURATION_DAYS=30
+          OAUTH2_AUTH_CODE_DURATION_MINUTES=10
+          EOF
+          printf '%s' "$GHCR_PULL_TOKEN" > .deploy-upload/.ghcr-token
+
+      - name: Configure SSH
+        env:
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      - name: Upload and deploy
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -p "$VPS_PORT" pik@"$VPS_HOST" "mkdir -p $VPS_TARGET/misc"
+          scp -i ~/.ssh/id_ed25519 -P "$VPS_PORT" .deploy-upload/docker-compose.yml .deploy-upload/deploy.sh .deploy-upload/.env .deploy-upload/.ghcr-token pik@"$VPS_HOST":"$VPS_TARGET"/
+          scp -i ~/.ssh/id_ed25519 -P "$VPS_PORT" -r .deploy-upload/misc/init-sql pik@"$VPS_HOST":"$VPS_TARGET"/misc/
+          ssh -i ~/.ssh/id_ed25519 -p "$VPS_PORT" pik@"$VPS_HOST" "chmod 600 $VPS_TARGET/.env $VPS_TARGET/.ghcr-token && chmod 700 $VPS_TARGET/deploy.sh && $VPS_TARGET/deploy.sh $IMAGE_NAME:${{ github.sha }}"
