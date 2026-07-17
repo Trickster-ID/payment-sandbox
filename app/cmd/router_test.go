@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -19,6 +21,8 @@ import (
 	"payment-sandbox/app/config"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewRouter_RegistersExpectedRoutes(t *testing.T) {
@@ -96,6 +100,50 @@ func TestNewRouter_RegistersExpectedRoutes(t *testing.T) {
 			if !registered[key] {
 				t.Fatalf("route not registered: %s", key)
 			}
+		})
+	}
+}
+
+func TestNewRouter_TrustedProxies(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	cfg := config.Config{AppPort: "8080", JWTSecret: "test-secret", JWTDuration: time.Hour, ShutdownTTL: time.Second}
+	router := newRouter(
+		cfg,
+		&idempotency.Middleware{Store: &idempotency.Store{TTL: time.Hour}, Cache: &idempotency.Cache{TTL: time.Hour}},
+		&usersHandlers.UserHandler{},
+		&adminHandlers.AdminHandler{},
+		merchantHandlers.NewMerchantsHandler(nil),
+		walletHandlers.NewWalletHandler(nil, audit.NewNoopLogger()),
+		invoiceHandlers.NewInvoiceHandler(nil, audit.NewNoopLogger()),
+		paymentHandlers.NewPaymentHandler(nil, audit.NewNoopLogger()),
+		refundHandlers.NewRefundHandler(nil, audit.NewNoopLogger()),
+		oauth2Handlers.NewOAuth2Handler(nil, cfg),
+		ledgerHandlers.NewLedgerHandler(nil),
+	)
+	router.GET("/client-ip", func(c *gin.Context) { c.String(http.StatusOK, c.ClientIP()) })
+
+	tests := []struct {
+		name       string
+		remoteAddr string
+		want       string
+	}{
+		{name: "untrusted proxy ignores forwarded IP", remoteAddr: "203.0.113.10:1234", want: "203.0.113.10"},
+		{name: "loopback proxy accepts forwarded IP", remoteAddr: "127.0.0.1:1234", want: "198.51.100.5"},
+		{name: "IPv6 loopback proxy accepts forwarded IP", remoteAddr: "[::1]:1234", want: "198.51.100.5"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/client-ip", nil)
+			req.RemoteAddr = tc.remoteAddr
+			req.Header.Set("X-Forwarded-For", "198.51.100.5")
+			res := httptest.NewRecorder()
+
+			router.ServeHTTP(res, req)
+
+			require.Equal(t, http.StatusOK, res.Code)
+			assert.Equal(t, tc.want, res.Body.String())
 		})
 	}
 }

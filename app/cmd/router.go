@@ -7,21 +7,21 @@ import (
 	"payment-sandbox/app/middleware"
 	adminAPI "payment-sandbox/app/modules/admin/api"
 	adminHandlers "payment-sandbox/app/modules/admin/handlers"
-	usersAPI "payment-sandbox/app/modules/users/api"
-	usersHandlers "payment-sandbox/app/modules/users/handlers"
-	"payment-sandbox/app/modules/users/models/entity"
 	invoiceAPI "payment-sandbox/app/modules/invoice/api"
 	invoiceHandlers "payment-sandbox/app/modules/invoice/handlers"
 	ledgerAPI "payment-sandbox/app/modules/ledger/api"
 	ledgerHandlers "payment-sandbox/app/modules/ledger/handlers"
+	merchantAPI "payment-sandbox/app/modules/merchants/api"
+	merchantHandlers "payment-sandbox/app/modules/merchants/handlers"
 	oauth2API "payment-sandbox/app/modules/oauth2/api"
 	oauth2Handlers "payment-sandbox/app/modules/oauth2/handlers"
 	paymentAPI "payment-sandbox/app/modules/payment/api"
 	paymentHandlers "payment-sandbox/app/modules/payment/handlers"
 	refundAPI "payment-sandbox/app/modules/refund/api"
 	refundHandlers "payment-sandbox/app/modules/refund/handlers"
-	merchantAPI "payment-sandbox/app/modules/merchants/api"
-	merchantHandlers "payment-sandbox/app/modules/merchants/handlers"
+	usersAPI "payment-sandbox/app/modules/users/api"
+	usersHandlers "payment-sandbox/app/modules/users/handlers"
+	"payment-sandbox/app/modules/users/models/entity"
 	walletAPI "payment-sandbox/app/modules/wallet/api"
 	walletHandlers "payment-sandbox/app/modules/wallet/handlers"
 	"payment-sandbox/app/shared/idempotency"
@@ -50,6 +50,9 @@ func newRouter(
 	docs.SwaggerInfo.Schemes = []string{"http"}
 
 	router := gin.New()
+	if err := router.SetTrustedProxies([]string{"127.0.0.1", "::1"}); err != nil {
+		panic("configure trusted proxies: " + err.Error())
+	}
 	router.Use(middleware.CORSMiddleware())
 	router.Use(middleware.RequestIDMiddleware())
 	router.Use(gin.Logger())

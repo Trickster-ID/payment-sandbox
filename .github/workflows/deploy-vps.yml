@@ -58,6 +58,7 @@ jobs:
           mkdir -p .deploy-upload/misc
           cp deploy/docker-compose.yml deploy/deploy.sh .deploy-upload/
           cp -R misc/init-sql .deploy-upload/misc/init-sql
+          MONGO_PASSWORD_ENCODED="$(python3 -c 'import os; from urllib.parse import quote; print(quote(os.environ["MONGO_PASSWORD"], safe=""))')"
           cat > .deploy-upload/.env <<EOF
           APP_ENV=prod
           APP_PORT=8080
@@ -70,7 +71,7 @@ jobs:
           DB_PASSWORD=${DB_PASSWORD}
           DB_NAME=payment_sandbox
           DB_SSLMODE=disable
-          MONGO_URI=mongodb://payment_sandbox_user:${MONGO_PASSWORD}@mongodb:27017/payment_sandbox?authSource=payment_sandbox
+          MONGO_URI=mongodb://payment_sandbox_user:${MONGO_PASSWORD_ENCODED}@mongodb:27017/payment_sandbox?authSource=payment_sandbox
           MONGO_DB_NAME=payment_sandbox
           MONGO_JOURNEY_ENABLE=true
           REDIS_URL=redis://redis:6379
