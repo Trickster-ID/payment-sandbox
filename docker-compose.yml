@@ -63,6 +63,8 @@ services:
       dockerfile: Dockerfile
       args:
         APP_ENV: docker
+    env_file:
+      - .env.docker
     container_name: payment-sandbox-app
     restart: always
     ports:
