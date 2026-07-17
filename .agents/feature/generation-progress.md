@@ -4,7 +4,7 @@ This file is the handover checkpoint between AI sessions.
 
 ## Current Progress
 
-- last_updated: 2026-07-17 19:30:00 WIB
+- last_updated: 2026-07-18 00:00:00 WIB
 - current_batch: Batch 11 - Performance, Reliability, and Final Delivery
 - status: done
 
@@ -335,10 +335,11 @@ This file is the handover checkpoint between AI sessions.
 - Manually removed compile-time interface assertions (`var _ IService = ...`) for cleaner service files.
 - Added explicit `wire.Bind` maps for all service interfaces in `app/cmd/wire.go` to support DI with returned struct pattern.
 - Re-generated `wire_gen.go` successfully.
+- Bound the VPS deployment workflow to the `tc-pikri-2c2g` GitHub Environment and moved deployment configuration from repository secrets to that environment's variables; private SSH and GHCR credentials remain secrets.
 
 ## Next Action
 
-- No pending action.
+- Push `feature/api-test`, open PR to `master`, then merge after review to trigger VPS deployment.
 
 ## Blockers
 
@@ -350,6 +351,7 @@ This file is the handover checkpoint between AI sessions.
 - `README.md`
 - `.superpowers/sdd/task-4-report.md`
 - `.agents/feature/generation-progress.md`
+- `.github/workflows/deploy-vps.yml`
 
 - `deploy/docker-compose.yml`
 - `deploy/deploy_test.sh`

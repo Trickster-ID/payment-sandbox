@@ -16,6 +16,7 @@ concurrency:
 jobs:
   test-build-deploy:
     runs-on: ubuntu-latest
+    environment: tc-pikri-2c2g
     env:
       IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/payment-sandbox
       VPS_PORT: ${{ vars.VPS_SSH_PORT || '22' }}
@@ -49,9 +50,9 @@ jobs:
 
       - name: Prepare deployment files
         env:
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
+          JWT_SECRET: ${{ vars.JWT_SECRET }}
+          DB_PASSWORD: ${{ vars.DB_PASSWORD }}
+          MONGO_PASSWORD: ${{ vars.MONGO_PASSWORD }}
           GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
         run: |
           umask 077
@@ -102,7 +103,7 @@ jobs:
       - name: Configure SSH
         env:
           VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-          VPS_SSH_KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+          VPS_SSH_KNOWN_HOSTS: ${{ vars.VPS_SSH_KNOWN_HOSTS }}
         run: |
           umask 077
           mkdir -p ~/.ssh
@@ -111,7 +112,7 @@ jobs:
 
       - name: Upload and deploy
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_HOST: ${{ vars.VPS_HOST }}
         run: |
           ssh -i ~/.ssh/id_ed25519 -p "$VPS_PORT" pik@"$VPS_HOST" "mkdir -p $VPS_TARGET/misc"
           scp -i ~/.ssh/id_ed25519 -P "$VPS_PORT" .deploy-upload/docker-compose.yml .deploy-upload/deploy.sh .deploy-upload/.env .deploy-upload/.ghcr-token pik@"$VPS_HOST":"$VPS_TARGET"/
