@@ -18,11 +18,15 @@ jobs:
     runs-on: ubuntu-latest
     environment: tc-pikri-2c2g
     env:
-      IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/payment-sandbox
       VPS_PORT: ${{ vars.VPS_SSH_PORT || '22' }}
       VPS_TARGET: /home/pik/container/payment-sandbox
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Compute lowercase image name
+        run: |
+          owner_lower="$(printf '%s' "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          echo "IMAGE_NAME=ghcr.io/${owner_lower}/payment-sandbox" >> "$GITHUB_ENV"
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
