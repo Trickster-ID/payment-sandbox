@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCORSMiddleware(t *testing.T) {
@@ -30,7 +31,7 @@ func TestCORSMiddleware(t *testing.T) {
 	}
 
 	const (
-		wantOrigin      = "*"
+		wantOrigin      = "https://payment.pikri.my.id"
 		wantMaxAge      = "86400"
 		wantMethods     = "POST, GET, OPTIONS, PUT, DELETE, UPDATE, PATCH"
 		wantHeaders     = "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Channel, X-Request-Id, Idempotency-Key"
@@ -85,6 +86,19 @@ func TestCORSMiddleware(t *testing.T) {
 				maxAge:           wantMaxAge,
 			},
 		},
+		{
+			name: "4. trusted frontend origin is returned instead of wildcard",
+			args: args{method: http.MethodGet},
+			wants: wants{
+				statusCode:       http.StatusOK,
+				allowOrigin:      wantOrigin,
+				allowMethods:     wantMethods,
+				allowHeaders:     wantHeaders,
+				allowCredentials: wantCredentials,
+				exposeHeaders:    wantExpose,
+				maxAge:           wantMaxAge,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -92,6 +106,8 @@ func TestCORSMiddleware(t *testing.T) {
 			t.Parallel()
 
 			w, c := ginCtx(tt.args.method, "/")
+			require.NotNil(t, w)
+			require.NotNil(t, c)
 
 			CORSMiddleware()(c)
 
