@@ -4,7 +4,7 @@ This file is the handover checkpoint between AI sessions.
 
 ## Current Progress
 
-- last_updated: 2026-07-17 17:30:06 WIB
+- last_updated: 2026-07-17 18:15:00 WIB
 - current_batch: Batch 11 - Performance, Reliability, and Final Delivery
 - status: done
 
@@ -24,6 +24,10 @@ This file is the handover checkpoint between AI sessions.
   - added table-driven router coverage for untrusted, IPv4-loopback, and IPv6-loopback forwarded IP behavior.
   - verified focused router tests, workflow YAML parsing, and static secret scan.
 - Fixed follow-up final deployment review findings:
+  - runtime deployment secrets now use Compose raw service env-files; `.deploy.env` is IMAGE-only and the Compose CLI never reads `.env`.
+  - schema derives `PGPASSWORD` from raw runtime `DB_PASSWORD` inside its container shell, preserving literal `$` and `#` values.
+  - first-deploy rollback removes the unhealthy API before removing `.deploy.env`; existing-image rollback only restores/restarts the prior API.
+  - expanded no-Docker deployment regression coverage for raw secret semantics and both rollback branches; updated deployment README/spec/plan/report.
   - pinned all third-party workflow actions to full resolved commit SHAs while retaining v4/v5/v3/v6 comments.
   - restricted Gin proxy trust to `172.16.0.0/12`, `127.0.0.1`, and `::1`; added Docker bridge forwarded-IP test coverage.
   - made Nginx replace `X-Forwarded-For` with `$remote_addr`; updated stale deployment wording/configuration records.

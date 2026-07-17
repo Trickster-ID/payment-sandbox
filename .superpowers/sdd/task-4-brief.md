@@ -77,7 +77,7 @@ Document manual rollback, replacing the SHA with an already-published tag:
 ```bash
 printf 'IMAGE=ghcr.io/<repository-owner>/payment-sandbox/<previous-sha>\n' > /home/pik/container/payment-sandbox/.deploy.env
 cd /home/pik/container/payment-sandbox
-sudo docker compose -f docker-compose.yml --env-file .env --env-file .deploy.env up -d api
+sudo docker compose -f docker-compose.yml --env-file .deploy.env up -d api
 curl -fsS http://127.0.0.1:8080/api/v1/ping
 ```
 

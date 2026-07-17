@@ -141,8 +141,7 @@ services:
     image: ${IMAGE:?IMAGE must be set in .deploy.env}
     container_name: payment-sandbox-api
     restart: unless-stopped
-    env_file:
-      - .env
+    env_file: {path: .env, format: raw}
     ports:
       - "127.0.0.1:8080:8080"
     networks:
@@ -159,12 +158,12 @@ services:
     image: postgres:18.3-alpine3.23
     profiles:
       - schema
+    env_file: {path: .env, format: raw}
     environment:
       PGHOST: postgres
       PGPORT: "5432"
       PGDATABASE: payment_sandbox
       PGUSER: payment_sandbox_user
-      PGPASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
     volumes:
       - ./misc/init-sql:/sql:ro
     networks:
@@ -173,8 +172,9 @@ services:
       - /bin/sh
       - -ec
       - |
+        export PGPASSWORD="$${DB_PASSWORD:?DB_PASSWORD must be set in .env}"
         for file in /sql/*.sql; do
-          psql -v ON_ERROR_STOP=1 -f "$file"
+          psql -v ON_ERROR_STOP=1 -f "$$file"
         done
 
 networks:
@@ -225,15 +225,15 @@ rollback() {
   status=$?
   if [ "$status" -ne 0 ] && [ -n "$previous_image" ]; then
     printf 'IMAGE=%s\n' "$previous_image" > .deploy.env
-    sudo docker compose -f docker-compose.yml --env-file .env --env-file .deploy.env up -d api || true
+    sudo docker compose -f docker-compose.yml --env-file .deploy.env up -d api || true
   fi
   exit "$status"
 }
 trap rollback EXIT
 
-sudo docker compose -f docker-compose.yml --env-file .env --env-file .deploy.env pull api
-sudo docker compose -f docker-compose.yml --env-file .env --env-file .deploy.env --profile schema run --rm schema
-sudo docker compose -f docker-compose.yml --env-file .env --env-file .deploy.env up -d --remove-orphans api
+sudo docker compose -f docker-compose.yml --env-file .deploy.env pull api
+sudo docker compose -f docker-compose.yml --env-file .deploy.env --profile schema run --rm schema
+sudo docker compose -f docker-compose.yml --env-file .deploy.env up -d --remove-orphans api
 
 attempt=0
 until curl -fsS http://127.0.0.1:8080/api/v1/ping >/dev/null; do
@@ -259,11 +259,14 @@ Run:
 ```bash
 mkdir -p /tmp/payment-sandbox-deploy-check
 cp deploy/docker-compose.yml /tmp/payment-sandbox-deploy-check/docker-compose.yml
-printf 'IMAGE=ghcr.io/example/payment-sandbox:0123456789abcdef\nDB_PASSWORD=test\n' > /tmp/payment-sandbox-deploy-check/.env
-docker compose -f /tmp/payment-sandbox-deploy-check/docker-compose.yml --env-file /tmp/payment-sandbox-deploy-check/.env config >/dev/null
+printf 'IMAGE=ghcr.io/example/payment-sandbox:0123456789abcdef\n' > /tmp/payment-sandbox-deploy-check/.deploy.env
+printf 'DB_PASSWORD=test\n' > /tmp/payment-sandbox-deploy-check/.env
+docker compose -f /tmp/payment-sandbox-deploy-check/docker-compose.yml --env-file /tmp/payment-sandbox-deploy-check/.deploy.env config >/dev/null
 ```
 
 Expected: exit `0`. The command validates interpolation only; it must not start containers.
+
+Final-review update: runtime secrets use `env_file: {path: .env, format: raw}` for both services. The Compose CLI receives only `.deploy.env`, which contains only `IMAGE`; schema exports `PGPASSWORD` from its container runtime `DB_PASSWORD`. On a first-deploy failure after API start, remove the unhealthy API before deleting `.deploy.env`; with a prior image, restore and restart it without removing the API.
 
 - [ ] **Step 4: Commit**
 
@@ -485,7 +488,7 @@ Document manual rollback, replacing the SHA with an already-published tag:
 ```bash
 printf 'IMAGE=ghcr.io/<repository-owner>/payment-sandbox/<previous-sha>\n' > /home/pik/container/payment-sandbox/.deploy.env
 cd /home/pik/container/payment-sandbox
-sudo docker compose -f docker-compose.yml --env-file .env --env-file .deploy.env up -d api
+sudo docker compose -f docker-compose.yml --env-file .deploy.env up -d api
 curl -fsS http://127.0.0.1:8080/api/v1/ping
 ```
 

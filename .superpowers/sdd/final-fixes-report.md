@@ -42,3 +42,22 @@
 ### Concern
 
 - Run `sudo nginx -t` on the VPS before reload. Local validation uses temporary certificates, not the host-managed Let's Encrypt chain.
+
+## Final Deployment Review Fixes (2026-07-17 WIB)
+
+### Changes
+
+- `deploy/docker-compose.yml`: API and schema consume runtime `.env` with `env_file: {path: .env, format: raw}`. Schema exports `PGPASSWORD` from `DB_PASSWORD` inside its container command; Compose no longer interpolates `DB_PASSWORD`.
+- `deploy/deploy.sh`: all Compose calls receive only `.deploy.env`, which contains only `IMAGE`. First-deploy rollback removes the unhealthy API before deleting `.deploy.env`; rollback with a prior image restores/restarts it without removing the API.
+- `deploy/deploy_test.sh`: validates literal `DB_PASSWORD=pa$ss#word` and `JWT_SECRET=a$b`, raw env-file declarations, schema shell export, no runtime `.env` Compose argument, first-deploy cleanup, and prior-image preservation.
+- `README.md`, deployment spec, and deployment plan: document raw runtime environment semantics and correct rollback command.
+
+### Verification
+
+- `sh -n deploy/deploy.sh && sh -n deploy/deploy_test.sh && sh deploy/deploy_test.sh`: pass.
+- `rg -n -- '--env-file \\.env|DB_PASSWORD:\\s*\\$\\{' --glob '*.{md,sh,yml,yaml}'`: no stale runtime Compose interpolation or CLI `.env` references.
+- `git diff --check`: pass.
+
+### Concern
+
+- Local Docker Compose 5.3.1 rejects the server-supported raw mapping (`services.api.env_file must be a string`), so `docker compose config` must be run on the VPS Docker Compose 5.1.4 before deployment. The focused regression statically enforces the exact production declaration and executes the container-side shell expansion with literal `$` and `#` secrets.

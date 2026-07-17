@@ -28,11 +28,14 @@ rollback() {
   if [ "$status" -ne 0 ]; then
     if [ "$had_deploy_env" = true ]; then
       mv "$deploy_env_backup" .deploy.env
+      if [ "$rollback_api" = true ]; then
+        sudo docker compose -f docker-compose.yml --env-file .deploy.env up -d api || true
+      fi
+    elif [ "$rollback_api" = true ]; then
+      sudo docker compose -f docker-compose.yml --env-file .deploy.env rm -sf api || true
+      rm -f .deploy.env
     else
       rm -f .deploy.env
-    fi
-    if [ "$rollback_api" = true ] && [ "$had_deploy_env" = true ]; then
-      sudo docker compose -f docker-compose.yml --env-file .env --env-file .deploy.env up -d api || true
     fi
   else
     rm -f "$deploy_env_backup"
@@ -52,9 +55,9 @@ rm -f .ghcr-token
 
 rollback_api=true
 
-sudo docker compose -f docker-compose.yml --env-file .env --env-file .deploy.env pull api
-sudo docker compose -f docker-compose.yml --env-file .env --env-file .deploy.env --profile schema run --rm schema
-sudo docker compose -f docker-compose.yml --env-file .env --env-file .deploy.env up -d --remove-orphans api
+sudo docker compose -f docker-compose.yml --env-file .deploy.env pull api
+sudo docker compose -f docker-compose.yml --env-file .deploy.env --profile schema run --rm schema
+sudo docker compose -f docker-compose.yml --env-file .deploy.env up -d --remove-orphans api
 
 attempt=0
 until curl -fsS http://127.0.0.1:8080/api/v1/ping >/dev/null; do

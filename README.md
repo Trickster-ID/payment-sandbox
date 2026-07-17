@@ -122,12 +122,14 @@ Set optional repository variable `VPS_SSH_PORT`; it defaults to `22` when unset.
 
 Deploy by pushing to `master`; `.github/workflows/deploy-vps.yml` tests, publishes the immutable Git SHA image, uploads the runtime files, and runs `deploy/deploy.sh`.
 
+Runtime `.env` is loaded by Compose as a raw service env-file. It is never passed with `--env-file`; `.deploy.env` contains only `IMAGE` for Compose interpolation. This preserves literal `$` and `#` characters in secrets.
+
 Manual rollback: replace the SHA with an already-published image tag, then restart the API:
 
 ```bash
 printf 'IMAGE=ghcr.io/<repository-owner>/payment-sandbox:<previous-sha>\n' > /home/pik/container/payment-sandbox/.deploy.env
 cd /home/pik/container/payment-sandbox
-sudo docker compose -f docker-compose.yml --env-file .env --env-file .deploy.env up -d api
+sudo docker compose -f docker-compose.yml --env-file .deploy.env up -d api
 curl -fsS http://127.0.0.1:8080/api/v1/ping
 ```
 
