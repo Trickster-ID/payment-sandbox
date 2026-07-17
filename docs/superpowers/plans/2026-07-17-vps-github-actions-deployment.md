@@ -19,6 +19,7 @@
 - API hostnames are `postgres`, `mongodb`, and `redis`; no database port is published by this project.
 - Bind API `8080` to `127.0.0.1` only; Nginx serves `https://api-payment.pikri.my.id`.
 - Never commit secrets or bake `.env` files into images. Runtime `.env` mode must be `0600`.
+- Use scalar `env_file: .env`. Secret-derived dotenv values are single-quoted, embedded apostrophes are `\'`, and CR/LF secret values are rejected. `.deploy.env` remains `IMAGE`-only.
 - Schema input is `misc/init-sql/01_core.sql` through `misc/init-sql/04_saga.sql`; execute in lexical order with `payment_sandbox_user` after verifying it owns the database and can create objects in `public`.
 - Existing unit tests remain table-driven and use `testify/assert` and `testify/require`.
 - Do not add a new application dependency.
@@ -141,7 +142,7 @@ services:
     image: ${IMAGE:?IMAGE must be set in .deploy.env}
     container_name: payment-sandbox-api
     restart: unless-stopped
-    env_file: {path: .env, format: raw}
+    env_file: .env
     ports:
       - "127.0.0.1:8080:8080"
     networks:
@@ -158,7 +159,7 @@ services:
     image: postgres:18.3-alpine3.23
     profiles:
       - schema
-    env_file: {path: .env, format: raw}
+    env_file: .env
     environment:
       PGHOST: postgres
       PGPORT: "5432"
@@ -266,7 +267,7 @@ docker compose -f /tmp/payment-sandbox-deploy-check/docker-compose.yml --env-fil
 
 Expected: exit `0`. The command validates interpolation only; it must not start containers.
 
-Final-review update: runtime secrets use `env_file: {path: .env, format: raw}` for both services. The Compose CLI receives only `.deploy.env`, which contains only `IMAGE`; schema exports `PGPASSWORD` from its container runtime `DB_PASSWORD`. On a first-deploy failure after API start, remove the unhealthy API before deleting `.deploy.env`; with a prior image, restore and restart it without removing the API.
+Compatibility update: runtime secrets use scalar `env_file: .env` for both services. The Compose CLI receives only `.deploy.env`, which contains only `IMAGE`; the workflow writes each secret-derived dotenv value single-quoted, escapes embedded apostrophes as `\'`, rejects CR/LF values, and percent-encodes the Mongo password before embedding `MONGO_URI`. Schema exports `PGPASSWORD` from its container runtime `DB_PASSWORD`. On a first-deploy failure after API start, remove the unhealthy API before deleting `.deploy.env`; with a prior image, restore and restart it without removing the API.
 
 - [ ] **Step 4: Commit**
 

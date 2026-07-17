@@ -3,7 +3,7 @@ services:
     image: ${IMAGE:?IMAGE must be set in .deploy.env}
     container_name: payment-sandbox-api
     restart: unless-stopped
-    env_file: {path: .env, format: raw}
+    env_file: .env
     ports:
       - "127.0.0.1:8080:8080"
     networks:
@@ -20,7 +20,7 @@ services:
     image: postgres:18.3-alpine3.23
     profiles:
       - schema
-    env_file: {path: .env, format: raw}
+    env_file: .env
     environment:
       PGHOST: postgres
       PGPORT: "5432"

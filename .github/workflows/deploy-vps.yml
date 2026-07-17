@@ -58,20 +58,38 @@ jobs:
           mkdir -p .deploy-upload/misc
           cp deploy/docker-compose.yml deploy/deploy.sh .deploy-upload/
           cp -R misc/init-sql .deploy-upload/misc/init-sql
+          reject_dotenv_newlines() {
+            lf="$(printf '\nx')"
+            lf=${lf%x}
+            cr="$(printf '\r')"
+            case "$1" in
+              *"$cr"*|*"$lf"*)
+                echo 'deployment secret contains a CR or LF' >&2
+                exit 1
+                ;;
+            esac
+          }
+          dotenv_single_quote() {
+            printf '%s' "$1" | sed "s/'/\\\\'/g"
+          }
+          reject_dotenv_newlines "$JWT_SECRET"
+          reject_dotenv_newlines "$DB_PASSWORD"
+          reject_dotenv_newlines "$MONGO_PASSWORD"
           MONGO_PASSWORD_ENCODED="$(python3 -c 'import os; from urllib.parse import quote; print(quote(os.environ["MONGO_PASSWORD"], safe=""))')"
+          MONGO_URI="mongodb://payment_sandbox_user:${MONGO_PASSWORD_ENCODED}@mongodb:27017/payment_sandbox?authSource=payment_sandbox"
           cat > .deploy-upload/.env <<EOF
           APP_ENV=prod
           APP_PORT=8080
-          JWT_SECRET=${JWT_SECRET}
+          JWT_SECRET='$(dotenv_single_quote "$JWT_SECRET")'
           JWT_DURATION_MINUTES=60
           SHUTDOWN_TIMEOUT_SECONDS=10
           DB_HOST=postgres
           DB_PORT=5432
           DB_USER=payment_sandbox_user
-          DB_PASSWORD=${DB_PASSWORD}
+          DB_PASSWORD='$(dotenv_single_quote "$DB_PASSWORD")'
           DB_NAME=payment_sandbox
           DB_SSLMODE=disable
-          MONGO_URI=mongodb://payment_sandbox_user:${MONGO_PASSWORD_ENCODED}@mongodb:27017/payment_sandbox?authSource=payment_sandbox
+          MONGO_URI='$(dotenv_single_quote "$MONGO_URI")'
           MONGO_DB_NAME=payment_sandbox
           MONGO_JOURNEY_ENABLE=true
           REDIS_URL=redis://redis:6379

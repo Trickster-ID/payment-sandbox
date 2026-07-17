@@ -61,3 +61,24 @@
 ### Concern
 
 - Local Docker Compose 5.3.1 rejects the server-supported raw mapping (`services.api.env_file must be a string`), so `docker compose config` must be run on the VPS Docker Compose 5.1.4 before deployment. The focused regression statically enforces the exact production declaration and executes the container-side shell expansion with literal `$` and `#` secrets.
+
+## Compose Secret Compatibility Correction (2026-07-17 WIB)
+
+### Changes
+
+- `deploy/docker-compose.yml`: replaced unsupported raw mapping syntax with scalar `env_file: .env` for `api` and `schema`.
+- `.github/workflows/deploy-vps.yml`: retains `.deploy.env` as the IMAGE-only Compose CLI file. It rejects CR/LF in every secret input, writes `JWT_SECRET`, `DB_PASSWORD`, and generated `MONGO_URI` as single-quoted dotenv values, and escapes embedded apostrophes as `\'`. `MONGO_PASSWORD` remains percent-encoded before it is embedded in `MONGO_URI`.
+- `deploy/deploy_test.sh`: executes the workflow's dotenv-generation script, confirms CR/LF rejection, renders Compose config, and runs an Alpine container. JWT, database password, and Mongo URI round-trip literal `$`, `$$`, `${...}`, `#`, and apostrophes. Existing first-deployment removal and prior-image rollback assertions remain.
+- `README.md`, deployment specification, and deployment plan: describe quoted scalar dotenv semantics rather than raw mapping semantics.
+
+### Verification
+
+- `go test ./...`: pass (81 packages, 0 failures).
+- `sh -n deploy/deploy.sh && sh -n deploy/deploy_test.sh && sh deploy/deploy_test.sh`: pass. The shell regression executes the workflow generator, rejects CR/LF, renders Compose config, runs an Alpine runtime probe, and retains both rollback assertions.
+- Direct `docker compose config --format json` and `docker compose run --rm probe`: pass. Config renders escaped `$` representation; runtime preserves literal `$`, `$$`, `${...}`, `#`, and apostrophes in `JWT_SECRET` and `DB_PASSWORD`, plus the percent-encoded `MONGO_URI` password.
+- `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/deploy-vps.yml")'`: pass.
+- `git diff --check`: pass.
+
+### Concern
+
+- Local Docker Compose is 5.3.1; exact VPS Compose 5.1.4 remains unavailable. Scalar `env_file` is longstanding syntax; run the documented VPS config probe before deployment.

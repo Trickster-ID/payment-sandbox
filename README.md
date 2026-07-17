@@ -122,7 +122,7 @@ Set optional repository variable `VPS_SSH_PORT`; it defaults to `22` when unset.
 
 Deploy by pushing to `master`; `.github/workflows/deploy-vps.yml` tests, publishes the immutable Git SHA image, uploads the runtime files, and runs `deploy/deploy.sh`.
 
-Runtime `.env` is loaded by Compose as a raw service env-file. It is never passed with `--env-file`; `.deploy.env` contains only `IMAGE` for Compose interpolation. This preserves literal `$` and `#` characters in secrets.
+Runtime `.env` is loaded by Compose through scalar `env_file: .env`. The workflow single-quotes every secret-derived dotenv value, escapes embedded apostrophes as `\'`, and rejects CR/LF secrets. It is never passed with `--env-file`; `.deploy.env` contains only `IMAGE` for Compose interpolation. This preserves literal `$`, `$$`, `${...}`, `#`, and apostrophes in secrets.
 
 Manual rollback: replace the SHA with an already-published image tag, then restart the API:
 

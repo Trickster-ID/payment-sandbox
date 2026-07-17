@@ -34,7 +34,7 @@ Nginx on the host terminates HTTPS for `api-payment.pikri.my.id` and proxies to 
 
 The image must contain only the binary and CA certificates. It must not copy `.env` files or credentials during its build.
 
-The VPS owns `/home/pik/container/payment-sandbox/.env`, mode `0600`, read by Docker Compose at runtime through `env_file: {path: .env, format: raw}`. GitHub Actions writes or updates it from GitHub Actions secrets during deployment without logging values. `.deploy.env` contains only `IMAGE` and is the sole Compose CLI `--env-file`, preventing Compose interpolation of runtime secrets.
+The VPS owns `/home/pik/container/payment-sandbox/.env`, mode `0600`, read by Docker Compose at runtime through scalar `env_file: .env`. GitHub Actions writes secret-derived values as single-quoted dotenv values, escaping embedded apostrophes as `\'` and rejecting CR/LF input. It percent-encodes the Mongo password before embedding it in the single-quoted `MONGO_URI`. `.deploy.env` contains only `IMAGE` and is the sole Compose CLI `--env-file`, preventing Compose-file interpolation of runtime secrets while preserving literal `$`, `$$`, `${...}`, `#`, and apostrophes at runtime.
 
 Required runtime settings:
 
@@ -49,7 +49,7 @@ Credentials remain GitHub secrets and VPS runtime configuration. No credential i
 
 The PostgreSQL database and application user already exist but have no schema. Before the first automated deployment, an operator verifies that `payment_sandbox_user` owns `payment_sandbox` and can create objects in `public`; a root-owned database must be granted that access once.
 
-Before the first API start, deployment applies `misc/init-sql/01_core.sql` through `misc/init-sql/04_saga.sql` in filename order. A one-shot PostgreSQL client container joins `postgres_default`, receives the raw runtime `.env`, and exports `PGPASSWORD` from `DB_PASSWORD` inside its shell before connecting as `payment_sandbox_user`; that user must own `payment_sandbox` and its `public` schema. Normal API runtime uses the same application user.
+Before the first API start, deployment applies `misc/init-sql/01_core.sql` through `misc/init-sql/04_saga.sql` in filename order. A one-shot PostgreSQL client container joins `postgres_default`, receives the quoted scalar runtime `.env`, and exports `PGPASSWORD` from `DB_PASSWORD` inside its shell before connecting as `payment_sandbox_user`; that user must own `payment_sandbox` and its `public` schema. Normal API runtime uses the same application user.
 
 Subsequent releases run the same idempotent initialization command before updating the API container. A schema failure stops deployment before the new application container starts.
 

@@ -4,12 +4,18 @@ This file is the handover checkpoint between AI sessions.
 
 ## Current Progress
 
-- last_updated: 2026-07-17 18:15:00 WIB
+- last_updated: 2026-07-17 19:30:00 WIB
 - current_batch: Batch 11 - Performance, Reliability, and Final Delivery
 - status: done
 
 ## Completed Items
 
+- Fixed Compose secret compatibility:
+  - replaced unsupported `env_file` raw mappings with scalar `env_file: .env` for API and schema while retaining `.deploy.env` as the IMAGE-only Compose CLI env-file.
+  - workflow now single-quotes `JWT_SECRET`, `DB_PASSWORD`, and generated `MONGO_URI`; apostrophes become `\'`, CR/LF secret values fail deployment preparation, and Mongo passwords remain percent-encoded before URI embedding.
+  - expanded deployment regression executes the workflow dotenv generator, rejects CR/LF, runs Compose config, and verifies container runtime literal `$`, `$$`, `${...}`, `#`, and apostrophe round-trips.
+  - preserved first-deployment unhealthy API removal and existing-image rollback behavior in `deploy/deploy.sh`.
+  - updated deployment README, specification, plan, and evidence report.
 - Completed deployment Task 4:
   - added host-Nginx HTTPS configuration for `api-payment.pikri.my.id`, proxying to `127.0.0.1:8080` with standard forwarded headers.
   - documented VPS setup, exact external Docker network keys, certificate paths, GitHub secrets, PostgreSQL ownership repair, deployment, rollback, and host validation commands.
@@ -344,6 +350,15 @@ This file is the handover checkpoint between AI sessions.
 - `README.md`
 - `.superpowers/sdd/task-4-report.md`
 - `.agents/feature/generation-progress.md`
+
+- `deploy/docker-compose.yml`
+- `deploy/deploy_test.sh`
+- `.github/workflows/deploy-vps.yml`
+- `README.md`
+- `docs/superpowers/specs/2026-07-17-vps-github-actions-deployment-design.md`
+- `docs/superpowers/plans/2026-07-17-vps-github-actions-deployment.md`
+- `.superpowers/sdd/task-2-report.md`
+- `.superpowers/sdd/final-fixes-report.md`
 
 - `.github/workflows/deploy-vps.yml`
 - `app/cmd/router.go`
