@@ -4,7 +4,7 @@ This file is the handover checkpoint between AI sessions.
 
 ## Current Progress
 
-- last_updated: 2026-07-17 19:30:00 WIB
+- last_updated: 2026-07-20 07:15:00 WIB
 - current_batch: Batch 11 - Performance, Reliability, and Final Delivery
 - status: done
 
@@ -335,16 +335,26 @@ This file is the handover checkpoint between AI sessions.
 - Manually removed compile-time interface assertions (`var _ IService = ...`) for cleaner service files.
 - Added explicit `wire.Bind` maps for all service interfaces in `app/cmd/wire.go` to support DI with returned struct pattern.
 - Re-generated `wire_gen.go` successfully.
+- Completed first production VPS deployment via GitHub Actions (`Deploy VPS` workflow), run `29723564685`, commit `b035054`:
+  - fixed GHCR image tag case-sensitivity by lowercasing `github.repository_owner` before tagging (`10c460e`); Docker rejects mixed-case repository references.
+  - fixed `GITHUB_TOKEN` insufficient `packages: write` scope by enabling repository Settings > Actions > Workflow permissions > Read and write permissions (workflow-declared `permissions:` alone was overridden by the repo-level default).
+  - fixed SSH `Host key verification failed` by regenerating `VPS_SSH_KNOWN_HOSTS` GitHub Environment variable with `ssh-keyscan -p 22 <VPS_HOST>` output (rsa/ecdsa/ed25519 lines).
+  - fixed MongoDB `SCRAM-SHA-1 AuthenticationFailed` on the API container by correcting the `payment_sandbox_user` Mongo password directly in the VPS Mongo container so it matches the `MONGO_PASSWORD` GitHub Environment variable used to build `MONGO_URI`.
+  - verified end-to-end via the official workflow run (not manual override): test -> GHCR build/push -> SSH -> schema migration -> API container start -> in-workflow health check passed.
+  - verified externally with `curl https://api-payment.pikri.my.id/api/v1/ping` -> `200 {"data":{"status":"ok"}}`.
 
 ## Next Action
 
-- No pending action.
+- No pending action. Production deployment is live and verified.
 
 ## Blockers
 
 - None.
 
 ## Files Changed (Latest Update)
+
+- `.github/workflows/deploy-vps.yml` (lowercase image owner fix, commit `10c460e`; re-trigger commit `b035054`)
+- `.agents/feature/generation-progress.md`
 
 - `deploy/nginx/api-payment.pikri.my.id.conf`
 - `README.md`

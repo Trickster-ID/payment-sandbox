@@ -70,3 +70,8 @@ go.work.sum
 AGENTS.md
 frontend/
 tmp/
+.worktrees/
+
+# Generated K6 reports
+docs/k6/reports/*
+!docs/k6/reports/.gitkeep
