@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"errors"
 
+	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
 	ledgerEntity "payment-sandbox/app/modules/ledger/models/entity"
 	ledgerRepo "payment-sandbox/app/modules/ledger/repositories"
 	ledgerSvc "payment-sandbox/app/modules/ledger/services"
-	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
 	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
 
 	"github.com/google/uuid"
@@ -68,6 +68,18 @@ func (r *PaymentRepository) CreatePaymentIntent(invoiceToken string, method paym
 	}
 	if invoice.Status != invoiceEntity.InvoicePending {
 		return paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, errors.New("invoice not payable")
+	}
+	var paymentPending bool
+	if err := tx.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1 FROM payment_intents
+			WHERE invoice_id=$1 AND status='PENDING' AND deleted_at IS NULL
+		)
+	`, invoice.ID).Scan(&paymentPending); err != nil {
+		return paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, err
+	}
+	if paymentPending {
+		return paymentEntity.PaymentIntent{}, invoiceEntity.Invoice{}, errors.New("payment already pending")
 	}
 
 	var intent paymentEntity.PaymentIntent

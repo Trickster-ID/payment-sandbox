@@ -2,13 +2,14 @@
 // Each subtest creates a fresh db/sqlMock pair for isolation.
 //
 // Branch coverage targets:
-//   GetInvoiceByToken    : not found (DB error)
-//   CreatePaymentIntent  : invoice token not found, invoice not payable
-//   ListPaymentIntents   : no filter / with filter / db error
-//   GetInvoiceByID       : not found, success
-//   UpdatePaymentStatus  : payment not found, already finalized,
-//                          invoice not found, invoice not pending,
-//                          FAILED success path (nil ledger)
+//
+//	GetInvoiceByToken    : not found (DB error)
+//	CreatePaymentIntent  : invoice token not found, invoice not payable
+//	ListPaymentIntents   : no filter / with filter / db error
+//	GetInvoiceByID       : not found, success
+//	UpdatePaymentStatus  : payment not found, already finalized,
+//	                       invoice not found, invoice not pending,
+//	                       FAILED success path (nil ledger)
 package repositories
 
 import (
@@ -90,6 +91,62 @@ func TestPaymentRepository_CreatePaymentIntent_Errors(t *testing.T) {
 			},
 			wantErr: "invoice not payable",
 		},
+		{
+			name:  "3. existing pending intent -> payment already pending error",
+			token: "token-pending",
+			setup: func(dbMock sqlmock.Sqlmock) {
+				dbMock.ExpectExec(regexp.QuoteMeta("UPDATE invoices")).
+					WillReturnResult(sqlmock.NewResult(0, 0))
+				dbMock.ExpectBegin()
+				dbMock.ExpectQuery(regexp.QuoteMeta("SELECT id::text, merchant_id::text, invoice_number")).
+					WithArgs("token-pending").
+					WillReturnRows(sqlmock.NewRows([]string{
+						"id", "merchant_id", "invoice_number", "customer_name", "customer_email",
+						"amount", "description", "due_date", "status", "token", "created_at", "updated_at",
+					}).AddRow("inv-1", testPaymentMerchantUUID.String(), "INV-1", "Bob", "bob@example.com",
+						int64(200), "", now, "PENDING", "token-pending", now, now))
+				dbMock.ExpectQuery(`SELECT EXISTS\(\s*SELECT 1 FROM payment_intents`).
+					WithArgs("inv-1").
+					WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+				dbMock.ExpectRollback()
+			},
+			wantErr: "payment already pending",
+		},
+		{
+			name:  "4. insert payment intent error",
+			token: "token-1",
+			setup: func(dbMock sqlmock.Sqlmock) {
+				dbMock.ExpectExec(regexp.QuoteMeta("UPDATE invoices")).WillReturnResult(sqlmock.NewResult(0, 0))
+				dbMock.ExpectBegin()
+				dbMock.ExpectQuery(regexp.QuoteMeta("SELECT id::text, merchant_id::text, invoice_number")).WithArgs("token-1").
+					WillReturnRows(sqlmock.NewRows([]string{"id", "merchant_id", "invoice_number", "customer_name", "customer_email", "amount", "description", "due_date", "status", "token", "created_at", "updated_at"}).
+						AddRow("inv-1", testPaymentMerchantUUID.String(), "INV-1", "Bob", "bob@example.com", int64(200), "", now, "PENDING", "token-1", now, now))
+				dbMock.ExpectQuery(`SELECT EXISTS\(\s*SELECT 1 FROM payment_intents`).
+					WithArgs("inv-1").
+					WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+				dbMock.ExpectQuery(regexp.QuoteMeta("INSERT INTO payment_intents")).WithArgs("inv-1", "WALLET").WillReturnError(sql.ErrConnDone)
+				dbMock.ExpectRollback()
+			},
+			wantErr: sql.ErrConnDone.Error(),
+		},
+		{
+			name:  "5. commit error",
+			token: "token-1",
+			setup: func(dbMock sqlmock.Sqlmock) {
+				dbMock.ExpectExec(regexp.QuoteMeta("UPDATE invoices")).WillReturnResult(sqlmock.NewResult(0, 0))
+				dbMock.ExpectBegin()
+				dbMock.ExpectQuery(regexp.QuoteMeta("SELECT id::text, merchant_id::text, invoice_number")).WithArgs("token-1").
+					WillReturnRows(sqlmock.NewRows([]string{"id", "merchant_id", "invoice_number", "customer_name", "customer_email", "amount", "description", "due_date", "status", "token", "created_at", "updated_at"}).
+						AddRow("inv-1", testPaymentMerchantUUID.String(), "INV-1", "Bob", "bob@example.com", int64(200), "", now, "PENDING", "token-1", now, now))
+				dbMock.ExpectQuery(`SELECT EXISTS\(\s*SELECT 1 FROM payment_intents`).
+					WithArgs("inv-1").
+					WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+				dbMock.ExpectQuery(regexp.QuoteMeta("INSERT INTO payment_intents")).WithArgs("inv-1", "WALLET").
+					WillReturnRows(sqlmock.NewRows([]string{"id", "invoice_id", "method", "status", "created_at", "updated_at"}).AddRow("pi-1", "inv-1", "WALLET", "PENDING", now, now))
+				dbMock.ExpectCommit().WillReturnError(sql.ErrTxDone)
+			},
+			wantErr: sql.ErrTxDone.Error(),
+		},
 	}
 
 	for _, tt := range tests {
@@ -118,10 +175,10 @@ func TestPaymentRepository_ListPaymentIntents(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
-		name      string
-		status    string
-		setup     func(dbMock sqlmock.Sqlmock)
-		wantLen   int
+		name    string
+		status  string
+		setup   func(dbMock sqlmock.Sqlmock)
+		wantLen int
 	}{
 		{
 			name:   "1. no status filter -> returns all intents",
@@ -312,6 +369,19 @@ func TestPaymentRepository_UpdatePaymentStatus_ErrorBranches(t *testing.T) {
 				dbMock.ExpectRollback()
 			},
 			wantErr: "invoice is not pending",
+		},
+		{
+			name:       "5. payment status update error",
+			paymentID:  "intent-1",
+			nextStatus: paymentEntity.PaymentFailed,
+			setup: func(dbMock sqlmock.Sqlmock) {
+				dbMock.ExpectBegin()
+				dbMock.ExpectQuery(regexp.QuoteMeta("SELECT id::text, invoice_id::text, method::text, status::text")).WithArgs("intent-1").WillReturnRows(intentRows("PENDING"))
+				dbMock.ExpectQuery(regexp.QuoteMeta("SELECT id::text, merchant_id::text, invoice_number")).WithArgs("inv-1").WillReturnRows(invoiceRows("PENDING"))
+				dbMock.ExpectExec(regexp.QuoteMeta("UPDATE payment_intents SET status=$1")).WithArgs("FAILED", "intent-1").WillReturnError(sql.ErrConnDone)
+				dbMock.ExpectRollback()
+			},
+			wantErr: sql.ErrConnDone.Error(),
 		},
 	}
 

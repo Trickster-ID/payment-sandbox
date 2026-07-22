@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	ledgerEntity "payment-sandbox/app/modules/ledger/models/entity"
 	invoiceEntity "payment-sandbox/app/modules/invoice/models/entity"
+	ledgerEntity "payment-sandbox/app/modules/ledger/models/entity"
 	paymentEntity "payment-sandbox/app/modules/payment/models/entity"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -79,6 +79,9 @@ func TestPaymentRepository_CreatePaymentIntent(t *testing.T) {
 			WithArgs("token-1").
 			WillReturnRows(sqlmock.NewRows([]string{"id", "merchant_id", "invoice_number", "customer_name", "customer_email", "amount", "description", "due_date", "status", "token", "created_at", "updated_at"}).
 				AddRow("inv-1", testPaymentMerchantUUID.String(), "INV-1", "Alice", "alice@example.com", int64(100), "", now, "PENDING", "token-1", now, now))
+		sqlMock.ExpectQuery(`SELECT EXISTS\(\s*SELECT 1 FROM payment_intents`).
+			WithArgs("inv-1").
+			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
 		sqlMock.ExpectQuery(regexp.QuoteMeta("INSERT INTO payment_intents")).
 			WithArgs("inv-1", "WALLET").
