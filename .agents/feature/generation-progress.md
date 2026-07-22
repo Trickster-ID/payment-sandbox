@@ -4,12 +4,22 @@ This file is the handover checkpoint between AI sessions.
 
 ## Current Progress
 
-- last_updated: 2026-07-20 07:15:00 WIB
+- last_updated: 2026-07-22 09:45:00 WIB
 - current_batch: Batch 11 - Performance, Reliability, and Final Delivery
 - status: done
 
 ## Completed Items
 
+- Fixed invoice-paid-more-than-once bug (found uncommitted in `.worktrees/unit-test-coverage`, never previously committed/merged/deployed):
+  - `CreatePaymentIntent` now checks for an existing `PENDING` payment intent on the invoice inside the same DB transaction and returns `payment already pending` instead of creating a second intent.
+  - added table-driven repository test case for the new guard plus 2 unrelated missing-coverage cases (insert error, commit error) that were already staged alongside the fix.
+  - committed on `feature/unit-test-coverage` (`4e8b571`), then cherry-picked to `master` (`c2b1851`) — no other unrelated changes from that worktree were pulled in.
+  - verified `go build ./...` and `go test ./...` pass on `master` after the cherry-pick.
+  - pushed `master` -> `origin/master`; `Deploy VPS` workflow auto-triggered and completed successfully (run `29886225214`, 2m12s); confirmed live via `curl https://api-payment.pikri.my.id/api/v1/ping` -> `200 ok`.
+- Analyzed and cleaned up stale branches after the fix landed:
+  - `feature/unit-test-coverage` (4 remaining commits post-cherry-pick): the oauth2 `POST /oauth2/authorize` auth-requirement fix (`e9cb1e7`) was independently re-fixing a bug already fixed earlier on `master` by `4bc4e4c` (verified file content identical); the other 3 commits were docs-only (K6 log, coverage design spec, coverage note). Nothing else worth merging. Deleted local branch and its worktree (`.worktrees/unit-test-coverage`), including its unrelated uncommitted test-coverage changes (discarded, not needed).
+  - `feature/api-test`: local branch was `master` + our cherry-picked fix only (no unique unmerged work); `origin/feature/api-test`'s "behind" commits were stale pre-PR#1-merge history already superseded in `master`. Deleted local branch and remote branch (`origin/feature/api-test`).
+  - Repo now has a single active branch: `master`, no extra worktrees.
 - Fixed Compose secret compatibility:
   - replaced unsupported `env_file` raw mappings with scalar `env_file: .env` for API and schema while retaining `.deploy.env` as the IMAGE-only Compose CLI env-file.
   - workflow now single-quotes `JWT_SECRET`, `DB_PASSWORD`, and generated `MONGO_URI`; apostrophes become `\'`, CR/LF secret values fail deployment preparation, and Mongo passwords remain percent-encoded before URI embedding.
@@ -345,13 +355,19 @@ This file is the handover checkpoint between AI sessions.
 
 ## Next Action
 
-- No pending action. Production deployment is live and verified.
+- No pending action. Invoice-double-payment fix is deployed and verified live; stale branches (`feature/unit-test-coverage`, `feature/api-test` local + remote) are deleted.
 
 ## Blockers
 
 - None.
 
 ## Files Changed (Latest Update)
+
+- `app/modules/payment/repositories/payment_repository.go` (duplicate-pending-payment guard, commit `c2b1851` cherry-picked from `4e8b571`, pushed to `origin/master` and deployed)
+- `app/modules/payment/repositories/payment_repository_test.go`
+- `app/modules/payment/repositories/payment_repository_missing_test.go`
+- `.agents/feature/generation-progress.md`
+- branch cleanup (no file diff): deleted local `feature/unit-test-coverage` + its worktree, deleted local + remote `feature/api-test`
 
 - `.github/workflows/deploy-vps.yml` (lowercase image owner fix, commit `10c460e`; re-trigger commit `b035054`)
 - `.agents/feature/generation-progress.md`
