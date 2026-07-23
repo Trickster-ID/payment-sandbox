@@ -26,6 +26,7 @@ type Config struct {
 	MongoDBName                string
 	MongoJourneyEnable         bool
 	RedisURL                   string
+	CORSAllowedOrigins         []string
 	OAuth2AccessTokenDuration  time.Duration
 	OAuth2RefreshTokenDuration time.Duration
 	OAuth2AuthCodeDuration     time.Duration
@@ -57,6 +58,7 @@ func Load() Config {
 		MongoDBName:                getEnv("MONGO_DB_NAME", "payment_sandbox"),
 		MongoJourneyEnable:         getEnvBool("MONGO_JOURNEY_ENABLE", true),
 		RedisURL:                   getEnv("REDIS_URL", "redis://localhost:6379/0"),
+		CORSAllowedOrigins:         getEnvList("CORS_ALLOWED_ORIGINS", []string{"https://payment.pikri.my.id", "http://localhost", "http://localhost:80"}),
 		OAuth2AccessTokenDuration:  getEnvDuration("OAUTH2_ACCESS_TOKEN_DURATION_MINUTES", 15),
 		OAuth2RefreshTokenDuration: time.Duration(getEnvInt("OAUTH2_REFRESH_TOKEN_DURATION_DAYS", 30)) * 24 * time.Hour,
 		OAuth2AuthCodeDuration:     getEnvDuration("OAUTH2_AUTH_CODE_DURATION_MINUTES", 10),
@@ -86,6 +88,25 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func getEnvList(key string, fallback []string) []string {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	if len(out) == 0 {
+		return fallback
+	}
+	return out
 }
 
 func getEnvDuration(key string, fallbackMinutes int) time.Duration {
