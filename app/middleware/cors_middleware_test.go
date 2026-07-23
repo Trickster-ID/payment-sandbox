@@ -17,27 +17,32 @@ func TestCORSMiddleware(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	type args struct {
-		method string
+		method         string
+		originHeader   string
+		allowedOrigins []string
 	}
 	type wants struct {
-		statusCode              int
-		aborted                 bool
-		allowOrigin             string
-		allowMethods            string
-		allowHeaders            string
-		allowCredentials        string
-		exposeHeaders           string
-		maxAge                  string
+		statusCode       int
+		aborted          bool
+		allowOrigin      string
+		allowMethods     string
+		allowHeaders     string
+		allowCredentials string
+		exposeHeaders    string
+		maxAge           string
+		vary             string
 	}
 
 	const (
-		wantOrigin      = "https://payment.pikri.my.id"
+		prodOrigin      = "https://payment.pikri.my.id"
+		localOrigin     = "http://localhost"
 		wantMaxAge      = "86400"
 		wantMethods     = "POST, GET, OPTIONS, PUT, DELETE, UPDATE, PATCH"
 		wantHeaders     = "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Channel, X-Request-Id, Idempotency-Key"
 		wantExpose      = "Content-Length"
 		wantCredentials = "true"
 	)
+	multiOrigins := []string{prodOrigin, localOrigin}
 
 	tests := []struct {
 		name  string
@@ -45,58 +50,76 @@ func TestCORSMiddleware(t *testing.T) {
 		wants wants
 	}{
 		{
-			name: "1. OPTIONS request -> 204 aborted, all CORS headers set",
-			args: args{method: http.MethodOptions},
+			name: "1. OPTIONS request with matching origin -> 204 aborted, origin echoed",
+			args: args{method: http.MethodOptions, originHeader: prodOrigin, allowedOrigins: []string{prodOrigin}},
 			wants: wants{
 				statusCode:       http.StatusNoContent,
 				aborted:          true,
-				allowOrigin:      wantOrigin,
+				allowOrigin:      prodOrigin,
 				allowMethods:     wantMethods,
 				allowHeaders:     wantHeaders,
 				allowCredentials: wantCredentials,
 				exposeHeaders:    wantExpose,
 				maxAge:           wantMaxAge,
+				vary:             "Origin",
 			},
 		},
 		{
-			name: "2. GET request -> not aborted, all CORS headers set",
-			args: args{method: http.MethodGet},
+			name: "2. GET request with matching origin -> not aborted, origin echoed",
+			args: args{method: http.MethodGet, originHeader: prodOrigin, allowedOrigins: []string{prodOrigin}},
 			wants: wants{
 				statusCode:       http.StatusOK,
 				aborted:          false,
-				allowOrigin:      wantOrigin,
+				allowOrigin:      prodOrigin,
 				allowMethods:     wantMethods,
 				allowHeaders:     wantHeaders,
 				allowCredentials: wantCredentials,
 				exposeHeaders:    wantExpose,
 				maxAge:           wantMaxAge,
+				vary:             "Origin",
 			},
 		},
 		{
-			name: "3. POST request -> not aborted, all CORS headers set",
-			args: args{method: http.MethodPost},
+			name: "3. POST request with matching origin -> not aborted, origin echoed",
+			args: args{method: http.MethodPost, originHeader: prodOrigin, allowedOrigins: []string{prodOrigin}},
 			wants: wants{
 				statusCode:       http.StatusOK,
 				aborted:          false,
-				allowOrigin:      wantOrigin,
+				allowOrigin:      prodOrigin,
 				allowMethods:     wantMethods,
 				allowHeaders:     wantHeaders,
 				allowCredentials: wantCredentials,
 				exposeHeaders:    wantExpose,
 				maxAge:           wantMaxAge,
+				vary:             "Origin",
 			},
 		},
 		{
-			name: "4. trusted frontend origin is returned instead of wildcard",
-			args: args{method: http.MethodGet},
+			name: "4. multi-origin config: second allowed origin (local compose FE) is echoed back",
+			args: args{method: http.MethodGet, originHeader: localOrigin, allowedOrigins: multiOrigins},
 			wants: wants{
 				statusCode:       http.StatusOK,
-				allowOrigin:      wantOrigin,
+				allowOrigin:      localOrigin,
 				allowMethods:     wantMethods,
 				allowHeaders:     wantHeaders,
 				allowCredentials: wantCredentials,
 				exposeHeaders:    wantExpose,
 				maxAge:           wantMaxAge,
+				vary:             "Origin",
+			},
+		},
+		{
+			name: "5. unrecognized origin -> falls back to first configured origin (not reflected)",
+			args: args{method: http.MethodGet, originHeader: "https://evil.example.com", allowedOrigins: multiOrigins},
+			wants: wants{
+				statusCode:       http.StatusOK,
+				allowOrigin:      prodOrigin,
+				allowMethods:     wantMethods,
+				allowHeaders:     wantHeaders,
+				allowCredentials: wantCredentials,
+				exposeHeaders:    wantExpose,
+				maxAge:           wantMaxAge,
+				vary:             "Origin",
 			},
 		},
 	}
@@ -108,8 +131,9 @@ func TestCORSMiddleware(t *testing.T) {
 			w, c := ginCtx(tt.args.method, "/")
 			require.NotNil(t, w)
 			require.NotNil(t, c)
+			c.Request.Header.Set("Origin", tt.args.originHeader)
 
-			CORSMiddleware()(c)
+			CORSMiddleware(tt.args.allowedOrigins)(c)
 
 			assert.Equal(t, tt.wants.statusCode, w.Code, "status code")
 			assert.Equal(t, tt.wants.aborted, c.IsAborted(), "aborted")
@@ -119,6 +143,7 @@ func TestCORSMiddleware(t *testing.T) {
 			assert.Equal(t, tt.wants.allowHeaders, w.Header().Get("Access-Control-Allow-Headers"), "Allow-Headers header")
 			assert.Equal(t, tt.wants.exposeHeaders, w.Header().Get("Access-Control-Expose-Headers"), "Expose-Headers header")
 			assert.Equal(t, tt.wants.allowCredentials, w.Header().Get("Access-Control-Allow-Credentials"), "Allow-Credentials header")
+			assert.Equal(t, tt.wants.vary, w.Header().Get("Vary"), "Vary header")
 		})
 	}
 }

@@ -53,7 +53,7 @@ func newRouter(
 	if err := router.SetTrustedProxies([]string{"172.16.0.0/12", "127.0.0.1", "::1"}); err != nil {
 		panic("configure trusted proxies: " + err.Error())
 	}
-	router.Use(middleware.CORSMiddleware())
+	router.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
 	router.Use(middleware.RequestIDMiddleware())
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery(), gin.LoggerWithFormatter(func(params gin.LogFormatterParams) string {
